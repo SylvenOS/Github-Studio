@@ -11,7 +11,7 @@ interface StatDef {
 }
 
 /** Every stat the card can show. Add an entry here to make it available via `hide=`/`show=`. */
-const STATS: Record<string, StatDef> = {
+export const STATS: Record<string, StatDef> = {
   repos: { icon: 'repo', value: (m) => m.repositories },
   stars: { icon: 'star', value: (m) => m.stars },
   forks: { icon: 'fork', value: (m) => m.forks },
@@ -39,6 +39,15 @@ interface Params {
 
 export const statsCard = defineCard<Params, ProfileMetrics>({
   id: 'stats',
+  category: 'overview',
+  tags: ['numbers', 'repos', 'stars', 'followers', 'summary'],
+  variants: [
+    { label: 'Default' },
+    { label: 'Compact', params: { layout: 'compact' } },
+    { label: 'Minimal', params: { layout: 'minimal' } },
+    { label: 'With icons', params: { show_icons: 'true' } },
+    { label: 'Extended', params: { show: 'commits,following,gists,age', show_icons: 'true' } }
+  ],
   title: 'GitHub Stats',
   description: 'Overview of repositories, stars, followers and activity.',
   params: [

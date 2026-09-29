@@ -28,16 +28,24 @@ const POOLS: Partial<Record<Charset, string>> = {
 
 const hex2 = (n: number) => Math.round(n).toString(16).padStart(2, '0');
 
-/** Box-average an image down to cols x rows cells. Character cells are ~2x taller than wide, so rows ≈ cols/2 for a square image. */
-export function sampleGrid(img: RawImage, cols: number, rows: number): AsciiGrid {
+/**
+ * Box-average an image down to cols x rows cells. Character cells are ~2x taller than wide, so rows ≈ cols/2 for a
+ * square image. `crop` trims that fraction off every side first (zooms in on the subject).
+ * Brightness is then tuned for legibility: auto-levels, histogram equalisation, local contrast and a light sharpen.
+ */
+export function sampleGrid(img: RawImage, cols: number, rows: number, crop = 0): AsciiGrid {
+  const ox = Math.floor(img.width * crop);
+  const oy = Math.floor(img.height * crop);
+  const w = img.width - ox * 2;
+  const h = img.height - oy * 2;
   const lum: number[] = [];
   const rgb: string[] = [];
   for (let cy = 0; cy < rows; cy++) {
-    const y0 = Math.floor((cy * img.height) / rows);
-    const y1 = Math.max(y0 + 1, Math.floor(((cy + 1) * img.height) / rows));
+    const y0 = oy + Math.floor((cy * h) / rows);
+    const y1 = Math.max(y0 + 1, oy + Math.floor(((cy + 1) * h) / rows));
     for (let cx = 0; cx < cols; cx++) {
-      const x0 = Math.floor((cx * img.width) / cols);
-      const x1 = Math.max(x0 + 1, Math.floor(((cx + 1) * img.width) / cols));
+      const x0 = ox + Math.floor((cx * w) / cols);
+      const x1 = Math.max(x0 + 1, ox + Math.floor(((cx + 1) * w) / cols));
       let r = 0, g = 0, b = 0, a = 0, n = 0;
       for (let y = y0; y < y1; y++) {
         for (let x = x0; x < x1; x++) {
@@ -60,7 +68,131 @@ export function sampleGrid(img: RawImage, cols: number, rows: number): AsciiGrid
       rgb.push(hex2(r) + hex2(g) + hex2(b));
     }
   }
-  return { cols, rows, lum: autoLevel(lum), rgb };
+  const tuned = equalize(autoLevel(lum), 0.6);
+  return sharpen(localContrast({ cols, rows, lum: tuned, rgb }, Math.max(2, Math.round(cols / 10)), 0.75), 0.5);
+}
+
+/** Blend the brightness histogram toward uniform so faces use the whole character ramp instead of bunching in the mid-tones. */
+export function equalize(lum: number[], blend = 0.6): number[] {
+  const hist = new Array(256).fill(0);
+  let total = 0;
+  for (const l of lum) {
+    if (l >= 0) {
+      hist[Math.min(255, l)]++;
+      total++;
+    }
+  }
+  if (total < 8) return lum;
+  const cdf: number[] = [];
+  let run = 0;
+  for (let i = 0; i < 256; i++) {
+    run += hist[i];
+    cdf.push((run / total) * 255);
+  }
+  return lum.map((l) => (l < 0 ? l : Math.round(l * (1 - blend) + cdf[Math.min(255, l)] * blend)));
+}
+
+/** Large-radius unsharp mask: lifts each cell against its wider surroundings so eyes, brows and jawlines stand out. */
+export function localContrast(grid: AsciiGrid, radius: number, amount: number): AsciiGrid {
+  const { cols, rows, lum } = grid;
+  const out = lum.slice();
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const l = lum[y * cols + x];
+      if (l < 0) continue;
+      let sum = 0;
+      let n = 0;
+      for (let ny = Math.max(0, y - radius); ny <= Math.min(rows - 1, y + radius); ny++) {
+        for (let nx = Math.max(0, x - radius); nx <= Math.min(cols - 1, x + radius); nx++) {
+          const v = lum[ny * cols + nx];
+          if (v >= 0) {
+            sum += v;
+            n++;
+          }
+        }
+      }
+      out[y * cols + x] = Math.round(Math.min(255, Math.max(0, l + amount * (l - sum / n))));
+    }
+  }
+  return { ...grid, lum: out };
+}
+
+/** Unsharp mask on brightness: pushes each cell away from its neighbourhood average so features (eyes, edges) stay legible at low resolution. */
+export function sharpen(grid: AsciiGrid, amount = 0.9): AsciiGrid {
+  const { cols, rows, lum } = grid;
+  const out = lum.slice();
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const l = lum[y * cols + x];
+      if (l < 0) continue;
+      let sum = 0;
+      let n = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+          const v = lum[ny * cols + nx];
+          if (v >= 0) {
+            sum += v;
+            n++;
+          }
+        }
+      }
+      out[y * cols + x] = Math.round(Math.min(255, Math.max(0, l + amount * (l - sum / n))));
+    }
+  }
+  return { ...grid, lum: out };
+}
+
+const channel = (hex: string, i: number) => Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+
+/**
+ * Removes a plain backdrop: flood-fills inwards from the border across cells that match the backdrop colour.
+ * The backdrop colour comes from the top/left/right edges only (the bottom usually shows shoulders and clothes).
+ * Leaves the grid untouched when those edges aren't roughly one colour or the fill would eat the subject.
+ */
+export function cutout(grid: AsciiGrid, tolerance = 52): AsciiGrid {
+  const { cols, rows } = grid;
+  const dist = (i: number, ref: number[]) =>
+    Math.hypot(channel(grid.rgb[i], 0) - ref[0], channel(grid.rgb[i], 1) - ref[1], channel(grid.rgb[i], 2) - ref[2]);
+
+  const edge: number[] = [];
+  const border: number[] = [];
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const i = y * cols + x;
+      if (grid.lum[i] < 0) continue;
+      const onBorder = x === 0 || y === 0 || x === cols - 1 || y === rows - 1;
+      if (onBorder) border.push(i);
+      if (y === 0 || ((x === 0 || x === cols - 1) && y < rows * 0.75)) edge.push(i);
+    }
+  }
+  if (edge.length < 8) return grid;
+
+  const median = (c: number) => edge.map((i) => channel(grid.rgb[i], c)).sort((a, b) => a - b)[Math.floor(edge.length / 2)];
+  const ref = [median(0), median(1), median(2)];
+  const spread = edge.reduce((a, i) => a + dist(i, ref), 0) / edge.length;
+  if (spread > tolerance) return grid; // not one flat-ish colour
+
+  const seen = new Set<number>();
+  const queue = border.filter((i) => dist(i, ref) <= tolerance);
+  queue.forEach((i) => seen.add(i));
+  while (queue.length) {
+    const i = queue.pop()!;
+    const x = i % cols;
+    const y = (i - x) / cols;
+    for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+      if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+      const j = ny * cols + nx;
+      if (seen.has(j) || grid.lum[j] < 0 || dist(j, ref) > tolerance) continue;
+      seen.add(j);
+      queue.push(j);
+    }
+  }
+  const fraction = seen.size / (cols * rows);
+  if (fraction < 0.05 || fraction > 0.75) return grid;
+  return { ...grid, lum: grid.lum.map((l, i) => (seen.has(i) ? -1 : l)) };
 }
 
 /** Stretch the 5th-95th brightness percentiles to the full range so flat, low-contrast photos still show detail. */

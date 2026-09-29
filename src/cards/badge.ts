@@ -42,6 +42,15 @@ const textWidth = (s: string, size: number) => Math.ceil(Array.from(s).length * 
 
 export const badgeCard = defineCard<Params, Data>({
   id: 'badge',
+  category: 'utility',
+  tags: ['shield', 'inline', 'number'],
+  variants: [
+    { label: 'Stars', params: { stat: 'stars' } },
+    { label: 'Followers', params: { stat: 'followers' } },
+    { label: 'Repositories', params: { stat: 'repos' } },
+    { label: 'Rank (big)', params: { stat: 'rank', style: 'for-the-badge' } },
+    { label: 'Top language', params: { stat: 'top_language', style: 'pill' } }
+  ],
   aliases: ['shield'],
   title: 'Badge',
   description: 'Compact shields-style badge for one number, ideal for inline use in a README.',

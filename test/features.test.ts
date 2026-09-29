@@ -3,7 +3,8 @@ import { RANKS, calculateTrophies, overallRank, rankProgress } from '../src/achi
 import { bucketize } from '../src/cards/activity';
 import { selectTrophies } from '../src/cards/achievements';
 import { clearMemoryCache } from '../src/core/cache';
-import { CHARSETS, cellsToText, gridToCells, identiconGrid, rowToRuns, sampleGrid } from '../src/core/ascii';
+import { CHARSETS, cellsToText, cutout, equalize, gridToCells, identiconGrid, rowToRuns, sampleGrid } from '../src/core/ascii';
+import { longitudeToU, shapeFrame } from '../src/core/ascii3d';
 import { translator } from '../src/core/i18n';
 import { decodeImage } from '../src/core/image';
 import { background } from '../src/core/params';
@@ -138,7 +139,7 @@ describe('activity buckets', () => {
 describe('new endpoints and cards', () => {
   it('ascii card renders animated SVG from a real decoded avatar', async () => {
     mockGitHub();
-    const res = await get('/api/ascii?username=octo&charset=alnum&mode=color&anim=reveal&cols=30');
+    const res = await get('/api/ascii?username=octo&charset=alnum&mode=color&anim=reveal&cols=30&animation=true');
     expect(res.headers.get('x-card-error')).toBeNull();
     const svg = await res.text();
     assertWellFormedSvg(svg);
@@ -148,7 +149,7 @@ describe('new endpoints and cards', () => {
   it('ascii card supports every animation and honours animation=false', async () => {
     mockGitHub();
     for (const anim of ['scan', 'reveal', 'type', 'wave', 'flicker', 'pulse', 'none']) {
-      assertWellFormedSvg(await (await get(`/api/ascii?username=octo&anim=${anim}&cols=24`)).text());
+      assertWellFormedSvg(await (await get(`/api/ascii?username=octo&anim=${anim}&cols=24&animation=true`)).text());
     }
     const still = await (await get('/api/ascii?username=octo&animation=false&anim=wave&cols=24')).text();
     expect(still).not.toContain('@keyframes wv');
@@ -227,3 +228,107 @@ describe('new endpoints and cards', () => {
   });
 });
 
+
+describe('ascii clarity pipeline', () => {
+  const solid = (cols: number, rows: number, fill: (x: number, y: number) => [number, number, number]) => {
+    const rgb: string[] = [];
+    const lum: number[] = [];
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const c = fill(x, y);
+        rgb.push(c.map((v) => v.toString(16).padStart(2, '0')).join(''));
+        lum.push(Math.round(0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]));
+      }
+    }
+    return { cols, rows, lum, rgb };
+  };
+
+  it('cuts out a plain backdrop but keeps the subject', () => {
+    const inSubject = (x: number, y: number) => x >= 6 && x < 14 && y >= 3 && y < 12;
+    const grid = solid(20, 14, (x, y) => (inSubject(x, y) ? [220, 150, 120] : [40, 60, 80]));
+    const cut = cutout(grid);
+    expect(cut.lum[0]).toBe(-1);
+    expect(cut.lum[5 * 20 + 10]).toBeGreaterThan(0);
+    expect(cut.lum.filter((l) => l < 0).length).toBeGreaterThan(100);
+  });
+  it('leaves busy backgrounds alone', () => {
+    const grid = solid(20, 14, (x, y) => [(x * 53 + y * 17) % 256, (x * 91) % 256, (y * 37) % 256]);
+    expect(cutout(grid)).toBe(grid);
+  });
+  it('equalisation spreads a flat, low-contrast histogram', () => {
+    const flat = Array.from({ length: 200 }, (_, i) => 100 + (i % 20));
+    const out = equalize(flat, 1);
+    expect(Math.max(...out) - Math.min(...out)).toBeGreaterThan(200);
+    expect(equalize([-1, -1, 50], 1)).toEqual([-1, -1, 50]);
+  });
+});
+
+describe('3D shapes', () => {
+  const tex = (() => {
+    const size = 32;
+    const lum: number[] = [];
+    const rgb: string[] = [];
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        lum.push(x < size / 2 ? 220 : 80);
+        rgb.push('ff8040');
+      }
+    }
+    return { cols: size, rows: size, lum, rgb };
+  })();
+  const filled = (g: { lum: number[] }) => g.lum.filter((l) => l >= 0).length;
+
+  it('maps longitude to the texture continuously, mirroring across the back', () => {
+    expect(longitudeToU(0)).toBeCloseTo(0.5);
+    expect(longitudeToU(Math.PI / 2)).toBeCloseTo(1);
+    expect(longitudeToU(-Math.PI / 2)).toBeCloseTo(0);
+    expect(longitudeToU(Math.PI)).toBeCloseTo(0.5);
+    expect(longitudeToU(Math.PI)).toBeCloseTo(longitudeToU(-Math.PI));
+  });
+  it('draws a disc for spheres (empty corners, filled centre) and a column for cylinders', () => {
+    const s = shapeFrame(tex, 'sphere', 0, 40, 20);
+    expect(s.lum[0]).toBe(-1);
+    expect(s.lum[10 * 40 + 20]).toBeGreaterThan(0);
+    const c = shapeFrame(tex, 'cylinder', 0, 40, 20);
+    expect(filled(c)).toBeGreaterThan(filled(s));
+  });
+  it('turns: different angles give different frames, and the coin goes edge-on at 90 degrees', () => {
+    expect(shapeFrame(tex, 'sphere', 0, 40, 20)).not.toEqual(shapeFrame(tex, 'sphere', 1.2, 40, 20));
+    expect(filled(shapeFrame(tex, 'coin', 0, 40, 20))).toBeGreaterThan(300);
+    expect(filled(shapeFrame(tex, 'coin', Math.PI / 2, 40, 20))).toBe(0);
+    expect(filled(shapeFrame(tex, 'coin', Math.PI / 3, 40, 20))).toBeLessThan(filled(shapeFrame(tex, 'coin', 0, 40, 20)));
+  });
+  it('draws a graticule where the cut-out portrait leaves the globe bare', () => {
+    const bare = { ...tex, lum: tex.lum.map(() => -1) };
+    const g = shapeFrame(bare, 'sphere', 0, 60, 30);
+    expect(filled(g)).toBeGreaterThan(30);
+    expect(filled(g)).toBeLessThan(60 * 30 * 0.5);
+  });
+});
+
+describe('ascii card in 3D', () => {
+  it('bakes one frame per angle and plays them with CSS', async () => {
+    mockGitHub();
+    const svg = await (await get('/api/ascii?username=octo&shape=sphere&frames=12&cols=32&animation=true')).text();
+    assertWellFormedSvg(svg);
+    expect(svg.match(/class="fr"/g)).toHaveLength(12);
+    expect(svg).toContain('@keyframes fr');
+  });
+  it('is a single static front view with animation=false or anim=none', async () => {
+    mockGitHub();
+    for (const q of ['animation=false', 'anim=none&animation=true', '']) {
+      const svg = await (await get(`/api/ascii?username=octo&shape=coin&cols=32&${q}`)).text();
+      expect(svg.match(/class="fr"/g)).toHaveLength(1);
+      expect(svg).not.toContain('@keyframes fr');
+    }
+  });
+  it('caps frames in colour mode and returns text for every shape', async () => {
+    mockGitHub();
+    const colored = await (await get('/api/ascii?username=octo&shape=cylinder&mode=color&frames=48&cols=32&animation=true')).text();
+    expect(colored.match(/class="fr"/g)!.length).toBeLessThanOrEqual(16);
+    for (const shape of ['flat', 'sphere', 'cylinder', 'coin']) {
+      const text = await (await get(`/api/ascii?username=octo&shape=${shape}&format=text&cols=32`)).text();
+      expect(text.trim().length).toBeGreaterThan(20);
+    }
+  });
+});

@@ -57,6 +57,14 @@ export function selectTrophies(all: Trophy[], p: Pick<Params, 'hide' | 'sort' | 
 
 export const achievementsCard = defineCard<Params, Trophy[]>({
   id: 'achievements',
+  category: 'achievements',
+  tags: ['trophies', 'rank', 'level', 'gamification'],
+  variants: [
+    { label: 'Trophies' },
+    { label: 'Shield badges', params: { style: 'badge' } },
+    { label: 'Highest ranks', params: { sort: 'rank', min_rank: 'S' } },
+    { label: 'Compact row', params: { columns: '5', progress: 'false' } }
+  ],
   aliases: ['trophies'],
   title: 'GitHub Achievements',
   description: 'Trophies that grow from a wooden cup (E) to a winged crown (SSS+) as you level up.',

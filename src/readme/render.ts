@@ -1,0 +1,150 @@
+import { findCard } from '../cards';
+import { esc } from '../core/text';
+import { resolveBadge } from './badges';
+import type { Align, Block, CardBlock, ReadmeSpec } from './spec';
+
+export interface Rendered {
+  /** GitHub-flavoured Markdown (with a little HTML for alignment and side-by-side layout). */
+  markdown: string;
+  /** The same document as an HTML fragment, for previews. Wrap it in a sandboxed iframe. */
+  html: string;
+}
+
+interface Part {
+  md: string;
+  html: string;
+}
+
+const both = (s: string): Part => ({ md: s, html: s });
+
+/** Escape for a double-quoted attribute. `&` stays raw so generated URLs read naturally (GitHub accepts it). */
+const attr = (s: string) => s.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+function cardUrl(origin: string, spec: ReadmeSpec, b: CardBlock, theme: string): string {
+  const q = new URLSearchParams();
+  q.set('username', spec.username);
+  if (theme !== 'default') q.set('theme', theme);
+  for (const [k, v] of Object.entries({ ...spec.params, ...b.params })) if (k !== 'theme') q.set(k, v);
+  return `${origin}/api/${b.card}?${q.toString().replace(/%2C/gi, ',')}`;
+}
+
+/** `fallbackWidth`: e.g. "48%" for cards in a row, so they shrink to sit side by side instead of wrapping. */
+function cardImage(origin: string, spec: ReadmeSpec, b: CardBlock, fallbackWidth?: string): string {
+  const title = findCard(b.card)?.title ?? b.card;
+  const w = b.width ?? fallbackWidth;
+  const width = w ? ` width="${w}"` : '';
+  const explicit = b.params?.theme;
+  const light = cardUrl(origin, spec, b, explicit ?? spec.theme);
+  let img = `<img src="${attr(light)}" alt="${attr(b.alt ?? title)}"${width} />`;
+  if (spec.dark && !explicit) {
+    const dark = cardUrl(origin, spec, b, spec.dark);
+    img = `<picture>\n    <source media="(prefers-color-scheme: dark)" srcset="${attr(dark)}">\n    ${img}\n  </picture>`;
+  }
+  return b.link ? `<a href="${attr(b.link)}">${img}</a>` : img;
+}
+
+const wrapAligned = (align: Align, items: string[]) => `<p align="${align}">\n  ${items.join('\n  ')}\n</p>`;
+
+// ---- minimal markdown -> html, for previews of text blocks -----------------------------------
+
+function inline(s: string): string {
+  return esc(s)
+    .replace(/!\[([^\]]*)\]\((https?:[^)\s]+)\)/g, '<img alt="$1" src="$2">')
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+|mailto:[^)\s]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+
+export function markdownToHtml(md: string): string {
+  return md
+    .split(/\n{2,}/)
+    .map((para) => {
+      const lines = para.split('\n').filter((l) => l.trim());
+      if (!lines.length) return '';
+      if (lines.every((l) => /^\s*[-*]\s+/.test(l))) return `<ul>${lines.map((l) => `<li>${inline(l.replace(/^\s*[-*]\s+/, ''))}</li>`).join('')}</ul>`;
+      const h = /^(#{1,6})\s+(.*)$/.exec(lines[0]);
+      if (h && lines.length === 1) return `<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`;
+      if (/^---+$/.test(lines[0])) return '<hr>';
+      return `<p>${lines.map(inline).join('<br>')}</p>`;
+    })
+    .join('');
+}
+
+/** Defence in depth for previews: drop scripts, inline handlers and javascript: URLs from raw HTML blocks. */
+export function stripActive(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<(script|iframe|object|embed)\b[^>]*>/gi, '')
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/javascript:/gi, 'blocked:');
+}
+
+// ---- blocks ----------------------------------------------------------------------------------
+
+function renderBlock(b: Block, spec: ReadmeSpec, origin: string): Part {
+  const ctx = { origin, username: spec.username, theme: spec.theme };
+  switch (b.type) {
+    case 'card':
+      return both(wrapAligned(b.align ?? spec.align, [cardImage(origin, spec, b)]));
+
+    case 'row':
+      return b.items.length
+        ? both(wrapAligned(b.align ?? spec.align, b.items.map((c) => cardImage(origin, spec, c, b.items.length > 1 ? `${Math.floor(96 / b.items.length)}%` : undefined))))
+        : both('');
+
+    case 'heading': {
+      const level = b.level ?? 2;
+      const align = b.align ?? 'left';
+      return align === 'left'
+        ? { md: `${'#'.repeat(level)} ${b.text}`, html: `<h${level}>${inline(b.text)}</h${level}>` }
+        : both(`<h${level} align="${align}">${esc(b.text)}</h${level}>`);
+    }
+
+    case 'text': {
+      const align = b.align ?? 'left';
+      return align === 'left'
+        ? { md: b.markdown, html: markdownToHtml(b.markdown) }
+        : { md: `<div align="${align}">\n\n${b.markdown}\n\n</div>`, html: `<div style="text-align:${align}">${markdownToHtml(b.markdown)}</div>` };
+    }
+
+    case 'badges': {
+      const style = b.style ?? 'for-the-badge';
+      const items = b.items
+        .map((item) => resolveBadge(item, style, ctx))
+        .filter((x): x is NonNullable<typeof x> => !!x)
+        .map((x) => {
+          const img = `<img src="${attr(x.src)}" alt="${attr(x.alt)}" />`;
+          return x.href ? `<a href="${attr(x.href)}">${img}</a>` : img;
+        });
+      return items.length ? both(wrapAligned(b.align ?? spec.align, items)) : both('');
+    }
+
+    case 'divider': {
+      const q = new URLSearchParams({ style: b.style ?? 'wave' });
+      if (spec.theme !== 'default') q.set('theme', spec.theme);
+      return both(wrapAligned(b.align ?? 'center', [`<img src="${attr(`${origin}/api/divider?${q}`)}" alt="" width="100%" />`]));
+    }
+
+    case 'html':
+      return { md: b.html, html: stripActive(b.html) };
+
+    case 'details': {
+      const inner = b.blocks.map((x) => renderBlock(x, spec, origin));
+      const open = b.open ? ' open' : '';
+      return {
+        md: `<details${open}>\n<summary>${esc(b.summary)}</summary>\n\n${inner.map((p) => p.md).join('\n\n')}\n\n</details>`,
+        html: `<details${open}><summary>${esc(b.summary)}</summary>${inner.map((p) => p.html).join('')}</details>`
+      };
+    }
+  }
+}
+
+/** Renders a spec to Markdown (what users paste into their profile README) and an HTML preview of it. */
+export function renderReadme(spec: ReadmeSpec, origin: string): Rendered {
+  const parts = spec.blocks.map((b) => renderBlock(b, spec, origin)).filter((p) => p.md.trim());
+  if (spec.footer) parts.push(both(`<p align="center"><sub>Generated with <a href="${attr(origin)}">GitPulse</a></sub></p>`));
+  return {
+    markdown: `${parts.map((p) => p.md).join('\n\n')}\n`,
+    html: `<div class="markdown-body">${parts.map((p) => p.html).join('\n')}</div>`
+  };
+}

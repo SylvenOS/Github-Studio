@@ -14,21 +14,39 @@ beforeEach(() => {
 });
 
 describe('every card renders valid SVG', () => {
-  for (const card of cards) {
-    it(`/api/${card.id}`, async () => {
+  for (const card of cards) for (const animation of ['true', 'false']) {
+    it(`/api/${card.id} (animation=${animation})`, async () => {
       mockGitHub();
-      const res = await get(`/api/${card.id}?username=octo&repo=alpha`);
+      const res = await get(`/api/${card.id}?username=octo&repo=alpha&vs=octocat&animation=${animation}`);
       expect(res.status).toBe(200);
       expect(res.headers.get('content-type')).toContain('image/svg+xml');
       expect(res.headers.get('x-card-error')).toBeNull();
       const svg = await res.text();
       assertWellFormedSvg(svg);
       expect(svg).toContain('aria-label=');
+
+      // Regression: animating `transform` overrides the positioning transform attribute and stacks
+      // every animated element at the origin. Use the individual `translate` property instead.
+      const fadeIn = /@keyframes fadeIn{([^@]*?)}}/.exec(svg)?.[1] ?? '';
+      expect(fadeIn).not.toContain('transform');
+      if (svg.includes('fade-in')) expect(fadeIn).toContain('translate:');
     });
   }
 });
 
 describe('card output', () => {
+  it('has animation off by default and on with animation=true', async () => {
+    mockGitHub();
+    for (const path of ['stats', 'achievements', 'streak', 'ascii', 'ascii?shape=sphere']) {
+      const sep = path.includes('?') ? '&' : '?';
+      const still = await (await get(`/api/${path}${sep}username=octo`)).text();
+      expect(still).not.toContain('@keyframes');
+      expect(still).not.toContain('animateTransform');
+      const moving = await (await get(`/api/${path}${sep}username=octo&animation=true`)).text();
+      expect(moving).toContain('@keyframes');
+    }
+  });
+
   it('shows real data, not placeholders', async () => {
     mockGitHub();
     const svg = await (await get('/api/stats?username=octo')).text();
@@ -109,8 +127,12 @@ describe('errors', () => {
     expect(res.status).toBe(404);
   });
 
-  it('repo card requires repo', async () => {
-    expect((await get('/api/repos?username=octo&format=json')).status).toBe(400);
+  it('repo card defaults to the most-starred repository and validates names', async () => {
+    mockGitHub();
+    const auto = await get('/api/repos?username=octo&format=json');
+    expect(auto.status).toBe(200);
+    expect((await auto.json()).name).toBe('alpha');
+    expect((await get('/api/repos?username=octo&repo=bad%20name&format=json')).status).toBe(400);
   });
 });
 

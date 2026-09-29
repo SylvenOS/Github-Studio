@@ -3,6 +3,15 @@ import type { Translate } from '../core/i18n';
 import type { GitHubClient } from '../github/client';
 import type { ResolvedTheme } from '../themes';
 
+export type CardCategory = 'overview' | 'activity' | 'languages' | 'repositories' | 'achievements' | 'art' | 'decor' | 'utility';
+
+/** A ready-made style of a card: what the store shows and what the README builder inserts. */
+export interface CardVariant {
+  label: string;
+  /** Query parameters that produce this look (merged over the user's own settings). */
+  params?: Record<string, string>;
+}
+
 export interface RenderContext {
   theme: ResolvedTheme;
   common: CommonParams;
@@ -20,12 +29,22 @@ export interface RenderContext {
 export interface CardDefinition<P = any, D = any> {
   id: string;
   aliases?: string[];
+  /** Grouping in the store. */
+  category: CardCategory;
+  /** Extra search keywords for the store. */
+  tags?: string[];
+  /** Ready-made styles shown in the store; the first is the default look. */
+  variants?: CardVariant[];
+  /** `false` for decorative cards that don't need a GitHub username (banner, divider). Default true. */
+  needsUser?: boolean;
   title: string;
   description: string;
   /** Card-specific query parameters (common ones are documented centrally). */
   params: ParamDoc[];
   /** Validate and normalise card-specific query params. Throw `badRequest` on invalid input. */
   parse(query: Query, common: CommonParams): P;
+  /** Other GitHub users this request touches (besides `username`), so the blocklist can cover them. */
+  users?(params: P): string[];
   /** Fetch everything the card needs. Results must be JSON-serialisable. */
   load(client: GitHubClient, params: P, common: CommonParams): Promise<D>;
   render(data: D, params: P, ctx: RenderContext): string;

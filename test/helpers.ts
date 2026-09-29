@@ -142,7 +142,14 @@ export function assertWellFormedSvg(svg: string) {
   if (!svg.startsWith('<svg')) throw new Error('Not an SVG document');
   const stack: string[] = [];
   for (const m of svg.matchAll(/<(\/?)([a-zA-Z][\w:-]*)((?:"[^"]*"|'[^']*'|[^>"'])*?)(\/?)>/g)) {
-    const [, closing, name, , selfClosing] = m;
+    const [, closing, name, attrs, selfClosing] = m;
+    // browsers refuse to render an SVG image with a duplicate attribute or a raw `&`/`<` inside a value
+    const seen = new Set<string>();
+    for (const a of attrs.matchAll(/\s([\w:-]+)=("[^"]*"|'[^']*')/g)) {
+      if (seen.has(a[1])) throw new Error(`Duplicate attribute "${a[1]}" on <${name}>`);
+      seen.add(a[1]);
+      if (/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-f]+);)/i.test(a[2]) || a[2].slice(1, -1).includes('<')) throw new Error(`Unescaped character in ${a[1]} on <${name}>`);
+    }
     if (selfClosing) continue;
     if (closing) {
       const open = stack.pop();

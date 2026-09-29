@@ -30,6 +30,14 @@ export function selectRepos(repos: RepoSummary[], p: Params): RepoSummary[] {
 
 export const topReposCard = defineCard<Params, RepoSummary[]>({
   id: 'top-repos',
+  category: 'repositories',
+  tags: ['projects', 'stars', 'showcase'],
+  variants: [
+    { label: 'Top 5 by stars' },
+    { label: 'Top 3', params: { limit: '3' } },
+    { label: 'Most forked', params: { sort: 'forks' } },
+    { label: 'Recently active', params: { sort: 'updated' } }
+  ],
   title: 'Top Repositories',
   description: 'The user’s best repositories, ranked by stars, forks or recent activity.',
   params: [

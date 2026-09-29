@@ -1,13 +1,11 @@
 import { defineCard } from './types';
 import { int, oneOf } from '../core/params';
-import { compact, fmt } from '../core/text';
+import { MONTHS, WEEKDAYS, compact, fmt } from '../core/text';
 import { calendarYearRange, lastYearRange, type CalendarDay } from '../github/client';
-import { anim, contentTop, frame, messageCard, PAD } from '../svg/frame';
+import { anim, cls, contentTop, frame, messageCard, PAD } from '../svg/frame';
 
 const BY = ['month', 'week', 'weekday'] as const;
 const STYLES = ['bar', 'area', 'line'] as const;
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 interface Params {
   by: (typeof BY)[number];
@@ -48,6 +46,14 @@ export function bucketize(days: CalendarDay[], by: Params['by']): Bucket[] {
 
 export const activityCard = defineCard<Params, CalendarDay[]>({
   id: 'activity',
+  category: 'activity',
+  tags: ['chart', 'bars', 'trend'],
+  variants: [
+    { label: 'Monthly bars' },
+    { label: 'Weekly area', params: { by: 'week', style: 'area' } },
+    { label: 'Weekday bars', params: { by: 'weekday' } },
+    { label: 'Monthly line', params: { style: 'line' } }
+  ],
   aliases: ['chart'],
   title: 'Contribution Activity',
   description: 'Contribution totals per month, week or weekday as bars, an area or a line.',
@@ -94,7 +100,7 @@ export const activityCard = defineCard<Params, CalendarDay[]>({
       marks = buckets
         .map((b, i) => {
           const h = Math.max(b.value ? 2 : 0, (b.value / max) * plotH);
-          return `<rect x="${(x(i) - bw / 2).toFixed(1)}" y="${(top + plotH - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" class="accent"${anim(common.animation, i % 12)}/>`;
+          return `<rect x="${(x(i) - bw / 2).toFixed(1)}" y="${(top + plotH - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3"${cls('accent', common.animation, i % 12)}/>`;
         })
         .join('');
     } else {

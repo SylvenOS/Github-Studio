@@ -3,6 +3,9 @@ import { achievementsCard } from './achievements';
 import { activityCard } from './activity';
 import { asciiCard } from './ascii';
 import { badgeCard } from './badge';
+import { bannerCard } from './banner';
+import { compareCard } from './compare';
+import { dividerCard } from './divider';
 import { contributionsCard } from './contributions';
 import { languagesCard } from './languages';
 import { profileCard } from './profile';
@@ -25,7 +28,10 @@ export const cards: CardDefinition[] = [
   radarCard,
   achievementsCard,
   activityCard,
-  badgeCard
+  compareCard,
+  badgeCard,
+  bannerCard,
+  dividerCard
 ];
 
 const byId = new Map(cards.flatMap((c) => [c.id, ...(c.aliases ?? [])].map((id) => [id, c] as const)));

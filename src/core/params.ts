@@ -83,11 +83,15 @@ export interface CommonParams {
   cacheSeconds?: number;
 }
 
-export function parseCommon(q: Query): CommonParams {
+/**
+ * Parses the parameters every card shares. Decorative cards (banner, divider) pass `requireUser = false`,
+ * in which case a missing/invalid username just becomes an empty string.
+ */
+export function parseCommon(q: Query, requireUser = true): CommonParams {
   const font = q.font?.replace(/[^\w\s,'"-]/g, '').slice(0, 80).trim();
   const bg = background(q.bg);
   return {
-    username: username(q.username),
+    username: requireUser ? username(q.username) : q.username && USERNAME.test(q.username) ? q.username : '',
     theme: q.theme === 'auto' || themes[q.theme] ? q.theme : 'default',
     colors: {
       bg: bg.color,
@@ -99,7 +103,7 @@ export function parseCommon(q: Query): CommonParams {
     gradient: bg.gradient,
     radius: q.radius ? int(q.radius, 6, 0, 40) : null,
     font: font || undefined,
-    animation: bool(q.animation, true),
+    animation: bool(q.animation, false),
     hideBorder: bool(q.hide_border, false),
     hideTitle: bool(q.hide_title, false),
     title: q.title ? q.title.slice(0, 60) : undefined,
@@ -121,7 +125,7 @@ export const COMMON_PARAMS: ParamDoc[] = [
   { name: 'font', type: 'string', description: 'Font family' },
   { name: 'title', type: 'string', description: 'Custom card title' },
   { name: 'locale', type: 'enum', options: [...LOCALES], default: 'en', description: 'Language for labels and titles' },
-  { name: 'animation', type: 'boolean', description: 'CSS animations', default: true },
+  { name: 'animation', type: 'boolean', description: 'Enable animations (fade-ins, ASCII effects, 3D spin). Off by default', default: false },
   { name: 'hide_border', type: 'boolean', description: 'Hide the card border', default: false },
   { name: 'hide_title', type: 'boolean', description: 'Hide the card header', default: false },
   { name: 'format', type: 'enum', description: 'Response format (`text` is supported by the ascii card)', options: ['svg', 'json', 'text'], default: 'svg' },

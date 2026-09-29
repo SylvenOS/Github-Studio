@@ -8,7 +8,11 @@ An all-in-one, customisable **GitHub stats API**. It renders crisp SVG cards for
 ![Streak](https://your-worker.workers.dev/api/streak?username=torvalds&theme=dracula)
 ```
 
-Open `/` on your deployment for a live playground that builds URLs for you (generated from the API, so new cards and options show up automatically).
+Open `/` on your deployment for the web app. It is generated from the API, so new cards, options, themes and presets show up automatically:
+
+- **Playground** - pick a card, tweak every option with live preview, copy Markdown/HTML/URL.
+- **Store** - browse every card in every ready-made style (54+), search and filter by category, then *Customize* or add it straight to your README.
+- **README Builder** - assemble a whole profile README: start from a preset, then add, reorder (drag or ▲▼), edit and remove blocks. Live preview, editable Markdown, download `README.md`, share link, and **Reset** to go back to the preset.
 
 ---
 
@@ -44,6 +48,9 @@ Without a token the API still works through a REST and HTML fallback, but it is 
 | `/api/stats` | Repos, stars, forks, followers, contributions, PRs, issues, reviews (choose which with `hide`/`show`). |
 | `/api/profile-card` (`card`, `bio`) | Avatar, bio, key numbers, language bar and an overall grade (S to C) ring. |
 | `/api/ascii` (`avatar`) | Your profile picture drawn from characters, optionally animated. `format=text` returns paste-ready plain text. |
+| `/api/compare` (`vs`) | Two users head to head (stars, followers, commits, ...). Needs `vs`. |
+| `/api/banner` (`header`) | Header banner with your own text: waves, gradient, grid or terminal. No GitHub data needed. |
+| `/api/divider` (`separator`) | Themed section separator: wave, dots, line, gradient, dashed, stars. |
 | `/api/activity` (`chart`) | Contributions per month, week or weekday as bars, area or line. |
 | `/api/badge` (`shield`) | Compact shields-style badge for one number (stars, followers, rank, ...). |
 | `/api/languages` (`langs`) | Top languages by bytes of code, as a bar or donut. |
@@ -53,6 +60,8 @@ Without a token the API still works through a REST and HTML fallback, but it is 
 | `/api/repos` (`repo`, `pin`) | Single repository card. Needs `repo`. |
 | `/api/radar` | Radar chart of your language mix. |
 | `/api/achievements` (`trophies`) | Trophy artwork that levels up from a wooden cup (E) to a winged crown (SSS+), with progress to the next rank. |
+| `/api/readme` | **Generates a full profile README** (see below). `GET` with a preset or `spec`, or `POST` a JSON layout. |
+| `/api/presets` | README presets with ready-to-edit blocks. |
 | `/api/profile` | JSON only: GitHub data, derived metrics, trophies and plugin data (Dev.to, WakaTime). Pick plugins with `plugins=devto,wakatime` or `plugins=none`. |
 | `/api/cards` | Machine-readable list of cards and every parameter. |
 | `/api/themes` | Theme palettes. |
@@ -74,7 +83,7 @@ Every card also supports `format=json` to get the underlying data instead of an 
 | `font` | theme | Font family. |
 | `title` | per card | Custom title. |
 | `hide_title` / `hide_border` | `false` | Hide the header or border. |
-| `animation` | `true` | Fade-in and pulse animations (respects `prefers-reduced-motion`). |
+| `animation` | `false` | Turn on animations: fade-ins, ASCII effects and the 3D spin. Off by default; add `animation=true`. Respects `prefers-reduced-motion`. |
 | `format` | `svg` | `svg`, `json`, or `text` (ascii card only). |
 | `cache_seconds` | `1800` | Browser and CDN cache lifetime, 1800 to 86400. |
 
@@ -88,10 +97,13 @@ Every card also supports `format=json` to get the underlying data instead of an 
 | streak | `years` (1–15) |
 | contributions | `year`, `months` |
 | top-repos | `limit` (1–10), `sort` (`stars`, `forks`, `updated`), `exclude`, `skip_archived` |
-| repos | `repo` (required), `show_owner` |
+| repos | `repo` (name, or `auto` = your most-starred repository, the default), `show_owner` |
 | achievements | `style` (`trophy`, `badge`), `columns` (1–6), `sort` (`default`, `rank`), `min_rank` (`E`..`SSS+`), `progress`, `hide` (`commits prs contributions repos stars followers issues reviews years`) |
-| ascii | `charset` (`classic dense blocks binary hex alnum text`), `text`, `mode` (`mono`, `color`), `anim` (`scan reveal type wave flicker pulse none`), `cols` (20–100), `cell`, `contrast`, `invert`, `caption`, `source` (`avatar`, `identicon`) |
+| ascii | `shape` (`flat`, `sphere`, `cylinder`, `coin`), `charset` (`classic dense blocks binary hex alnum text`), `text`, `mode` (`mono`, `color`), `anim` (`scan reveal type wave flicker pulse none`), `speed`, `frames`, `cutout`, `cols` (20–110), `cell`, `contrast`, `invert`, `caption`, `source` (`avatar`, `identicon`) |
 | profile-card | `avatar`, `languages` |
+| compare | `vs` (required), `metrics` (`repos stars forks followers following gists commits contributions prs issues reviews age`) |
+| banner | `text`, `subtitle`, `style` (`wave gradient grid terminal`), `height`, `size`, `align`, `border` |
+| divider | `style` (`wave dots line gradient dashed stars`), `height` |
 | activity | `by` (`month`, `week`, `weekday`), `style` (`bar`, `area`, `line`), `year` |
 | badge | `stat` (`stars followers following repos forks commits prs issues reviews contributions gists years rank top_language`), `label`, `style` (`flat`, `pill`, `for-the-badge`), `color`, `label_color` |
 
@@ -99,6 +111,65 @@ Every card also supports `format=json` to get the underlying data instead of an 
 
 - **SVG cards** return an SVG error card with HTTP 200, so READMEs show the reason instead of a broken image. The real error code is in the `X-Card-Error` header. Error cards are cached for 60 seconds.
 - **`format=json`** and `/api/profile` return real status codes and `{ "error": { "code", "message" } }`. Codes: `bad_request` (400), `not_found` (404), `rate_limited` (429), `upstream` (502).
+
+---
+
+## README generator
+
+Generate a complete profile `README.md` for any account, then change and place anything you like.
+
+```bash
+# a ready-made layout
+curl "https://your-worker.workers.dev/api/readme?username=torvalds&preset=showcase&theme=tokyonight" > README.md
+
+# same, as an attachment / with GitHub dark-mode variants / images served from your own domain
+.../api/readme?username=torvalds&download=1
+.../api/readme?username=torvalds&theme=default&dark=github_dark
+.../api/readme?username=torvalds&base=https://stats.example.com
+```
+
+**Presets:** `classic`, `minimal`, `showcase`, `hacker`, `dashboard`, `badges`, `ascii`. `GET /api/presets` lists them with their blocks so you can use one as a starting point.
+
+**Fully custom:** describe the layout as JSON and `POST` it to `/api/readme` (or pass it base64url-encoded in `?spec=`). Every card block takes any card plus any of that card's options, so anything you can do in the playground you can put in a README.
+
+```json
+{
+  "username": "torvalds",
+  "theme": "tokyonight",
+  "dark": "github_dark",
+  "align": "center",
+  "params": { "locale": "en", "radius": "12" },
+  "blocks": [
+    { "type": "card", "card": "banner", "params": { "style": "wave", "text": "Hi, I'm Linus" } },
+    { "type": "heading", "text": "About me", "level": 2, "align": "left" },
+    { "type": "text", "markdown": "I **build** things. [Say hi](https://example.com)", "align": "center" },
+    { "type": "badges", "style": "for-the-badge", "items": [
+        { "kind": "tech", "name": "TypeScript" },
+        { "kind": "social", "name": "twitter", "handle": "linus" },
+        { "kind": "stat", "name": "stars" } ] },
+    { "type": "row", "items": [
+        { "type": "card", "card": "stats", "params": { "show_icons": "true" } },
+        { "type": "card", "card": "languages", "params": { "layout": "donut" } } ] },
+    { "type": "card", "card": "streak", "link": "https://github.com/torvalds", "width": 480 },
+    { "type": "divider", "style": "dots" },
+    { "type": "details", "summary": "More", "blocks": [ { "type": "card", "card": "achievements" } ] },
+    { "type": "html", "html": "<p align=\"center\">anything you like</p>" }
+  ]
+}
+```
+
+| Block | Fields |
+|-------|--------|
+| `card` | `card`, `params`, `align`, `width`, `link`, `alt` |
+| `row` | `items` (up to 4 cards, shrunk to sit side by side), `align` |
+| `heading` | `text`, `level` (1-6), `align` |
+| `text` | `markdown`, `align` |
+| `badges` | `items`, `style`, `align`. Item kinds: `stat` (a number from GitPulse), `tech` (any technology), `social` (github, twitter, x, linkedin, youtube, instagram, twitch, discord, mastodon, bluesky, devto, medium, hashnode, stackoverflow, reddit, telegram, npm, kaggle, leetcode, codepen, kofi, sponsor, website, email), `custom` |
+| `divider` | `style`, `align` |
+| `html` | `html` (used as-is) |
+| `details` | `summary`, `open`, `blocks` (collapsible section) |
+
+Top-level fields: `username`, `theme`, `dark` (theme for GitHub dark mode, emitted as `<picture>`), `align`, `params` (applied to every card), `footer`. Input is validated and bounded (max 60 blocks, safe URLs and parameters only); errors come back as `{ "error": { "code", "message" } }`. `format=json` returns `{ spec, markdown, html }`, `format=html` a sandboxed preview.
 
 ---
 
@@ -148,9 +219,16 @@ Replace `your-worker.workers.dev` with your deployment and `torvalds` with any u
 
 ### ASCII avatar
 ```md
-![ASCII](https://your-worker.workers.dev/api/ascii?username=torvalds&theme=matrix&charset=alnum&anim=scan)
-![Your own text](https://your-worker.workers.dev/api/ascii?username=torvalds&charset=text&text=HELLO&mode=color&anim=reveal)
+![ASCII](https://your-worker.workers.dev/api/ascii?username=torvalds&theme=matrix&charset=alnum&anim=scan&animation=true)
+![Your own text](https://your-worker.workers.dev/api/ascii?username=torvalds&charset=text&text=HELLO&mode=color&anim=reveal&animation=true)
 ```
+**3D:** `shape=sphere|cylinder|coin` wraps your avatar around a spinning globe or cylinder, or flips it like a coin. SVG has no real 3D, so the server renders one frame per angle (`frames`, default 20) and plays them back with CSS (`speed` = seconds per turn). Without `animation=true` (the default) you get a still front view.
+```md
+![Globe](https://your-worker.workers.dev/api/ascii?username=torvalds&shape=sphere&theme=matrix&charset=dense&animation=true)
+![Coin](https://your-worker.workers.dev/api/ascii?username=torvalds&shape=coin&theme=github_dark&speed=6&animation=true)
+```
+For a crisp portrait the server removes a plain photo background (`cutout=false` to keep it), zooms in a little, equalises the histogram and boosts local contrast. On a globe the bare surface is drawn as a latitude/longitude grid so the spin is visible. 3D output is large (about 100-200 KB); `mode=color` caps `frames` at 16.
+
 Paste-ready plain text for a README code block: `/api/ascii?username=torvalds&format=text&charset=dense`
 
 ### Profile card, activity and badges
@@ -224,6 +302,9 @@ src/
 ```ts
 export const myCard = defineCard<Params, Data>({
   id: 'my-card',
+  category: 'overview',                       // grouping in the Store
+  tags: ['numbers'],                         // extra Store search keywords
+  variants: [{ label: 'Default' }, { label: 'Compact', params: { limit: '3' } }], // ready-made styles
   title: 'My Card',
   description: 'What it shows.',
   params: [{ name: 'limit', type: 'number', default: 5, min: 1, max: 10, description: 'How many' }],
@@ -234,7 +315,9 @@ export const myCard = defineCard<Params, Data>({
 });
 ```
 
-Add it to the array in `src/cards/index.ts`. That's all: the route, `format=json`, caching, error cards, `/api/cards` docs and the playground pick it up.
+Add it to the array in `src/cards/index.ts`. That's all: the route, `format=json`, caching, error cards, `/api/cards` docs, the playground, the Store (with each variant as its own tile) and the README builder pick it up. Set `needsUser: false` for decorative cards that don't need a GitHub username.
+
+**New README preset.** Add an entry to `readme/presets.ts`; it appears in the builder and at `/api/readme?preset=`. **New social network** - add it to `SOCIALS` in `readme/badges.ts`.
 
 **New stat / trophy / theme / plugin.** Add an entry to `STATS` in `cards/stats.ts`, to `TROPHIES` in `achievements/engine.ts`, to `themes/index.ts`, or to `plugins/index.ts`. Each is a single table entry.
 
@@ -257,6 +340,7 @@ Add it to the array in `src/cards/index.ts`. That's all: the route, `format=json
 - [x] Stats, languages (bar/donut), streak, heatmap, top repos, repo pin, radar, trophies
 - [x] Trophy artwork by rank, ASCII avatar (animated, plain text), profile card, activity chart, badges
 - [x] Locales, gradient backgrounds, OpenAPI spec, rate-limit endpoint
+- [x] Store with style variants, README generator and visual builder, banner/divider/compare cards
 - [ ] Request analytics, profile view counter
 - [ ] Contribution timeline and repository-health cards
 - [ ] PNG output, theme editor and gallery

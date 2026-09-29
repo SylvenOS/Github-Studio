@@ -36,6 +36,16 @@ export function wrap(s: string, width: number, maxLines: number): string[] {
   return lines.map((l) => truncate(l, width));
 }
 
+export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** "2024-03-07" -> "Mar 7" (with the year when it isn't the current one). */
+export function shortDate(iso: string | null, now = new Date()): string {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-').map(Number);
+  return `${MONTHS[m - 1]} ${d}${y === now.getUTCFullYear() ? '' : `, ${y}`}`;
+}
+
 const NUMBER = new Intl.NumberFormat('en-US');
 export const fmt = (n: number) => NUMBER.format(Math.round(n || 0));
 

@@ -1,6 +1,6 @@
 import { defineCard } from './types';
 import { bool } from '../core/params';
-import { compact, esc, truncate, wrap } from '../core/text';
+import { MONTHS, compact, esc, truncate, wrap } from '../core/text';
 import { calculateGrade, type Grade } from '../metrics/grade';
 import { calculateProfileMetrics, type ProfileMetrics } from '../metrics';
 import { anim, contentTop, frame, PAD } from '../svg/frame';
@@ -23,10 +23,15 @@ interface Data {
   avatar: string | null;
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export const profileCard = defineCard<Params, Data>({
   id: 'profile-card',
+  category: 'overview',
+  tags: ['bio', 'avatar', 'grade', 'about'],
+  variants: [
+    { label: 'Default' },
+    { label: 'No languages', params: { languages: 'false' } }
+  ],
   aliases: ['card', 'bio'],
   title: 'GitHub Profile',
   description: 'Profile summary: avatar, bio, key numbers, top languages and an overall grade.',

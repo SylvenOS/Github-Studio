@@ -16,6 +16,8 @@ export interface FrameOptions {
   subtitle?: string;
   /** Accessible description of the card. */
   label?: string;
+  /** Skip the card background and border (dividers and other decor). */
+  transparent?: boolean;
 }
 
 const vars = (p: Palette) =>
@@ -63,22 +65,25 @@ export function frame(content: string, o: FrameOptions): string {
   return (
     `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(o.label ?? o.title ?? 'GitHub card')}">` +
     `<style>:root{${vars(theme)}}${darkCss}text{font-family:${theme.fontFamily.replace(/"/g, "'")}}${STYLE}${o.animate ?? /fade-in|pulse/.test(content) ? ANIMATION : ''}</style>` +
-    gradientDef(theme) +
-    `<rect x=".5" y=".5" width="${width - 1}" height="${height - 1}" rx="${theme.borderRadius}" ${theme.gradient ? 'fill="url(#bgGrad)"' : 'class="bg"'}/>` +
-    border +
+    (o.transparent ? '' : gradientDef(theme) +
+      `<rect x=".5" y=".5" width="${width - 1}" height="${height - 1}" rx="${theme.borderRadius}" ${theme.gradient ? 'fill="url(#bgGrad)"' : 'class="bg"'}/>` +
+      border) +
     header +
     content +
     `</svg>`
   );
 }
 
-/** Attributes that fade an element in (staggered by index) when animating. */
+/** Attributes that fade an element in (staggered by index) - only when animating; otherwise nothing, so still cards carry no animation CSS. */
 export const anim = (animate: boolean | undefined, i = 0, extra = '') =>
-  animate
-    ? ` class="fade-in${extra ? ' ' + extra : ''}" style="--i:${i}"`
-    : extra
-      ? ` class="${extra}"`
-      : '';
+  animate ? ` class="fade-in${extra ? ' ' + extra : ''}" style="--i:${i}"` : '';
+
+/**
+ * For elements that already have a class: `class="<base> fade-in"` when animating, else `class="<base>"`.
+ * Never combine `anim()` with a literal class attribute - that produces a duplicate attribute (invalid XML).
+ */
+export const cls = (base: string, animate: boolean | undefined, i = 0) =>
+  animate ? ` class="${base} fade-in" style="--i:${i}"` : ` class="${base}"`;
 
 /** Small message card used for empty states and errors. */
 export function messageCard(message: string, theme: ResolvedTheme, opts: { title?: string; width?: number } = {}): string {

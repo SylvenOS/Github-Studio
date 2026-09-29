@@ -1,10 +1,9 @@
 import { defineCard } from './types';
 import { bool, int } from '../core/params';
-import { fmt } from '../core/text';
+import { MONTHS, WEEKDAYS, fmt } from '../core/text';
 import { calendarYearRange, lastYearRange, type CalendarDay } from '../github/client';
 import { contentTop, frame, PAD } from '../svg/frame';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const CELL = 10;
 const GAP = 3;
 const STEP = CELL + GAP;
@@ -26,6 +25,12 @@ export function layoutDays(days: CalendarDay[]) {
 
 export const contributionsCard = defineCard<Params, CalendarDay[]>({
   id: 'contributions',
+  category: 'activity',
+  tags: ['heatmap', 'calendar', 'graph'],
+  variants: [
+    { label: 'Last 12 months' },
+    { label: 'No month labels', params: { months: 'false' } }
+  ],
   aliases: ['heatmap'],
   title: 'Contribution Graph',
   description: 'Heatmap of daily contributions for the last year or a given calendar year.',
@@ -76,7 +81,7 @@ export const contributionsCard = defineCard<Params, CalendarDay[]>({
     }
 
     const weekdays = [1, 3, 5]
-      .map((d) => `<text x="${PAD}" y="${gy + d * STEP + 9}" class="label muted" font-size="9">${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d]}</text>`)
+      .map((d) => `<text x="${PAD}" y="${gy + d * STEP + 9}" class="label muted" font-size="9">${WEEKDAYS[d]}</text>`)
       .join('');
 
     const legendY = gy + 7 * STEP + 12;

@@ -1,10 +1,11 @@
-import { Hono, type Context } from 'hono';
+import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import pkg from '../package.json';
 import { calculateTrophies } from './achievements/engine';
 import { cards, findCard } from './cards';
 import { responseCache } from './core/cache';
 import { ApiError, badRequest, notFound, toApiError } from './core/errors';
+import { META_CACHE, assertAllowed, cacheHeader, cacheSeconds, jsonError, type Ctx } from './core/http';
 import { translator } from './core/i18n';
 import { COMMON_PARAMS, background, color, list, parseCommon, username, type Query } from './core/params';
 import { GitHubClient } from './github/client';
@@ -13,11 +14,11 @@ import { calculateGrade } from './metrics/grade';
 import { buildOpenApi } from './openapi';
 import { playgroundHtml } from './playground';
 import { runPlugins } from './plugins';
+import { readmeRoutes } from './readme/routes';
 import { messageCard } from './svg/frame';
 import { resolveTheme, themes } from './themes';
 import type { AppEnv } from './types';
 
-const DEFAULT_CACHE_SECONDS = 1800;
 const SVG_HEADERS = {
   'Content-Type': 'image/svg+xml; charset=utf-8',
   'X-Content-Type-Options': 'nosniff',
@@ -25,11 +26,9 @@ const SVG_HEADERS = {
   'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox"
 };
 
-type Ctx = Context<AppEnv>;
-
 const app = new Hono<AppEnv>();
 
-app.use('/api/*', cors({ origin: '*', allowMethods: ['GET', 'OPTIONS'], maxAge: 86400 }));
+app.use('/api/*', cors({ origin: '*', allowMethods: ['GET', 'POST', 'OPTIONS'], maxAge: 86400 }));
 app.use('/api/*', responseCache());
 
 // ---- helpers -------------------------------------------------------------------------------
@@ -46,23 +45,9 @@ function createClient(c: Ctx): GitHubClient {
   return new GitHubClient({ tokens, waitUntil, ttl: cacheSeconds(c) });
 }
 
-function cacheSeconds(c: Ctx, requested?: number): number {
-  const fromEnv = Number.parseInt(c.env?.CACHE_SECONDS ?? '', 10);
-  return requested ?? (Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : DEFAULT_CACHE_SECONDS);
-}
-
-function assertAllowed(c: Ctx, user: string) {
-  const blocked = c.env?.BLOCKLIST?.split(',').map((s) => s.trim().toLowerCase());
-  if (blocked?.includes(user.toLowerCase())) throw notFound('This user is not available');
-}
-
-const cacheHeader = (s: number) => `public, max-age=${s}, s-maxage=${s}, stale-while-revalidate=86400`;
-
 /** Card error responses: JSON for `format=json`, otherwise an SVG so READMEs show the reason instead of a broken image. */
 function errorResponse(c: Ctx, err: ApiError, query: Query) {
-  if (query.format === 'json') {
-    return c.json({ error: { code: err.code, message: err.message } }, err.status as 400, { 'Cache-Control': 'no-store' });
-  }
+  if (query.format === 'json') return jsonError(c, err);
   const bg = background(query.bg);
   const theme = resolveTheme(query.theme, { bg: bg.color, fg: color(query.fg), muted: color(query.muted), accent: color(query.accent), border: color(query.border) }, { gradient: bg.gradient });
   return c.body(messageCard(err.message, theme), 200, {
@@ -81,23 +66,36 @@ app.get('/api/health', (c) =>
 );
 
 app.get('/api/cards', (c) =>
-  c.json({
-    common: COMMON_PARAMS.map((p) => (p.name === 'theme' ? { ...p, options: ['auto', ...Object.keys(themes)] } : p)),
-    cards: cards.map(({ id, aliases, title, description, params }) => ({ id, aliases: aliases ?? [], title, description, params }))
-  })
+  c.json(
+    {
+      common: COMMON_PARAMS.map((p) => (p.name === 'theme' ? { ...p, options: ['auto', ...Object.keys(themes)] } : p)),
+      cards: cards.map(({ id, aliases, title, description, params, category, tags, variants, needsUser }) => ({
+        id,
+        aliases: aliases ?? [],
+        title,
+        description,
+        category,
+        tags: tags ?? [],
+        variants: variants ?? [{ label: 'Default' }],
+        needsUser: needsUser !== false,
+        params
+      }))
+    },
+    200,
+    { 'Cache-Control': META_CACHE }
+  )
 );
 
-app.get('/api/themes', (c) => c.json(themes));
+app.get('/api/themes', (c) => c.json(themes, 200, { 'Cache-Control': META_CACHE }));
 
-app.get('/api/openapi.json', (c) => c.json(buildOpenApi(new URL(c.req.url).origin, pkg.version)));
+app.get('/api/openapi.json', (c) => c.json(buildOpenApi(new URL(c.req.url).origin, pkg.version), 200, { 'Cache-Control': META_CACHE }));
 
 // Remaining GitHub API quota per configured token (labels only, never the tokens).
 app.get('/api/rate-limit', async (c) => {
   try {
     return c.json({ tokens: await createClient(c).getRateLimits() }, 200, { 'Cache-Control': 'no-store' });
   } catch (e) {
-    const err = toApiError(e);
-    return c.json({ error: { code: err.code, message: err.message } }, err.status as 400);
+    return jsonError(c, e);
   }
 });
 
@@ -114,10 +112,12 @@ app.get('/api/profile', async (c) => {
       'Cache-Control': cacheHeader(cacheSeconds(c))
     });
   } catch (e) {
-    const err = toApiError(e);
-    return c.json({ error: { code: err.code, message: err.message } }, err.status as 400);
+    return jsonError(c, e);
   }
 });
+
+// README generator: /api/readme (GET/POST) and /api/presets. Registered before the /api/:card catch-all.
+app.route('/api', readmeRoutes);
 
 // ---- cards ---------------------------------------------------------------------------------
 
@@ -125,14 +125,14 @@ app.get('/api/:card', async (c) => {
   const query = c.req.query();
   const card = findCard(c.req.param('card'));
   if (!card) {
-    const err = notFound(`Unknown card "${c.req.param('card')}". Available: ${cards.map((x) => x.id).join(', ')}`);
-    return c.json({ error: { code: err.code, message: err.message } }, 404);
+    return jsonError(c, notFound(`Unknown card "${c.req.param('card')}". Available: ${cards.map((x) => x.id).join(', ')}`));
   }
 
   try {
-    const common = parseCommon(query);
-    assertAllowed(c, common.username);
+    const common = parseCommon(query, card.needsUser !== false);
+    if (common.username) assertAllowed(c, common.username);
     const params = card.parse(query, common);
+    for (const u of card.users?.(params) ?? []) assertAllowed(c, u);
     const data = await card.load(createClient(c), params, common);
     const cache = cacheHeader(cacheSeconds(c, common.cacheSeconds));
 

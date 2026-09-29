@@ -1,6 +1,6 @@
 import { defineCard } from './types';
 import { int } from '../core/params';
-import { fmt } from '../core/text';
+import { fmt, shortDate } from '../core/text';
 import { calendarYearRange } from '../github/client';
 import { computeStreaks, type StreakStats } from '../metrics/streak';
 import { anim, contentTop, frame } from '../svg/frame';
@@ -10,20 +10,16 @@ interface Params {
   years: number;
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/** "2024-03-07" -> "Mar 7" (with year when not the current one). */
-export function shortDate(iso: string | null, now = new Date()): string {
-  if (!iso) return '';
-  const [y, m, d] = iso.split('-').map(Number);
-  return `${MONTHS[m - 1]} ${d}${y === now.getUTCFullYear() ? '' : `, ${y}`}`;
-}
-
 const range = (s: { start: string | null; end: string | null }) =>
   s.start ? (s.start === s.end ? shortDate(s.start) : `${shortDate(s.start)} - ${shortDate(s.end)}`) : '-';
 
 export const streakCard = defineCard<Params, StreakStats>({
   id: 'streak',
+  category: 'activity',
+  tags: ['streak', 'consistency', 'fire'],
+  variants: [
+    { label: 'Default' }
+  ],
   title: 'GitHub Streak',
   description: 'Total contributions plus current and longest daily streaks.',
   params: [{ name: 'years', type: 'number', default: 10, min: 1, max: 15, description: 'How many years of history to scan' }],

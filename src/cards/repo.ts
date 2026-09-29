@@ -1,4 +1,5 @@
 import { defineCard } from './types';
+import { notFound } from '../core/errors';
 import { bool, repoName } from '../core/params';
 import { compact, esc, wrap } from '../core/text';
 import type { RepoDetail } from '../github/client';
@@ -15,15 +16,29 @@ const CHAR_W = 6.6; // approx. glyph width at 12px, for laying out the stat row
 
 export const repoCard = defineCard<Params, RepoDetail>({
   id: 'repos',
+  category: 'repositories',
+  tags: ['pin', 'project', 'showcase'],
+  variants: [
+    { label: 'Top repository (auto)' },
+    { label: 'With owner', params: { show_owner: 'true' } }
+  ],
   aliases: ['repo', 'pin'],
   title: 'Repository',
   description: 'Pinned-repository style card for a single repository.',
   params: [
-    { name: 'repo', type: 'string', description: 'Repository name (required)', default: 'linux' },
+    { name: 'repo', type: 'string', description: 'Repository name, or `auto` for the most-starred one', default: 'auto' },
     { name: 'show_owner', type: 'boolean', default: false, description: 'Prefix the name with the owner' }
   ],
-  parse: (q) => ({ repo: repoName(q.repo), showOwner: bool(q.show_owner, false) }),
-  load: (client, p, common) => client.getRepository(common.username, p.repo),
+  parse: (q) => ({ repo: q.repo && q.repo !== 'auto' ? repoName(q.repo) : 'auto', showOwner: bool(q.show_owner, false) }),
+  async load(client, p, common) {
+    let name = p.repo;
+    if (name === 'auto') {
+      const top = (await client.getUser(common.username)).repos[0];
+      if (!top) throw notFound('This user has no public repositories');
+      name = top.name;
+    }
+    return client.getRepository(common.username, name);
+  },
 
   render(r, p, { theme, common, title }) {
     const header = title(p.showOwner ? `${r.owner}/${r.name}` : r.name);

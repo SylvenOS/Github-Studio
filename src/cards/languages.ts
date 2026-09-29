@@ -35,6 +35,14 @@ export function languageShares(langs: LanguageStat[], p: Pick<Params, 'count' | 
 
 export const languagesCard = defineCard<Params, LanguageStat[]>({
   id: 'languages',
+  category: 'languages',
+  tags: ['tech', 'stack', 'code'],
+  variants: [
+    { label: 'Bar' },
+    { label: 'Donut', params: { layout: 'donut' } },
+    { label: 'Top 8', params: { langs_count: '8' } },
+    { label: 'By repositories', params: { by: 'repos' } }
+  ],
   aliases: ['langs'],
   title: 'Top Languages',
   description: 'Most used languages across public, non-fork repositories.',

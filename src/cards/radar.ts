@@ -12,6 +12,11 @@ interface Params {
 
 export const radarCard = defineCard<Params, LanguageStat[]>({
   id: 'radar',
+  category: 'languages',
+  tags: ['tech', 'skills', 'chart'],
+  variants: [
+    { label: 'Default' }
+  ],
   title: 'Tech Stack Radar',
   description: 'Radar chart of the most used languages.',
   params: [
