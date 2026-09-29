@@ -116,6 +116,38 @@ export class GitHubClient {
     });
   }
 
+  /** Avatar image as base64 (cached). Only GitHub's avatar hosts are fetched. */
+  getAvatar(avatarUrl: string, size = 160): Promise<{ mime: string; base64: string }> {
+    return this.cache(`avatar:${avatarUrl}:${size}`, async () => {
+      const url = new URL(avatarUrl);
+      if (url.protocol !== 'https:' || !/(^|.)githubusercontent.com$/.test(url.hostname)) throw upstream('Unexpected avatar host');
+      url.searchParams.set('s', String(size));
+      const res = await this.request(url.toString(), { auth: false });
+      if (!res.ok) throw upstream(`Could not load avatar (${res.status})`);
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      return { mime: res.headers.get('content-type')?.split(';')[0] ?? 'image/png', base64: btoa(bin) };
+    });
+  }
+
+  /** Remaining API quota for each configured token (never returns the tokens themselves). */
+  async getRateLimits(): Promise<{ label: string; limit: number; remaining: number; reset: string }[]> {
+    const pool = this.tokens.length ? this.tokens : [undefined];
+    return Promise.all(
+      pool.map(async (token, i) => {
+        const res = await this.request(`${API}/rate_limit`, { auth: false, headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        const core = ((await res.json().catch(() => ({}))) as any).resources?.core ?? {};
+        return {
+          label: token ? `token-${i + 1}` : 'anonymous',
+          limit: core.limit ?? 0,
+          remaining: core.remaining ?? 0,
+          reset: core.reset ? new Date(core.reset * 1000).toISOString() : ''
+        };
+      })
+    );
+  }
+
   // ---- GraphQL ------------------------------------------------------------------------------
 
   private async getUserGraphQL(login: string): Promise<UserData> {

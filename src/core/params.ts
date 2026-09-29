@@ -1,4 +1,5 @@
 import { badRequest } from './errors';
+import { normalizeLocale, LOCALES } from './i18n';
 import { themes } from '../themes';
 
 export type Query = Record<string, string>;
@@ -52,39 +53,58 @@ export function repoName(v: string | undefined): string {
   return v;
 }
 
+export interface Gradient {
+  angle: number;
+  stops: string[];
+}
+
+/** `bg=135,ff0000,0000ff` -> a gradient; `bg=ff0000` -> a plain colour. */
+export function background(v: string | undefined): { color?: string; gradient?: Gradient } {
+  if (!v) return {};
+  if (!v.includes(',')) return { color: color(v) };
+  const [angle, ...raw] = v.split(',');
+  const stops = raw.map(color).filter((c): c is string => !!c).slice(0, 5);
+  return stops.length >= 2 ? { gradient: { angle: int(angle, 90, 0, 360), stops } } : {};
+}
+
 export interface CommonParams {
   username: string;
   theme: string;
   colors: { bg?: string; fg?: string; muted?: string; accent?: string; border?: string };
+  gradient?: Gradient;
   radius: number | null;
   font?: string;
   animation: boolean;
   hideBorder: boolean;
   hideTitle: boolean;
   title?: string;
-  format: 'svg' | 'json';
+  locale: string;
+  format: 'svg' | 'json' | 'text';
   cacheSeconds?: number;
 }
 
 export function parseCommon(q: Query): CommonParams {
   const font = q.font?.replace(/[^\w\s,'"-]/g, '').slice(0, 80).trim();
+  const bg = background(q.bg);
   return {
     username: username(q.username),
     theme: q.theme === 'auto' || themes[q.theme] ? q.theme : 'default',
     colors: {
-      bg: color(q.bg),
+      bg: bg.color,
       fg: color(q.fg),
       muted: color(q.muted),
       accent: color(q.accent),
       border: color(q.border)
     },
+    gradient: bg.gradient,
     radius: q.radius ? int(q.radius, 6, 0, 40) : null,
     font: font || undefined,
     animation: bool(q.animation, true),
     hideBorder: bool(q.hide_border, false),
     hideTitle: bool(q.hide_title, false),
     title: q.title ? q.title.slice(0, 60) : undefined,
-    format: q.format === 'json' ? 'json' : 'svg',
+    locale: normalizeLocale(q.locale),
+    format: q.format === 'json' || q.format === 'text' ? q.format : 'svg',
     cacheSeconds: q.cache_seconds ? int(q.cache_seconds, 1800, 1800, 86400) : undefined
   };
 }
@@ -92,7 +112,7 @@ export function parseCommon(q: Query): CommonParams {
 export const COMMON_PARAMS: ParamDoc[] = [
   { name: 'username', type: 'string', description: 'GitHub username', default: 'torvalds' },
   { name: 'theme', type: 'enum', description: 'Theme name (`auto` follows the viewer’s light/dark preference)', default: 'default' },
-  { name: 'bg', type: 'color', description: 'Background colour override (hex, no #)' },
+  { name: 'bg', type: 'color', description: 'Background: hex (no #) or gradient `angle,c1,c2[,c3]`, e.g. 135,0f2027,2c5364' },
   { name: 'fg', type: 'color', description: 'Text colour override' },
   { name: 'muted', type: 'color', description: 'Secondary text colour override' },
   { name: 'accent', type: 'color', description: 'Accent colour override' },
@@ -100,9 +120,10 @@ export const COMMON_PARAMS: ParamDoc[] = [
   { name: 'radius', type: 'number', description: 'Corner radius', min: 0, max: 40 },
   { name: 'font', type: 'string', description: 'Font family' },
   { name: 'title', type: 'string', description: 'Custom card title' },
+  { name: 'locale', type: 'enum', options: [...LOCALES], default: 'en', description: 'Language for labels and titles' },
   { name: 'animation', type: 'boolean', description: 'CSS animations', default: true },
   { name: 'hide_border', type: 'boolean', description: 'Hide the card border', default: false },
   { name: 'hide_title', type: 'boolean', description: 'Hide the card header', default: false },
-  { name: 'format', type: 'enum', description: 'Response format', options: ['svg', 'json'], default: 'svg' },
+  { name: 'format', type: 'enum', description: 'Response format (`text` is supported by the ascii card)', options: ['svg', 'json', 'text'], default: 'svg' },
   { name: 'cache_seconds', type: 'number', description: 'Cache lifetime (min 1800)', min: 1800, max: 86400 }
 ];

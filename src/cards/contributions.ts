@@ -40,8 +40,8 @@ export const contributionsCard = defineCard<Params, CalendarDay[]>({
   load: (client, p, common) =>
     client.getCalendar(common.username, [p.year ? calendarYearRange(p.year) : lastYearRange()]),
 
-  render(days, p, { theme, common, title }) {
-    const header = title('Contribution Graph');
+  render(days, p, { theme, common, title, t }) {
+    const header = title(t('title.contributions'));
     const top = contentTop(!!header);
     const cells = layoutDays(days);
     const columns = (cells.at(-1)?.col ?? 0) + 1;
@@ -82,12 +82,12 @@ export const contributionsCard = defineCard<Params, CalendarDay[]>({
     const legendY = gy + 7 * STEP + 12;
     const swatchX = width - PAD - 30 - 5 * STEP + 3;
     const legend =
-      `<text x="${PAD}" y="${legendY + 9}" class="label muted" font-size="11">${fmt(total)} contributions ${p.year ? `in ${p.year}` : 'in the last year'}</text>` +
-      `<text x="${swatchX - 6}" y="${legendY + 9}" class="label muted" font-size="10" text-anchor="end">Less</text>` +
+      `<text x="${PAD}" y="${legendY + 9}" class="label muted" font-size="11">${p.year ? t('misc.contributions_in', { n: fmt(total), year: p.year }) : t('misc.contributions_last_year', { n: fmt(total) })}</text>` +
+      `<text x="${swatchX - 6}" y="${legendY + 9}" class="label muted" font-size="10" text-anchor="end">${t('misc.less')}</text>` +
       [0, 1, 2, 3, 4]
         .map((l) => `<rect x="${swatchX + l * STEP}" y="${legendY}" width="${CELL}" height="${CELL}" rx="2" class="l${l}"/>`)
         .join('') +
-      `<text x="${width - PAD}" y="${legendY + 9}" class="label muted" font-size="10" text-anchor="end">More</text>`;
+      `<text x="${width - PAD}" y="${legendY + 9}" class="label muted" font-size="10" text-anchor="end">${t('misc.more')}</text>`;
 
     return frame(`${monthLabels}${weekdays}<g transform="translate(${gx} ${gy})">${rects}</g>${legend}`, {
       width: Math.max(width, 460),

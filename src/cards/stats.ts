@@ -6,26 +6,24 @@ import { anim, contentTop, frame, PAD } from '../svg/frame';
 import { icon, type IconName } from '../svg/icons';
 
 interface StatDef {
-  label: string;
-  short: string;
   icon: IconName;
   value: (m: ProfileMetrics) => number;
 }
 
 /** Every stat the card can show. Add an entry here to make it available via `hide=`/`show=`. */
 const STATS: Record<string, StatDef> = {
-  repos: { label: 'Repositories', short: 'Repos', icon: 'repo', value: (m) => m.repositories },
-  stars: { label: 'Stars', short: 'Stars', icon: 'star', value: (m) => m.stars },
-  forks: { label: 'Forks', short: 'Forks', icon: 'fork', value: (m) => m.forks },
-  followers: { label: 'Followers', short: 'Followers', icon: 'people', value: (m) => m.followers },
-  following: { label: 'Following', short: 'Following', icon: 'people', value: (m) => m.following },
-  gists: { label: 'Gists', short: 'Gists', icon: 'repo', value: (m) => m.gists },
-  commits: { label: 'Commits', short: 'Commits', icon: 'commit', value: (m) => m.commits },
-  contributions: { label: 'Contributions', short: 'Contribs', icon: 'commit', value: (m) => m.contributions },
-  prs: { label: 'Pull Requests', short: 'PRs', icon: 'pr', value: (m) => m.pullRequests },
-  issues: { label: 'Issues', short: 'Issues', icon: 'issue', value: (m) => m.issues },
-  reviews: { label: 'Reviews', short: 'Reviews', icon: 'review', value: (m) => m.reviews },
-  age: { label: 'Years on GitHub', short: 'Years', icon: 'people', value: (m) => m.accountAgeYears }
+  repos: { icon: 'repo', value: (m) => m.repositories },
+  stars: { icon: 'star', value: (m) => m.stars },
+  forks: { icon: 'fork', value: (m) => m.forks },
+  followers: { icon: 'people', value: (m) => m.followers },
+  following: { icon: 'people', value: (m) => m.following },
+  gists: { icon: 'repo', value: (m) => m.gists },
+  commits: { icon: 'commit', value: (m) => m.commits },
+  contributions: { icon: 'commit', value: (m) => m.contributions },
+  prs: { icon: 'pr', value: (m) => m.pullRequests },
+  issues: { icon: 'issue', value: (m) => m.issues },
+  reviews: { icon: 'review', value: (m) => m.reviews },
+  age: { icon: 'people', value: (m) => m.accountAgeYears }
 };
 
 const DEFAULT_ORDER = ['repos', 'stars', 'forks', 'followers', 'contributions', 'prs', 'issues', 'reviews'];
@@ -72,12 +70,12 @@ export const statsCard = defineCard<Params, ProfileMetrics>({
 
   toJSON: (m, p) => Object.fromEntries([['username', m.username], ...p.keys.map((k) => [k, STATS[k].value(m)])]),
 
-  render(m, p, { theme, common, title }) {
+  render(m, p, { theme, common, title, t }) {
     const num = p.compactNumbers ? compact : fmt;
-    const header = title('GitHub Stats');
+    const header = title(t('title.stats'));
     const top = contentTop(!!header && p.layout !== 'minimal');
     const animate = common.animation;
-    const items = p.keys.map((k) => STATS[k]);
+    const items = p.keys.map((k) => ({ ...STATS[k], key: k }));
     const label = `GitHub stats for ${m.username}`;
 
     if (p.layout === 'minimal') {
@@ -86,7 +84,7 @@ export const statsCard = defineCard<Params, ProfileMetrics>({
         `<text x="${PAD}" y="45" class="accent" font-size="14" font-weight="600">@${esc(m.username)}</text>` +
         `<g${anim(animate)} font-size="14">` +
         shown
-          .map((s, i) => `<text x="${140 + i * 110}" y="45" class="fg">${esc(s.short)}: <tspan font-weight="700">${num(s.value(m))}</tspan></text>`)
+          .map((s, i) => `<text x="${140 + i * 110}" y="45" class="fg">${esc(t(`stat.${s.key}.short`))}: <tspan font-weight="700">${num(s.value(m))}</tspan></text>`)
           .join('') +
         `</g>`;
       return frame(body, { width: 480, height: 80, theme, label });
@@ -102,7 +100,7 @@ export const statsCard = defineCard<Params, ProfileMetrics>({
       .map((s, i) => {
         const x = PAD + (i % perRow) * colW;
         const y = top + 20 + Math.floor(i / perRow) * rowH;
-        const labelText = p.layout === 'compact' ? s.short : s.label;
+        const labelText = p.layout === 'compact' ? t(`stat.${s.key}.short`) : t(`stat.${s.key}` as 'stat.repos');
         return (
           `<g transform="translate(${x} ${y})"${anim(animate, i)}>` +
           (p.showIcons ? icon(s.icon, 0, -12) : '') +
@@ -122,7 +120,7 @@ export const statsCard = defineCard<Params, ProfileMetrics>({
     }).join('');
     const footerY = top + rows * rowH + 15;
     const footer = p.footer
-      ? `<text x="${PAD}" y="${footerY}" class="label muted">Updated ${new Date().toISOString().slice(0, 10)}</text>` +
+      ? `<text x="${PAD}" y="${footerY}" class="label muted">${t('misc.updated')} ${new Date().toISOString().slice(0, 10)}</text>` +
         `<text x="${480 - PAD}" y="${footerY}" class="label muted" text-anchor="end">GitPulse</text>`
       : '';
 

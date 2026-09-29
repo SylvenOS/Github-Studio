@@ -1,4 +1,5 @@
 import type { CommonParams, ParamDoc, Query } from '../core/params';
+import type { Translate } from '../core/i18n';
 import type { GitHubClient } from '../github/client';
 import type { ResolvedTheme } from '../themes';
 
@@ -7,6 +8,8 @@ export interface RenderContext {
   common: CommonParams;
   /** Header text for the card: the user's `title`, else the default; undefined when hidden. */
   title(fallback: string): string | undefined;
+  /** Translates labels into the request's `locale`. */
+  t: Translate;
 }
 
 /**
@@ -28,6 +31,8 @@ export interface CardDefinition<P = any, D = any> {
   render(data: D, params: P, ctx: RenderContext): string;
   /** Shape returned for `format=json`. Defaults to the loaded data. */
   toJSON?(data: D, params: P): unknown;
+  /** Plain-text rendering for `format=text` (cards that have one, e.g. ascii). */
+  toText?(data: D, params: P): string;
 }
 
 export const defineCard = <P, D>(card: CardDefinition<P, D>): CardDefinition<P, D> => card;

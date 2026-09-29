@@ -22,8 +22,8 @@ export const radarCard = defineCard<Params, LanguageStat[]>({
   load: async (client, _p, common) => (await client.getUser(common.username)).languages,
   toJSON: (langs, p) => languageShares(langs, { ...p, by: 'size' }),
 
-  render(langs, p, { theme, common, title }) {
-    const header = title('Tech Stack Radar');
+  render(langs, p, { theme, common, title, t }) {
+    const header = title(t('title.radar'));
     const shares = languageShares(langs, { ...p, by: 'size' });
     if (shares.length < 3) return messageCard('Not enough language data for a radar chart.', theme, { title: header ?? 'Tech Stack Radar' });
 

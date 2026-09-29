@@ -1,6 +1,6 @@
 {
   "name": "gitprofile",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "All-in-one, customisable GitHub stats API for README cards, running on Cloudflare Workers.",
   "private": true,
   "type": "module",
@@ -15,12 +15,14 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "hono": "^4.0.0"
+    "fast-png": "^8.0.0",
+    "hono": "^4.0.0",
+    "jpeg-js": "^0.4.4"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240222.0",
     "typescript": "^5.0.0",
     "vitest": "^1.0.0",
-    "wrangler": "^3.0.0"
+    "wrangler": "^4.143.0"
   }
 }

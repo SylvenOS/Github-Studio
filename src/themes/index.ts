@@ -16,6 +16,8 @@ export interface Theme extends Palette {
 export interface ResolvedTheme extends Theme {
   dark?: Palette;
   hideBorder?: boolean;
+  /** Replaces the flat background when set (`bg=135,c1,c2`). */
+  gradient?: { angle: number; stops: string[] };
 }
 
 const SANS = 'Segoe UI, Helvetica, Arial, sans-serif';
@@ -45,7 +47,13 @@ export const themes: Record<string, Theme> = Object.fromEntries([
   t('nord', '#2e3440', '#eceff4', '#81a1c1', '#88c0d0', '#434c5e', 8),
   t('gruvbox', '#282828', '#ebdbb2', '#a89984', '#fabd2f', '#3c3836'),
   t('solarized', '#002b36', '#93a1a1', '#657b83', '#b58900', '#073642'),
-  t('catppuccin', '#1e1e2e', '#cdd6f4', '#a6adc8', '#cba6f7', '#313244', 12)
+  t('catppuccin', '#1e1e2e', '#cdd6f4', '#a6adc8', '#cba6f7', '#313244', 12),
+  t('matrix', '#000000', '#00ff41', '#008f11', '#00ff41', '#003b00', 4, 'Courier New, monospace'),
+  t('ocean', '#0f172a', '#e2e8f0', '#94a3b8', '#38bdf8', '#1e293b', 12),
+  t('rose_pine', '#191724', '#e0def4', '#908caa', '#eb6f92', '#26233a', 10),
+  t('synthwave', '#2b213a', '#e2e9ec', '#a99bc4', '#ff7edb', '#495495', 8),
+  t('ayu_light', '#fafafa', '#575f66', '#8a9199', '#ff9940', '#e6e6e6', 8),
+  t('paper', '#f5efe0', '#3b3228', '#7d6f5d', '#b5541c', '#e0d5bd', 2, 'Georgia, serif')
 ]);
 
 export interface ThemeOverrides {
@@ -59,7 +67,7 @@ export interface ThemeOverrides {
 export function resolveTheme(
   name: string,
   overrides: ThemeOverrides = {},
-  opts: { radius?: number | null; font?: string; hideBorder?: boolean } = {}
+  opts: { radius?: number | null; font?: string; hideBorder?: boolean; gradient?: ResolvedTheme['gradient'] } = {}
 ): ResolvedTheme {
   const auto = name === 'auto';
   const base = auto ? themes.default : themes[name] ?? themes.default;
@@ -76,6 +84,7 @@ export function resolveTheme(
     fontFamily: opts.font ?? base.fontFamily,
     borderRadius: opts.radius ?? base.borderRadius,
     hideBorder: opts.hideBorder,
+    gradient: opts.gradient,
     dark: auto ? apply(themes.github_dark) : undefined
   };
 }

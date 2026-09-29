@@ -1,4 +1,20 @@
+import { encode } from 'fast-png';
 import { vi } from 'vitest';
+
+/** 32x32 RGBA PNG: a bright disc on a transparent background, warm-to-cool left to right. */
+export function makeAvatarPng(): Uint8Array {
+  const size = 32;
+  const data = new Uint8Array(size * size * 4);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const d = Math.hypot(x - 15.5, y - 15.5);
+      const i = (y * size + x) * 4;
+      const inside = d < 14;
+      data.set([255 - x * 6, 80 + y * 4, 60 + x * 6, inside ? 255 : 0], i);
+    }
+  }
+  return encode({ width: size, height: size, data, channels: 4, depth: 8 });
+}
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const LEVELS = ['FIRST_QUARTILE', 'SECOND_QUARTILE', 'THIRD_QUARTILE', 'FOURTH_QUARTILE'] as const;
@@ -37,7 +53,7 @@ const repoNode = (name: string, stars: number, lang: string, color: string) => (
 export const USER_FIXTURE = {
   login: 'octo',
   name: 'Octo Cat <b>',
-  avatarUrl: 'https://example.com/a.png',
+  avatarUrl: 'https://avatars.githubusercontent.com/u/1?v=4',
   bio: null,
   createdAt: '2019-03-01T00:00:00Z',
   followers: { totalCount: 1234 },
@@ -67,6 +83,7 @@ export interface MockOptions {
   calendarDays?: number;
   gaps?: number[];
   userMissing?: boolean;
+  avatarFails?: boolean;
 }
 
 /** Stubs global fetch with GitHub GraphQL + REST responses. Returns the mock for call assertions. */
@@ -87,6 +104,13 @@ export function mockGitHub(opts: MockOptions = {}) {
         return Response.json({ data: { user } });
       }
       return Response.json({ data: { user: USER_FIXTURE } });
+    }
+    if (url.startsWith('https://avatars.githubusercontent.com/')) {
+      if (opts.avatarFails) return new Response('nope', { status: 500 });
+      return new Response(makeAvatarPng(), { headers: { 'content-type': 'image/png' } });
+    }
+    if (url.includes('/rate_limit')) {
+      return Response.json({ resources: { core: { limit: 5000, remaining: 4321, reset: 1900000000 } } });
     }
     if (url.includes('/repos/octo/alpha')) {
       return Response.json({

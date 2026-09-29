@@ -1,6 +1,6 @@
 # GitPulse
 
-An all-in-one, customisable **GitHub stats API**. It renders crisp SVG cards for READMEs and profiles (stats, languages, streaks, heatmap, trophies, radar, repo pins) and exposes the same data as JSON. It runs on Cloudflare Workers and is built to be extended: a new card is one file.
+An all-in-one, customisable **GitHub stats API**. It renders crisp SVG cards for READMEs and profiles (stats, profile, ASCII avatar, languages, streaks, heatmap, trophies, activity charts, badges, repo pins) and exposes the same data as JSON. It runs on Cloudflare Workers and is built to be extended: a new card is one file.
 
 ```md
 ![Stats](https://your-worker.workers.dev/api/stats?username=torvalds&theme=auto)
@@ -24,7 +24,7 @@ pnpm deploy         # wrangler deploy
 
 ### Configuration
 
-Set secrets with `wrangler secret put <NAME>` (or a `.dev.vars` file locally).
+Locally, put secrets in `.env` (gitignored; copy `.env.example`). In production use `wrangler secret put <NAME>`.
 
 | Name | Required | Purpose |
 |------|----------|---------|
@@ -42,16 +42,22 @@ Without a token the API still works through a REST and HTML fallback, but it is 
 | Endpoint | Description |
 |----------|-------------|
 | `/api/stats` | Repos, stars, forks, followers, contributions, PRs, issues, reviews (choose which with `hide`/`show`). |
+| `/api/profile-card` (`card`, `bio`) | Avatar, bio, key numbers, language bar and an overall grade (S to C) ring. |
+| `/api/ascii` (`avatar`) | Your profile picture drawn from characters, optionally animated. `format=text` returns paste-ready plain text. |
+| `/api/activity` (`chart`) | Contributions per month, week or weekday as bars, area or line. |
+| `/api/badge` (`shield`) | Compact shields-style badge for one number (stars, followers, rank, ...). |
 | `/api/languages` (`langs`) | Top languages by bytes of code, as a bar or donut. |
 | `/api/streak` | Total contributions, current and longest streak with date ranges (scans up to 15 years). |
 | `/api/contributions` (`heatmap`) | Contribution heatmap with real per-day counts. Last 12 months or any calendar year. |
 | `/api/top-repos` | Best repositories by stars, forks or recent activity. |
 | `/api/repos` (`repo`, `pin`) | Single repository card. Needs `repo`. |
 | `/api/radar` | Radar chart of your language mix. |
-| `/api/achievements` (`trophies`) | Ranked trophies, E to SSS+. |
+| `/api/achievements` (`trophies`) | Trophy artwork that levels up from a wooden cup (E) to a winged crown (SSS+), with progress to the next rank. |
 | `/api/profile` | JSON only: GitHub data, derived metrics, trophies and plugin data (Dev.to, WakaTime). Pick plugins with `plugins=devto,wakatime` or `plugins=none`. |
 | `/api/cards` | Machine-readable list of cards and every parameter. |
 | `/api/themes` | Theme palettes. |
+| `/api/openapi.json` | OpenAPI 3 spec generated from the card registry. |
+| `/api/rate-limit` | Remaining GitHub quota per configured token (labels only). |
 | `/api/health` | Status and version. |
 
 Every card also supports `format=json` to get the underlying data instead of an image.
@@ -61,14 +67,15 @@ Every card also supports `format=json` to get the underlying data instead of an 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `username` | required | GitHub username. |
-| `theme` | `default` | `default`, `dark`, `github_dark`, `sylven`, `dracula`, `monokai`, `radical`, `tokyonight`, `cyberpunk`, `neon`, `nord`, `gruvbox`, `solarized`, `catppuccin`, or **`auto`**. `auto` follows the viewer's light/dark preference. |
-| `bg` `fg` `muted` `accent` `border` | theme | Colour overrides as hex without `#` (3, 4, 6 or 8 digits). Invalid values are ignored. |
+| `theme` | `default` | `default`, `dark`, `github_dark`, `sylven`, `dracula`, `monokai`, `radical`, `tokyonight`, `cyberpunk`, `neon`, `nord`, `gruvbox`, `solarized`, `catppuccin`, `matrix`, `ocean`, `rose_pine`, `synthwave`, `ayu_light`, `paper`, or **`auto`**. `auto` follows the viewer's light/dark preference. |
+| `bg` `fg` `muted` `accent` `border` | theme | Colour overrides as hex without `#` (3, 4, 6 or 8 digits). Invalid values are ignored. `bg` also takes a gradient: `bg=135,0f2027,2c5364`. |
+| `locale` | `en` | Labels and titles in `en es fr de pt zh ja ru`. |
 | `radius` | theme | Corner radius, 0 to 40. |
 | `font` | theme | Font family. |
 | `title` | per card | Custom title. |
 | `hide_title` / `hide_border` | `false` | Hide the header or border. |
 | `animation` | `true` | Fade-in and pulse animations (respects `prefers-reduced-motion`). |
-| `format` | `svg` | `svg` or `json`. |
+| `format` | `svg` | `svg`, `json`, or `text` (ascii card only). |
 | `cache_seconds` | `1800` | Browser and CDN cache lifetime, 1800 to 86400. |
 
 ### Card parameters
@@ -82,7 +89,11 @@ Every card also supports `format=json` to get the underlying data instead of an 
 | contributions | `year`, `months` |
 | top-repos | `limit` (1–10), `sort` (`stars`, `forks`, `updated`), `exclude`, `skip_archived` |
 | repos | `repo` (required), `show_owner` |
-| achievements | `columns` (1–6), `hide` (`commits prs contributions repos stars followers issues reviews years`) |
+| achievements | `style` (`trophy`, `badge`), `columns` (1–6), `sort` (`default`, `rank`), `min_rank` (`E`..`SSS+`), `progress`, `hide` (`commits prs contributions repos stars followers issues reviews years`) |
+| ascii | `charset` (`classic dense blocks binary hex alnum text`), `text`, `mode` (`mono`, `color`), `anim` (`scan reveal type wave flicker pulse none`), `cols` (20–100), `cell`, `contrast`, `invert`, `caption`, `source` (`avatar`, `identicon`) |
+| profile-card | `avatar`, `languages` |
+| activity | `by` (`month`, `week`, `weekday`), `style` (`bar`, `area`, `line`), `year` |
+| badge | `stat` (`stars followers following repos forks commits prs issues reviews contributions gists years rank top_language`), `label`, `style` (`flat`, `pill`, `for-the-badge`), `color`, `label_color` |
 
 ### Errors
 
@@ -133,6 +144,21 @@ Replace `your-worker.workers.dev` with your deployment and `torvalds` with any u
 ### Tech stack radar
 ```md
 ![Radar](https://your-worker.workers.dev/api/radar?username=torvalds&langs_count=6&theme=nord)
+```
+
+### ASCII avatar
+```md
+![ASCII](https://your-worker.workers.dev/api/ascii?username=torvalds&theme=matrix&charset=alnum&anim=scan)
+![Your own text](https://your-worker.workers.dev/api/ascii?username=torvalds&charset=text&text=HELLO&mode=color&anim=reveal)
+```
+Paste-ready plain text for a README code block: `/api/ascii?username=torvalds&format=text&charset=dense`
+
+### Profile card, activity and badges
+```md
+![Profile](https://your-worker.workers.dev/api/profile-card?username=torvalds&theme=tokyonight)
+![Activity](https://your-worker.workers.dev/api/activity?username=torvalds&style=area&theme=ocean)
+![Stars](https://your-worker.workers.dev/api/badge?username=torvalds&stat=stars)
+![Rank](https://your-worker.workers.dev/api/badge?username=torvalds&stat=rank&style=for-the-badge&color=6d28d9)
 ```
 
 ### Achievements
@@ -229,7 +255,9 @@ Add it to the array in `src/cards/index.ts`. That's all: the route, `format=json
 - [x] GraphQL client with REST fallback, token pool, two-tier cache
 - [x] Card registry, `format=json`, live playground, `theme=auto`
 - [x] Stats, languages (bar/donut), streak, heatmap, top repos, repo pin, radar, trophies
-- [ ] Rate-limit status endpoint, request analytics
+- [x] Trophy artwork by rank, ASCII avatar (animated, plain text), profile card, activity chart, badges
+- [x] Locales, gradient backgrounds, OpenAPI spec, rate-limit endpoint
+- [ ] Request analytics, profile view counter
 - [ ] Contribution timeline and repository-health cards
 - [ ] PNG output, theme editor and gallery
 - [ ] Plugin cards (WakaTime, Dev.to) rendered as SVG

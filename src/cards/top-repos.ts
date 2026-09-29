@@ -47,8 +47,8 @@ export const topReposCard = defineCard<Params, RepoSummary[]>({
   load: async (client, _p, common) => (await client.getUser(common.username)).repos,
   toJSON: (repos, p) => selectRepos(repos, p),
 
-  render(all, p, { theme, common, title }) {
-    const header = title('Top Repositories');
+  render(all, p, { theme, common, title, t }) {
+    const header = title(t('title.top_repos'));
     const repos = selectRepos(all, p);
     if (!repos.length) return messageCard('No public repositories found.', theme, { title: header ?? 'Top Repositories' });
 

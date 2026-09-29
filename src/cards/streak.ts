@@ -38,8 +38,8 @@ export const streakCard = defineCard<Params, StreakStats>({
     return computeStreaks(await client.getCalendar(common.username, ranges));
   },
 
-  render(s, _p, { theme, common, title }) {
-    const header = title('GitHub Streak');
+  render(s, _p, { theme, common, title, t }) {
+    const header = title(t('title.streak'));
     const top = contentTop(!!header);
     const animate = common.animation;
     const y = top + 25;
@@ -50,12 +50,12 @@ export const streakCard = defineCard<Params, StreakStats>({
       `<text x="${cx}" y="${y + 38}" text-anchor="middle" font-size="10" class="muted">${sub}</text></g>`;
 
     const body =
-      col(75, fmt(s.total), 'Total Contributions', s.firstDate ? `${shortDate(s.firstDate)} - Present` : '', 0) +
+      col(75, fmt(s.total), t('streak.total'), s.firstDate ? `${shortDate(s.firstDate)} - ${t('streak.present')}` : '', 0) +
       `<line x1="145" y1="${y - 20}" x2="145" y2="${y + 40}" class="sk-bd"/>` +
       icon('flame', 212, y - 48, 'accent', 1.1) +
-      col(220, String(s.current.length), 'Current Streak', range(s.current), 1, true) +
+      col(220, String(s.current.length), t('streak.current'), range(s.current), 1, true) +
       `<line x1="295" y1="${y - 20}" x2="295" y2="${y + 40}" class="sk-bd"/>` +
-      col(365, String(s.longest.length), 'Longest Streak', range(s.longest), 2);
+      col(365, String(s.longest.length), t('streak.longest'), range(s.longest), 2);
 
     return frame(body, {
       width: 440,

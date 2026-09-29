@@ -4,10 +4,13 @@ import pkg from '../package.json';
 import { calculateTrophies } from './achievements/engine';
 import { cards, findCard } from './cards';
 import { responseCache } from './core/cache';
-import { ApiError, notFound, toApiError } from './core/errors';
-import { COMMON_PARAMS, color, list, parseCommon, username, type Query } from './core/params';
+import { ApiError, badRequest, notFound, toApiError } from './core/errors';
+import { translator } from './core/i18n';
+import { COMMON_PARAMS, background, color, list, parseCommon, username, type Query } from './core/params';
 import { GitHubClient } from './github/client';
 import { calculateProfileMetrics } from './metrics';
+import { calculateGrade } from './metrics/grade';
+import { buildOpenApi } from './openapi';
 import { playgroundHtml } from './playground';
 import { runPlugins } from './plugins';
 import { messageCard } from './svg/frame';
@@ -60,7 +63,8 @@ function errorResponse(c: Ctx, err: ApiError, query: Query) {
   if (query.format === 'json') {
     return c.json({ error: { code: err.code, message: err.message } }, err.status as 400, { 'Cache-Control': 'no-store' });
   }
-  const theme = resolveTheme(query.theme, { bg: color(query.bg), fg: color(query.fg), muted: color(query.muted), accent: color(query.accent), border: color(query.border) });
+  const bg = background(query.bg);
+  const theme = resolveTheme(query.theme, { bg: bg.color, fg: color(query.fg), muted: color(query.muted), accent: color(query.accent), border: color(query.border) }, { gradient: bg.gradient });
   return c.body(messageCard(err.message, theme), 200, {
     ...SVG_HEADERS,
     'Cache-Control': 'public, max-age=60',
@@ -85,6 +89,18 @@ app.get('/api/cards', (c) =>
 
 app.get('/api/themes', (c) => c.json(themes));
 
+app.get('/api/openapi.json', (c) => c.json(buildOpenApi(new URL(c.req.url).origin, pkg.version)));
+
+// Remaining GitHub API quota per configured token (labels only, never the tokens).
+app.get('/api/rate-limit', async (c) => {
+  try {
+    return c.json({ tokens: await createClient(c).getRateLimits() }, 200, { 'Cache-Control': 'no-store' });
+  } catch (e) {
+    const err = toApiError(e);
+    return c.json({ error: { code: err.code, message: err.message } }, err.status as 400);
+  }
+});
+
 // Aggregated developer profile (JSON only): GitHub data + derived metrics + trophies + plugins.
 app.get('/api/profile', async (c) => {
   try {
@@ -94,7 +110,7 @@ app.get('/api/profile', async (c) => {
     const user = await createClient(c).getUser(login);
     const metrics = calculateProfileMetrics(user);
     const plugins = await runPlugins(login, wanted === 'none' ? [] : wanted ? list(wanted) : undefined);
-    return c.json({ github: user, metrics, trophies: calculateTrophies(metrics), plugins }, 200, {
+    return c.json({ github: user, metrics, grade: calculateGrade(metrics), trophies: calculateTrophies(metrics), plugins }, 200, {
       'Cache-Control': cacheHeader(cacheSeconds(c))
     });
   } catch (e) {
@@ -120,15 +136,21 @@ app.get('/api/:card', async (c) => {
     const data = await card.load(createClient(c), params, common);
     const cache = cacheHeader(cacheSeconds(c, common.cacheSeconds));
 
+    if (common.format === 'text') {
+      if (!card.toText) throw badRequest(`The ${card.id} card has no text format`);
+      return c.text(card.toText(data, params), 200, { 'Cache-Control': cache, 'Content-Type': 'text/plain; charset=utf-8' });
+    }
+
     if (common.format === 'json') {
       return c.json((card.toJSON ? card.toJSON(data, params) : data) as object, 200, { 'Cache-Control': cache });
     }
 
-    const theme = resolveTheme(common.theme, common.colors, { radius: common.radius, font: common.font, hideBorder: common.hideBorder });
+    const theme = resolveTheme(common.theme, common.colors, { radius: common.radius, font: common.font, hideBorder: common.hideBorder, gradient: common.gradient });
     const svg = card.render(data, params, {
       theme,
       common,
-      title: (fallback) => (common.hideTitle ? undefined : common.title ?? fallback)
+      title: (fallback) => (common.hideTitle ? undefined : common.title ?? fallback),
+      t: translator(common.locale)
     });
     return c.body(svg, 200, { ...SVG_HEADERS, 'Cache-Control': cache });
   } catch (e) {

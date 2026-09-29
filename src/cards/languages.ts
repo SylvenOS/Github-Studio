@@ -53,8 +53,8 @@ export const languagesCard = defineCard<Params, LanguageStat[]>({
   load: async (client, _p, common) => (await client.getUser(common.username)).languages,
   toJSON: (langs, p) => languageShares(langs, p),
 
-  render(langs, p, { theme, common, title }) {
-    const header = title('Top Languages');
+  render(langs, p, { theme, common, title, t }) {
+    const header = title(t('title.languages'));
     const shares = languageShares(langs, p);
     const subtitle = `@${common.username}`;
     if (!shares.length) return messageCard('No language data available.', theme, { title: header ?? 'Top Languages' });

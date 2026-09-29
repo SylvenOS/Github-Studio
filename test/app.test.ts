@@ -74,9 +74,10 @@ describe('card output', () => {
 
   it('achievements JSON respects hide', async () => {
     mockGitHub();
-    const json = (await (await get('/api/achievements?username=octo&format=json&hide=stars,years')).json()) as { id: string }[];
-    expect(json.map((t) => t.id)).not.toContain('stars');
-    expect(json).toHaveLength(7);
+    const json = await (await get('/api/achievements?username=octo&format=json&hide=stars,years')).json();
+    expect(json.trophies.map((t: { id: string }) => t.id)).not.toContain('stars');
+    expect(json.trophies).toHaveLength(7);
+    expect(json.overall.rank).toBeDefined();
   });
 });
 

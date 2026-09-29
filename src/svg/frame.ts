@@ -29,11 +29,22 @@ const STYLE = `
 .l3{fill:var(--accent);fill-opacity:.8}.l4{fill:var(--accent)}`;
 
 const ANIMATION = `
-@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0;translate:0 8px}to{opacity:1;translate:0 0}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
 .fade-in{opacity:0;animation:fadeIn .7s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:calc(var(--i,0)*90ms)}
 .pulse{animation:pulse 2s infinite}
 @media (prefers-reduced-motion:reduce){.fade-in{opacity:1;animation:none}.pulse{animation:none}}`;
+
+function gradientDef(theme: ResolvedTheme): string {
+  const g = theme.gradient;
+  if (!g) return '';
+  const rad = ((g.angle - 90) * Math.PI) / 180;
+  const [dx, dy] = [Math.cos(rad) * 50, Math.sin(rad) * 50];
+  const stops = g.stops
+    .map((c, i) => `<stop offset="${Math.round((i / (g.stops.length - 1)) * 100)}%" stop-color="${esc(c)}"/>`)
+    .join('');
+  return `<defs><linearGradient id="bgGrad" x1="${50 - dx}%" y1="${50 - dy}%" x2="${50 + dx}%" y2="${50 + dy}%">${stops}</linearGradient></defs>`;
+}
 
 /** Wraps card content in the shared SVG chrome: theme variables, border, optional header. */
 export function frame(content: string, o: FrameOptions): string {
@@ -52,7 +63,8 @@ export function frame(content: string, o: FrameOptions): string {
   return (
     `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(o.label ?? o.title ?? 'GitHub card')}">` +
     `<style>:root{${vars(theme)}}${darkCss}text{font-family:${theme.fontFamily.replace(/"/g, "'")}}${STYLE}${o.animate ?? /fade-in|pulse/.test(content) ? ANIMATION : ''}</style>` +
-    `<rect x=".5" y=".5" width="${width - 1}" height="${height - 1}" rx="${theme.borderRadius}" class="bg"/>` +
+    gradientDef(theme) +
+    `<rect x=".5" y=".5" width="${width - 1}" height="${height - 1}" rx="${theme.borderRadius}" ${theme.gradient ? 'fill="url(#bgGrad)"' : 'class="bg"'}/>` +
     border +
     header +
     content +
