@@ -1,2 +1,15 @@
 name = "gitprofile-api"
-compatibility_date = "2024-02-22"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+minify = true
+
+[observability]
+enabled = true
+
+# Configuration (set secrets with `wrangler secret put <NAME>`):
+#   GITHUB_TOKEN   - recommended. Enables GraphQL: real stars, language bytes, exact daily
+#                    contributions and far higher rate limits. No scopes needed (public data).
+#   GITHUB_TOKENS  - optional comma-separated pool of extra tokens to spread load across.
+#   BLOCKLIST      - optional comma-separated usernames to refuse.
+[vars]
+CACHE_SECONDS = "1800"

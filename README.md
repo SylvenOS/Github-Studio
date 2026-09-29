@@ -1,149 +1,237 @@
 # GitPulse
 
-A modular, high-performance **developer profile platform** that generates beautiful, completely customizable SVG components and widgets from your GitHub data. Built for speed and reliability, it serves as a foundation for a full developer ecosystem rather than just another static stats clone.
+An all-in-one, customisable **GitHub stats API**. It renders crisp SVG cards for READMEs and profiles (stats, languages, streaks, heatmap, trophies, radar, repo pins) and exposes the same data as JSON. It runs on Cloudflare Workers and is built to be extended: a new card is one file.
+
+```md
+![Stats](https://your-worker.workers.dev/api/stats?username=torvalds&theme=auto)
+![Languages](https://your-worker.workers.dev/api/languages?username=torvalds&layout=donut)
+![Streak](https://your-worker.workers.dev/api/streak?username=torvalds&theme=dracula)
+```
+
+Open `/` on your deployment for a live playground that builds URLs for you (generated from the API, so new cards and options show up automatically).
 
 ---
 
-## 🚀 The Vision
+## Quick start
 
-The goal is to create a platform where developers can generate completely customizable GitHub profile components. Instead of just a single "Stats" image, **GitPulse** generates:
-- Stats cards
-- Contribution cards
-- Project showcases
-- Timeline cards
-- Tech stack & Skill radar
-- Achievements & Trophies
-- Multi-platform Social cards
+```bash
+pnpm install
+pnpm dev            # http://localhost:8787
+pnpm test           # unit + integration tests (GitHub is mocked)
+pnpm typecheck
+pnpm deploy         # wrangler deploy
+```
 
-Everything is generated as crisp, dynamic SVG.
+### Configuration
+
+Set secrets with `wrangler secret put <NAME>` (or a `.dev.vars` file locally).
+
+| Name | Required | Purpose |
+|------|----------|---------|
+| `GITHUB_TOKEN` | **Recommended** | Any token; no scopes needed for public data. Enables the GraphQL path: real star and language totals, exact daily contributions, and a much higher rate limit. |
+| `GITHUB_TOKENS` | No | Comma-separated extra tokens. Requests are spread across all tokens to multiply rate limits. |
+| `CACHE_SECONDS` | No | Default cache lifetime (default `1800`). |
+| `BLOCKLIST` | No | Comma-separated usernames to refuse. |
+
+Without a token the API still works through a REST and HTML fallback, but it is slower and less accurate, and it hits GitHub's 60 requests/hour unauthenticated limit quickly. `GET /api/health` reports whether a token is configured.
 
 ---
 
-## 🏗️ High Level Architecture
+## Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `/api/stats` | Repos, stars, forks, followers, contributions, PRs, issues, reviews (choose which with `hide`/`show`). |
+| `/api/languages` (`langs`) | Top languages by bytes of code, as a bar or donut. |
+| `/api/streak` | Total contributions, current and longest streak with date ranges (scans up to 15 years). |
+| `/api/contributions` (`heatmap`) | Contribution heatmap with real per-day counts. Last 12 months or any calendar year. |
+| `/api/top-repos` | Best repositories by stars, forks or recent activity. |
+| `/api/repos` (`repo`, `pin`) | Single repository card. Needs `repo`. |
+| `/api/radar` | Radar chart of your language mix. |
+| `/api/achievements` (`trophies`) | Ranked trophies, E to SSS+. |
+| `/api/profile` | JSON only: GitHub data, derived metrics, trophies and plugin data (Dev.to, WakaTime). Pick plugins with `plugins=devto,wakatime` or `plugins=none`. |
+| `/api/cards` | Machine-readable list of cards and every parameter. |
+| `/api/themes` | Theme palettes. |
+| `/api/health` | Status and version. |
+
+Every card also supports `format=json` to get the underlying data instead of an image.
+
+### Common parameters (all cards)
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `username` | required | GitHub username. |
+| `theme` | `default` | `default`, `dark`, `github_dark`, `sylven`, `dracula`, `monokai`, `radical`, `tokyonight`, `cyberpunk`, `neon`, `nord`, `gruvbox`, `solarized`, `catppuccin`, or **`auto`**. `auto` follows the viewer's light/dark preference. |
+| `bg` `fg` `muted` `accent` `border` | theme | Colour overrides as hex without `#` (3, 4, 6 or 8 digits). Invalid values are ignored. |
+| `radius` | theme | Corner radius, 0 to 40. |
+| `font` | theme | Font family. |
+| `title` | per card | Custom title. |
+| `hide_title` / `hide_border` | `false` | Hide the header or border. |
+| `animation` | `true` | Fade-in and pulse animations (respects `prefers-reduced-motion`). |
+| `format` | `svg` | `svg` or `json`. |
+| `cache_seconds` | `1800` | Browser and CDN cache lifetime, 1800 to 86400. |
+
+### Card parameters
+
+| Card | Parameters |
+|------|------------|
+| stats | `layout` (`grid`, `compact`, `minimal`), `show_icons`, `hide`, `show`, `compact_numbers`, `footer`. Stat keys: `repos stars forks followers following gists commits contributions prs issues reviews age`. |
+| languages | `layout` (`bar`, `donut`), `langs_count` (1–10), `hide`, `by` (`size`, `repos`) |
+| radar | `langs_count` (3–8), `hide` |
+| streak | `years` (1–15) |
+| contributions | `year`, `months` |
+| top-repos | `limit` (1–10), `sort` (`stars`, `forks`, `updated`), `exclude`, `skip_archived` |
+| repos | `repo` (required), `show_owner` |
+| achievements | `columns` (1–6), `hide` (`commits prs contributions repos stars followers issues reviews years`) |
+
+### Errors
+
+- **SVG cards** return an SVG error card with HTTP 200, so READMEs show the reason instead of a broken image. The real error code is in the `X-Card-Error` header. Error cards are cached for 60 seconds.
+- **`format=json`** and `/api/profile` return real status codes and `{ "error": { "code", "message" } }`. Codes: `bad_request` (400), `not_found` (404), `rate_limited` (429), `upstream` (502).
+
+---
+
+## Gallery
+
+Replace `your-worker.workers.dev` with your deployment and `torvalds` with any username.
+
+### Stats
+```md
+![Stats](https://your-worker.workers.dev/api/stats?username=torvalds&show_icons=true&theme=dracula)
+![Compact](https://your-worker.workers.dev/api/stats?username=torvalds&layout=compact&theme=tokyonight)
+![Custom stats](https://your-worker.workers.dev/api/stats?username=torvalds&hide=forks,issues&show=commits,following&compact_numbers=true)
+```
+
+### Top languages
+```md
+![Languages](https://your-worker.workers.dev/api/languages?username=torvalds&theme=github_dark)
+![Donut](https://your-worker.workers.dev/api/languages?username=torvalds&layout=donut&langs_count=6&hide=HTML,CSS)
+```
+
+### Streak
+```md
+![Streak](https://your-worker.workers.dev/api/streak?username=torvalds&theme=radical)
+```
+
+### Contribution heatmap
+```md
+![Heatmap](https://your-worker.workers.dev/api/contributions?username=torvalds&theme=auto)
+![2024 only](https://your-worker.workers.dev/api/contributions?username=torvalds&year=2024)
+```
+
+### Top repositories
+```md
+![Top repos](https://your-worker.workers.dev/api/top-repos?username=torvalds&limit=5&theme=catppuccin)
+![Most forked](https://your-worker.workers.dev/api/top-repos?username=torvalds&sort=forks&exclude=dotfiles&skip_archived=true)
+```
+
+### Repository pin
+```md
+![Repo](https://your-worker.workers.dev/api/repos?username=torvalds&repo=linux&theme=monokai)
+```
+
+### Tech stack radar
+```md
+![Radar](https://your-worker.workers.dev/api/radar?username=torvalds&langs_count=6&theme=nord)
+```
+
+### Achievements
+```md
+![Trophies](https://your-worker.workers.dev/api/achievements?username=torvalds&theme=dark&columns=3)
+![Fewer](https://your-worker.workers.dev/api/achievements?username=torvalds&hide=years,issues&columns=4)
+```
+
+### JSON
+```text
+GET /api/profile?username=torvalds&plugins=none
+GET /api/stats?username=torvalds&format=json
+GET /api/cards
+GET /api/themes
+```
+
+### Side by side
+```md
+<p align="center">
+  <img src="https://your-worker.workers.dev/api/stats?username=torvalds&theme=auto" height="180"/>
+  <img src="https://your-worker.workers.dev/api/languages?username=torvalds&theme=auto" height="180"/>
+</p>
+```
+
+Tip: `theme=auto` follows the viewer's light or dark preference.
+
+---
+
+## How it works
 
 ```text
-                   GitHub API
-                        │
-                GraphQL + REST
-                        │
-             ----------------------
-             │                    │
-         Cache Layer         Data Processor
-      (Redis/Memory)        (Normalize Data)
-             │                    │
-             -----------┬----------
-                        │
-                 Metrics Engine
-                        │
-          ----------------------------
-          │            │            │
-      SVG Engine   Theme Engine   Animation Engine
-          │            │            │
-          --------------
-                 │
-          API Endpoints
-                 │
-          README.md Images
+request ─► response cache (edge) ─► card registry ─► parse params ─► load ─► render ─► SVG / JSON
+                                                         │
+                                          GitHubClient (GraphQL, or REST + HTML fallback)
+                                                         │
+                                        data cache (edge + memory, coalesced in-flight)
+```
+
+- **Two-tier caching.** Rendered responses are cached at the edge, and upstream GitHub data is cached separately. Ten cards with ten themes for the same user cost one GitHub query. Concurrent misses are coalesced.
+- **Themes are CSS variables.** The colour overrides, `theme=auto` dark mode and 3-digit hex all work without string-building colours into markup, and the heatmap stays small.
+- **Everything untrusted is escaped** (names, descriptions, languages) and every parameter is validated. Cards are served with a locked-down CSP.
+
+```text
+src/
+  index.ts        routes, error handling, caching headers
+  cards/          one file per card + registry (index.ts) + contract (types.ts)
+  github/         client (GraphQL/REST), parsers, shared types
+  metrics/        derived stats (profile metrics, streaks)
+  achievements/   trophy definitions and ranking
+  themes/         palettes + resolveTheme (overrides, auto)
+  svg/            frame (shared chrome), icons, language colours
+  plugins/        third-party providers for /api/profile
+  core/           params/validation, cache, errors, text helpers
+  playground.ts   the UI served at /
 ```
 
 ---
 
-## 🔗 Endpoints
+## Extending
 
-The API is fully stateless and configurable via URL query parameters.
+**New card.** Create `src/cards/my-card.ts`:
 
-### 1. Stats Card
-Returns a comprehensive summary of your GitHub metrics.
-\`GET /api/stats?username=yourname\`
+```ts
+export const myCard = defineCard<Params, Data>({
+  id: 'my-card',
+  title: 'My Card',
+  description: 'What it shows.',
+  params: [{ name: 'limit', type: 'number', default: 5, min: 1, max: 10, description: 'How many' }],
+  parse: (q) => ({ limit: int(q.limit, 5, 1, 10) }),
+  load: async (client, params, common) => (await client.getUser(common.username)).repos,
+  render: (data, params, { theme, common, title }) =>
+    frame(/* svg */, { width: 400, height: 120, theme, title: title('My Card') })
+});
+```
 
-### 2. Trophies & Achievements
-Generates a responsive SVG grid of your GitHub achievements, ranked from **E** to **SSS+**.
-\`GET /api/achievements?username=yourname\`
+Add it to the array in `src/cards/index.ts`. That's all: the route, `format=json`, caching, error cards, `/api/cards` docs and the playground pick it up.
 
-### 3. Languages Card
-Visualizes your top 5 most used programming languages as a sleek progress bar chart.
-\`GET /api/languages?username=yourname\`
+**New stat / trophy / theme / plugin.** Add an entry to `STATS` in `cards/stats.ts`, to `TROPHIES` in `achievements/engine.ts`, to `themes/index.ts`, or to `plugins/index.ts`. Each is a single table entry.
 
-### 4. Streak Card
-Calculates your current and longest contribution streaks by parsing your GitHub contribution graph.
-\`GET /api/streak?username=yourname\`
-
-### 5. Contributions Heatmap
-Visualizes the last 365 days of your GitHub contributions as a beautifully color-mapped SVG calendar.
-\`GET /api/contributions?username=yourname\`
-
-### 6. Repository Pin Card
-Showcase an individual repository, displaying its description, primary language, stars, forks, and size.
-\`GET /api/repos?username=yourname&repo=reponame\`
-
-### 7. Developer Profile Platform
-Aggregates core GitHub metrics, calculated stats, and multi-platform plugin data (Dev.to, WakaTime) into a unified JSON API.
-\`GET /api/profile?username=yourname\`
+**New GitHub data.** Extend the GraphQL query and `UserData` in `github/`.
 
 ---
 
-## ⚙️ Configuration & Settings
+## Known limits
 
-Customize your cards by appending these query parameters to any SVG endpoint:
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| \`username\` | \`string\` | **Required** | The GitHub username to fetch data for. |
-| \`repo\` | \`string\` | **Required** (repos) | The name of the repository for the Repo Pin Card. |
-| \`theme\` | \`string\` | \`default\` | The visual theme. Available options: \`default\`, \`dark\`, \`sylven\`. |
-| \`layout\` | \`string\` | \`grid\` | Layout configuration. Available options: \`grid\`, \`compact\`, \`minimal\`. |
-| \`radius\` | \`number\` | Theme specific | Overrides the border-radius of the SVG card. (e.g., \`radius=20\`) |
-| \`show_icons\`| \`boolean\`| \`false\` | Toggles icons next to the stats. |
-| \`animation\` | \`boolean\`| \`true\` | Enables SVG CSS animations (fades, pulses, glows). Set to \`false\` to disable. |
-| \`format\` | \`string\` | \`svg\` | Set to \`json\` on supported endpoints to get raw data. |
-| \`bg\` | \`string\` | Theme specific | Custom background color hex code (without #). |
-| \`fg\` | \`string\` | Theme specific | Custom foreground/text color hex code (without #). |
-| \`accent\` | \`string\` | Theme specific | Custom accent color hex code (without #). |
-| \`border\` | \`string\` | Theme specific | Custom border color hex code (without #). |
-| \`muted\` | \`string\` | Theme specific | Custom muted text color hex code (without #). |
+- With a token, `commits`, `reviews` and `contributions` cover the **last 12 months** (GitHub's contribution window). Without one, `commits` is lifetime (search API). The Commit Machine trophy is ranked on whichever applies.
+- Repo-based totals (stars, forks, languages) cover up to 300 of the user's public, non-fork repositories, most-starred first. Private contributions appear only if the user enables them on their profile.
+- Language percentages are relative to the languages shown.
 
 ---
 
-## 🛠️ Tech Stack & Folder Structure
+## Roadmap
 
-**Frontend & Backend:** Next.js, Hono, TypeScript, Tailwind  
-**Rendering:** satori, resvg, svg.js  
-**Caching & Deployment:** Redis (Upstash), Cloudflare Workers / Vercel
+- [x] GraphQL client with REST fallback, token pool, two-tier cache
+- [x] Card registry, `format=json`, live playground, `theme=auto`
+- [x] Stats, languages (bar/donut), streak, heatmap, top repos, repo pin, radar, trophies
+- [ ] Rate-limit status endpoint, request analytics
+- [ ] Contribution timeline and repository-health cards
+- [ ] PNG output, theme editor and gallery
+- [ ] Plugin cards (WakaTime, Dev.to) rendered as SVG
 
-### Core Modules
-1. **GitHub API Layer**: Auth, GraphQL, REST, rate limits.
-2. **Metrics Engine**: Converts raw data to useful metrics (e.g. Repository Health, Contribution Trend).
-3. **Theme Engine**: JSON-driven theming without code changes.
-4. **SVG Engine**: Renders dynamic Cards, Charts, Animations, and Layouts.
-
----
-
-## 🗺️ Roadmap
-
-### Phase 1: Foundation
-- [x] API layer & GitHub integrations
-- [x] Basic Profile & Stats Cards
-- [x] SVG rendering pipeline
-
-### Phase 2: Core Widgets
-- [x] Trophies & Achievement Cards
-- [ ] Repository & Languages Cards
-- [ ] Streak & Contribution Graph
-- [x] Theme engine
-
-### Phase 3: Advanced Features
-- [ ] SVG Chart Engine (Bar, Line, Radar, Sparkline)
-- [ ] SVG Animation Engine (Glows, Fade, Floating Icons)
-- [ ] Configurable Layout Engine (Grid, Masonry, Minimal)
-
-### Phase 4: Platform
-- [ ] Documentation website
-- [ ] Live playground with instant preview
-- [ ] Theme editor & Template gallery
-
-### Phase 5: Community
-- [ ] CLI (\`create-devcard\`)
-- [ ] Theme submission process & Plugin API
-
----
 *Built for the open-source community.*

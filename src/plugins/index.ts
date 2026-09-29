@@ -1,48 +1,62 @@
-// v1.6 Plugins Architecture
-
+/**
+ * Third-party data providers merged into `/api/profile`.
+ * To add one: implement `Plugin`, append it to `plugins`.
+ */
 export interface PluginData {
   provider: string;
-  data: any;
+  data: unknown;
   error?: string;
 }
 
-export class PluginEngine {
-  async fetchDevToData(username: string): Promise<PluginData> {
-    try {
-      const res = await fetch(`https://dev.to/api/articles?username=${username}`);
-      if (!res.ok) {
-        return { provider: 'dev.to', data: null, error: res.statusText };
-      }
-      const articles = await res.json();
-      return { 
-        provider: 'dev.to', 
-        data: { 
-          articleCount: articles.length,
-          latestArticle: articles.length > 0 ? articles[0].title : null
-        } 
-      };
-    } catch (e) {
-      return { provider: 'dev.to', data: null, error: String(e) };
-    }
-  }
+export interface Plugin {
+  id: string;
+  fetch(username: string, signal: AbortSignal): Promise<unknown>;
+}
 
-  async fetchWakaTimeData(username: string): Promise<PluginData> {
-    try {
-      // WakaTime requires the user to have their coding activity public.
-      const res = await fetch(`https://wakatime.com/api/v1/users/${username}/stats`);
-      if (!res.ok) {
-        return { provider: 'wakatime', data: null, error: res.statusText };
-      }
-      const stats = await res.json();
-      return { 
-        provider: 'wakatime', 
-        data: { 
-          totalHours: stats.data.total_seconds / 3600,
-          languages: stats.data.languages.map((l: any) => ({ name: l.name, percent: l.percent }))
-        } 
+const getJson = async (url: string, signal: AbortSignal) => {
+  const res = await fetch(url, { signal, headers: { 'User-Agent': 'github-stats-api' } });
+  if (!res.ok) throw new Error(res.statusText || `HTTP ${res.status}`);
+  return res.json() as Promise<any>;
+};
+
+export const plugins: Plugin[] = [
+  {
+    id: 'devto',
+    async fetch(username, signal) {
+      const articles = await getJson(`https://dev.to/api/articles?username=${encodeURIComponent(username)}`, signal);
+      return {
+        articleCount: articles.length,
+        latestArticle: articles[0]?.title ?? null,
+        totalReactions: articles.reduce((a: number, x: any) => a + (x.public_reactions_count ?? 0), 0)
       };
-    } catch (e) {
-      return { provider: 'wakatime', data: null, error: String(e) };
+    }
+  },
+  {
+    id: 'wakatime',
+    async fetch(username, signal) {
+      // requires the user to have public coding activity
+      const { data } = await getJson(`https://wakatime.com/api/v1/users/${encodeURIComponent(username)}/stats`, signal);
+      return {
+        totalHours: Math.round((data.total_seconds / 3600) * 10) / 10,
+        languages: (data.languages ?? []).map((l: any) => ({ name: l.name, percent: l.percent }))
+      };
     }
   }
+];
+
+const PLUGIN_TIMEOUT_MS = 4000;
+
+/** Runs the selected plugins in parallel; a failing plugin never fails the request. */
+export async function runPlugins(username: string, ids?: string[]): Promise<Record<string, PluginData>> {
+  const selected = ids ? plugins.filter((p) => ids.includes(p.id)) : plugins;
+  const results = await Promise.all(
+    selected.map(async (p): Promise<[string, PluginData]> => {
+      try {
+        return [p.id, { provider: p.id, data: await p.fetch(username, AbortSignal.timeout(PLUGIN_TIMEOUT_MS)) }];
+      } catch (e) {
+        return [p.id, { provider: p.id, data: null, error: e instanceof Error ? e.message : String(e) }];
+      }
+    })
+  );
+  return Object.fromEntries(results);
 }

@@ -1,3 +1,5 @@
+import type { MiddlewareHandler } from 'hono';
+
 /**
  * Two-tier cache for upstream data.
  *  - Cloudflare Cache API (`caches.default`) when running on the edge: shared across requests/isolates.
@@ -79,4 +81,34 @@ function remember(key: string, value: unknown, ttl: number) {
 export function clearMemoryCache() {
   memory.clear();
   inflight.clear();
+}
+
+/** Same URL with query params sorted, so `?a=1&b=2` and `?b=2&a=1` share one cache entry. */
+export function normalizeUrl(raw: string): string {
+  const u = new URL(raw);
+  u.searchParams.sort();
+  u.hash = '';
+  return u.toString();
+}
+
+/**
+ * Caches whole successful responses in the Cloudflare Cache API (no-op elsewhere).
+ * Lifetime comes from each response's own Cache-Control header.
+ */
+export function responseCache(): MiddlewareHandler {
+  return async (c, next) => {
+    if (!edge || c.req.method !== 'GET') return next();
+    const key = new Request(normalizeUrl(c.req.url));
+    const hit = await edge.match(key).catch(() => undefined);
+    if (hit) return new Response(hit.body, hit);
+
+    await next();
+    if (c.res.ok && /max-age=[1-9]/.test(c.res.headers.get('Cache-Control') ?? '')) {
+      try {
+        c.executionCtx.waitUntil(edge.put(key, c.res.clone()).catch(() => undefined));
+      } catch {
+        /* no execution context available */
+      }
+    }
+  };
 }

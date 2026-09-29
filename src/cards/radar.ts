@@ -1,105 +1,71 @@
-import { renderSVG } from '../svg/renderer';
-import { Theme } from '../themes';
+import { defineCard } from './types';
+import { int, list } from '../core/params';
+import { esc, truncate } from '../core/text';
+import type { LanguageStat } from '../github/client';
+import { anim, frame, messageCard } from '../svg/frame';
+import { languageShares } from './languages';
 
-export function renderRadarCard(languages: { name: string; count: number }[], theme: Theme, username: string, animate: boolean = false): string {
-  const width = 480;
-  const height = 320;
-  const cx = width / 2;
-  const cy = height / 2 + 20;
-  const radius = 90;
-  
-  // Use top 5 languages minimum, 8 maximum
-  const topLangs = languages.slice(0, Math.min(Math.max(languages.length, 3), 6));
-  
-  if (topLangs.length < 3) {
-    return renderSVG(`
-      <text x="${width/2}" y="${height/2}" text-anchor="middle" fill="${theme.muted}" font-family="${theme.fontFamily}">Not enough data for radar chart</text>
-    `, { width, height, theme });
-  }
-
-  const maxCount = Math.max(...topLangs.map(l => l.count), 1);
-  const numPoints = topLangs.length;
-  const angleStep = (Math.PI * 2) / numPoints;
-
-  // Background Web
-  let webPolygons = '';
-  for (let level = 1; level <= 4; level++) {
-    const r = radius * (level / 4);
-    let points = '';
-    for (let i = 0; i < numPoints; i++) {
-      const angle = i * angleStep - Math.PI / 2;
-      const x = cx + r * Math.cos(angle);
-      const y = cy + r * Math.sin(angle);
-      points += `${x},${y} `;
-    }
-    webPolygons += `<polygon points="${points.trim()}" fill="none" stroke="${theme.border}" stroke-width="1" />`;
-  }
-
-  // Axes and Labels
-  let axes = '';
-  let labels = '';
-  topLangs.forEach((lang, i) => {
-    const angle = i * angleStep - Math.PI / 2;
-    const xEdge = cx + radius * Math.cos(angle);
-    const yEdge = cy + radius * Math.sin(angle);
-    axes += `<line x1="${cx}" y1="${cy}" x2="${xEdge}" y2="${yEdge}" stroke="${theme.border}" stroke-width="1" />`;
-    
-    const xLabel = cx + (radius + 25) * Math.cos(angle);
-    const yLabel = cy + (radius + 20) * Math.sin(angle);
-    
-    // Adjust text anchor based on x position
-    let textAnchor = 'middle';
-    if (Math.abs(Math.cos(angle)) > 0.1) {
-      textAnchor = Math.cos(angle) > 0 ? 'start' : 'end';
-    }
-
-    labels += `<text x="${xLabel}" y="${yLabel}" text-anchor="${textAnchor}" fill="${theme.foreground}" font-size="12" font-family="${theme.fontFamily}" font-weight="600">${lang.name}</text>`;
-  });
-
-  // Data Polygon
-  let dataPoints = '';
-  topLangs.forEach((lang, i) => {
-    const angle = i * angleStep - Math.PI / 2;
-    const val = lang.count / maxCount;
-    // Don't let it go all the way to 0 to keep shape
-    const r = radius * Math.max(val, 0.15); 
-    const x = cx + r * Math.cos(angle);
-    const y = cy + r * Math.sin(angle);
-    dataPoints += `${x},${y} `;
-  });
-
-  const dataPolygon = `
-    <polygon points="${dataPoints.trim()}" fill="${theme.accent}66" stroke="${theme.accent}" stroke-width="2" class="${animate ? 'fade-in' : ''}" />
-  `;
-
-  // Draw points over data polygon
-  let dataDots = '';
-  topLangs.forEach((lang, i) => {
-    const angle = i * angleStep - Math.PI / 2;
-    const val = lang.count / maxCount;
-    const r = radius * Math.max(val, 0.15); 
-    const x = cx + r * Math.cos(angle);
-    const y = cy + r * Math.sin(angle);
-    dataDots += `<circle cx="${x}" cy="${y}" r="4" fill="${theme.background}" stroke="${theme.accent}" stroke-width="2" class="${animate ? 'fade-in' : ''}" />`;
-  });
-
-  const content = `
-    <text x="25" y="35" font-weight="600" font-size="18" fill="${theme.accent}" font-family="${theme.fontFamily}">Tech Stack Radar</text>
-    <text x="455" y="35" text-anchor="end" font-weight="400" font-size="14" fill="${theme.muted}" font-family="${theme.fontFamily}">@${username}</text>
-    
-    <g transform="translate(0, 10)">
-      ${webPolygons}
-      ${axes}
-      ${dataPolygon}
-      ${dataDots}
-      ${labels}
-    </g>
-  `;
-
-  return renderSVG(content, {
-    width,
-    height,
-    theme,
-    animate
-  });
+interface Params {
+  count: number;
+  hide: string[];
 }
+
+export const radarCard = defineCard<Params, LanguageStat[]>({
+  id: 'radar',
+  title: 'Tech Stack Radar',
+  description: 'Radar chart of the most used languages.',
+  params: [
+    { name: 'langs_count', type: 'number', default: 6, min: 3, max: 8, description: 'Number of axes' },
+    { name: 'hide', type: 'list', description: 'Languages to hide' }
+  ],
+  parse: (q) => ({ count: int(q.langs_count, 6, 3, 8), hide: list(q.hide) }),
+  load: async (client, _p, common) => (await client.getUser(common.username)).languages,
+  toJSON: (langs, p) => languageShares(langs, { ...p, by: 'size' }),
+
+  render(langs, p, { theme, common, title }) {
+    const header = title('Tech Stack Radar');
+    const shares = languageShares(langs, { ...p, by: 'size' });
+    if (shares.length < 3) return messageCard('Not enough language data for a radar chart.', theme, { title: header ?? 'Tech Stack Radar' });
+
+    const width = 480;
+    const height = 320;
+    const cx = width / 2;
+    const cy = height / 2 + 20;
+    const R = 90;
+    const n = shares.length;
+    const max = Math.max(...shares.map((s) => s.percent));
+    // sqrt scale keeps the polygon readable when one language dominates
+    const angle = (i: number) => (i * 2 * Math.PI) / n - Math.PI / 2;
+    const pt = (i: number, r: number): [number, number] => [cx + r * Math.cos(angle(i)), cy + r * Math.sin(angle(i))];
+    const ring = (r: number) => shares.map((_, i) => pt(i, r).map((v) => v.toFixed(1)).join(",")).join(" ");
+
+    const web = [1, 2, 3, 4].map((l) => `<polygon points="${ring((R * l) / 4)}" fill="none" class="sk-bd"/>`).join('');
+    const axes = shares
+      .map((_, i) => {
+        const [x, y] = pt(i, R);
+        return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="sk-bd"/>`;
+      })
+      .join("");
+    const points = shares.map((s, i) => pt(i, R * Math.max(Math.sqrt(s.percent / max), 0.15)));
+    const dots = points.map(([x, y]) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" class="bg sk-accent" stroke-width="2"/>`).join('');
+    const labels = shares
+      .map((s, i) => {
+        const cos = Math.cos(angle(i));
+        const anchor = Math.abs(cos) < 0.1 ? 'middle' : cos > 0 ? 'start' : 'end';
+        const [x, y] = pt(i, R + 22);
+        return `<text x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="${anchor}" class="fg" font-size="12" font-weight="600">${esc(truncate(s.name, 14))}</text>`;
+      })
+      .join('');
+
+    const body = `<g transform="translate(0 10)">${web}${axes}<g${anim(common.animation)}><polygon points="${points.map((p) => p.map((v) => v.toFixed(1)).join(",")).join(" ")}" class="accent sk-accent" fill-opacity=".35" stroke-width="2"/>${dots}</g>${labels}</g>`;
+    return frame(body, {
+      width,
+      height,
+      theme,
+      animate: common.animation,
+      title: header,
+      subtitle: `@${common.username}`,
+      label: `Radar chart of top languages: ${shares.map((s) => s.name).join(', ')}`
+    });
+  }
+});

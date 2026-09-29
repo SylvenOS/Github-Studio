@@ -1,70 +1,88 @@
-import { renderSVG } from '../svg/renderer';
-import { Theme } from '../themes';
-import { GitHubRepository } from '../github/client';
+import { defineCard } from './types';
+import { bool, int, list, oneOf } from '../core/params';
+import { compact, esc, truncate } from '../core/text';
+import type { RepoSummary } from '../github/client';
+import { languageColor } from '../svg/colors';
+import { anim, contentTop, frame, messageCard, PAD } from '../svg/frame';
+import { icon } from '../svg/icons';
 
-// Simple hash function for language colors
-function getLanguageColor(lang: string | null): string {
-  if (!lang) return '#8b949e';
-  let hash = 0;
-  for (let i = 0; i < lang.length; i++) {
-    hash = lang.charCodeAt(i) + ((hash << 5) - hash);
+const SORTS = ['stars', 'forks', 'updated'] as const;
+
+interface Params {
+  limit: number;
+  sort: (typeof SORTS)[number];
+  exclude: string[];
+  skipArchived: boolean;
+}
+
+export function selectRepos(repos: RepoSummary[], p: Params): RepoSummary[] {
+  const excluded = new Set(p.exclude.map((e) => e.toLowerCase()));
+  const cmp: Record<Params['sort'], (a: RepoSummary, b: RepoSummary) => number> = {
+    stars: (a, b) => b.stars - a.stars || b.forks - a.forks,
+    forks: (a, b) => b.forks - a.forks || b.stars - a.stars,
+    updated: (a, b) => (b.pushedAt ?? '').localeCompare(a.pushedAt ?? '')
+  };
+  return repos
+    .filter((r) => !excluded.has(r.name.toLowerCase()) && !(p.skipArchived && r.archived))
+    .sort(cmp[p.sort])
+    .slice(0, p.limit);
+}
+
+export const topReposCard = defineCard<Params, RepoSummary[]>({
+  id: 'top-repos',
+  title: 'Top Repositories',
+  description: 'The user’s best repositories, ranked by stars, forks or recent activity.',
+  params: [
+    { name: 'limit', type: 'number', default: 5, min: 1, max: 10, description: 'Number of repositories' },
+    { name: 'sort', type: 'enum', options: [...SORTS], default: 'stars', description: 'Ranking' },
+    { name: 'exclude', type: 'list', description: 'Repository names to skip' },
+    { name: 'skip_archived', type: 'boolean', default: false, description: 'Skip archived repositories' }
+  ],
+  parse: (q) => ({
+    limit: int(q.limit, 5, 1, 10),
+    sort: oneOf(q.sort, SORTS, 'stars'),
+    exclude: list(q.exclude),
+    skipArchived: bool(q.skip_archived, false)
+  }),
+  load: async (client, _p, common) => (await client.getUser(common.username)).repos,
+  toJSON: (repos, p) => selectRepos(repos, p),
+
+  render(all, p, { theme, common, title }) {
+    const header = title('Top Repositories');
+    const repos = selectRepos(all, p);
+    if (!repos.length) return messageCard('No public repositories found.', theme, { title: header ?? 'Top Repositories' });
+
+    const width = 480;
+    const rowH = 85;
+    const y0 = contentTop(!!header) - 5;
+    const rows = repos
+      .map((r, i) => {
+        const y = y0 + i * rowH;
+        const lang = r.language;
+        const langW = lang ? 28 + lang.length * 6.4 + 16 : 0;
+        const stars = compact(r.stars);
+        return (
+          `<g transform="translate(${PAD} ${y})"${anim(common.animation, i)}>` +
+          `<rect width="${width - PAD * 2}" height="75" rx="${Math.min(theme.borderRadius, 12)}" class="bg sk-bd" stroke-width="1"/>` +
+          `<text x="15" y="25" class="fg" font-size="14" font-weight="600">${esc(truncate(r.name, 40))}</text>` +
+          `<text x="15" y="45" class="muted" font-size="12">${esc(truncate(r.description || 'No description provided.', 62))}</text>` +
+          (lang ? `<circle cx="19" cy="61" r="4" fill="${esc(languageColor(lang, r.languageColor))}"/><text x="28" y="65" class="fg" font-size="11">${esc(lang)}</text>` : '') +
+          icon('star', 15 + langW, 55, 'muted', 0.8) +
+          `<text x="${15 + langW + 15}" y="65" class="muted" font-size="11">${stars}</text>` +
+          icon('fork', 15 + langW + 25 + stars.length * 6.4 + 10, 55, 'muted', 0.8) +
+          `<text x="${15 + langW + 25 + stars.length * 6.4 + 25}" y="65" class="muted" font-size="11">${compact(r.forks)}</text>` +
+          `</g>`
+        );
+      })
+      .join('');
+
+    return frame(rows, {
+      width,
+      height: y0 + repos.length * rowH + 15,
+      theme,
+      title: header,
+      subtitle: `@${common.username}`,
+      label: `Top repositories of ${common.username}: ${repos.map((r) => r.name).join(', ')}`
+    });
   }
-  const color = Math.floor(Math.abs((Math.sin(hash) * 10000) % 1 * 16777215)).toString(16);
-  return '#' + '000000'.substring(0, 6 - color.length) + color;
-}
-
-export function renderTopReposCard(repos: GitHubRepository[], theme: Theme, animate: boolean = false): string {
-  const width = 480;
-  const padding = 25;
-  const headerHeight = 50;
-  const repoHeight = 85;
-  const height = headerHeight + (repos.length * repoHeight) + padding;
-
-  let content = `
-    <!-- Header -->
-    <text x="${padding}" y="35" font-weight="600" font-size="18" fill="${theme.accent}" font-family="${theme.fontFamily}">Top Repositories</text>
-  `;
-
-  repos.forEach((repo, index) => {
-    const yOffset = headerHeight + (index * repoHeight);
-    
-    // Truncate description
-    let desc = repo.description || 'No description provided.';
-    if (desc.length > 60) {
-      desc = desc.substring(0, 57) + '...';
-    }
-
-    const langColor = getLanguageColor(repo.language);
-
-    content += `
-      <g transform="translate(${padding}, ${yOffset})" class="${animate ? 'fade-in' : ''}" style="animation-delay: ${index * 150}ms">
-        <rect x="0" y="0" width="${width - padding * 2}" height="75" rx="${theme.borderRadius}" fill="${theme.background}" stroke="${theme.border}" stroke-width="1" />
-        
-        <!-- Repo Name -->
-        <text x="15" y="25" font-weight="600" font-size="14" fill="${theme.foreground}" font-family="${theme.fontFamily}">${repo.name}</text>
-        
-        <!-- Repo Description -->
-        <text x="15" y="45" font-weight="400" font-size="12" fill="${theme.muted}" font-family="${theme.fontFamily}">${desc}</text>
-        
-        <!-- Language -->
-        <circle cx="19" cy="61" r="4" fill="${langColor}" />
-        <text x="28" y="65" font-weight="400" font-size="11" fill="${theme.foreground}" font-family="${theme.fontFamily}">${repo.language || 'Unknown'}</text>
-        
-        <!-- Stars -->
-        <path d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.194L.818 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z" fill="${theme.muted}" transform="translate(100, 56) scale(0.8)" />
-        <text x="115" y="65" font-weight="400" font-size="11" fill="${theme.muted}" font-family="${theme.fontFamily}">${repo.stars.toLocaleString()}</text>
-        
-        <!-- Forks -->
-        <path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z" fill="${theme.muted}" transform="translate(150, 56) scale(0.8)" />
-        <text x="165" y="65" font-weight="400" font-size="11" fill="${theme.muted}" font-family="${theme.fontFamily}">${repo.forks.toLocaleString()}</text>
-      </g>
-    `;
-  });
-
-  return renderSVG(content, {
-    width,
-    height,
-    theme,
-    animate
-  });
-}
+});

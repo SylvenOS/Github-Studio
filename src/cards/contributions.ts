@@ -1,56 +1,101 @@
-import { renderSVG } from '../svg/renderer';
-import { Theme } from '../themes';
+import { defineCard } from './types';
+import { bool, int } from '../core/params';
+import { fmt } from '../core/text';
+import { calendarYearRange, lastYearRange, type CalendarDay } from '../github/client';
+import { contentTop, frame, PAD } from '../svg/frame';
 
-export function renderContributionsCard(
-  days: { date: string; level: number; count: number }[],
-  theme: Theme,
-  username: string
-): string {
-  const boxSize = 10;
-  const gap = 3;
-  const columns = Math.ceil(days.length / 7);
-  const width = 40 + columns * (boxSize + gap) + 20;
-  const height = 60 + 7 * (boxSize + gap) + 30;
-  
-  let rectsSvg = '';
-  
-  // To draw correctly, we assume the days array is sorted chronologically.
-  // The first day might not be a Sunday. Let's find the day of the week of the first day.
-  const firstDay = new Date(days[0].date);
-  let currentDayOfWeek = firstDay.getUTCDay();
-  let currentWeek = 0;
-  
-  for (const day of days) {
-    const x = currentWeek * (boxSize + gap);
-    const y = currentDayOfWeek * (boxSize + gap);
-    
-    // Determine color based on level
-    let fill = theme.border;
-    if (day.level === 1) fill = `${theme.accent}66`; // 40%
-    if (day.level === 2) fill = `${theme.accent}99`; // 60%
-    if (day.level === 3) fill = `${theme.accent}CC`; // 80%
-    if (day.level === 4) fill = `${theme.accent}`;   // 100%
-    if (day.level === 0) fill = `${theme.foreground}1A`; // 10%
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const CELL = 10;
+const GAP = 3;
+const STEP = CELL + GAP;
 
-    rectsSvg += `<rect x="${x}" y="${y}" width="${boxSize}" height="${boxSize}" rx="2" fill="${fill}" />`;
-    
-    currentDayOfWeek++;
-    if (currentDayOfWeek > 6) {
-      currentDayOfWeek = 0;
-      currentWeek++;
-    }
-  }
-
-  const content = `
-    <!-- Top Row -->
-    <text x="25" y="35" font-weight="600" font-size="16" fill="${theme.accent}" font-family="${theme.fontFamily}">Contribution Graph</text>
-    <text x="${width - 25}" y="35" font-weight="400" font-size="13" fill="${theme.muted}" font-family="${theme.fontFamily}" text-anchor="end">@${username}</text>
-    
-    <!-- Graph -->
-    <g transform="translate(25, 60)">
-      ${rectsSvg}
-    </g>
-  `;
-
-  return renderSVG(content, { width, height, theme });
+interface Params {
+  year: number | null;
+  months: boolean;
 }
+
+/** Places each day on a week/weekday grid (columns start on Sunday). */
+export function layoutDays(days: CalendarDay[]) {
+  let col = 0;
+  return days.map((d, i) => {
+    const dow = new Date(`${d.date}T00:00:00Z`).getUTCDay();
+    if (i > 0 && dow === 0) col++;
+    return { ...d, col, dow };
+  });
+}
+
+export const contributionsCard = defineCard<Params, CalendarDay[]>({
+  id: 'contributions',
+  aliases: ['heatmap'],
+  title: 'Contribution Graph',
+  description: 'Heatmap of daily contributions for the last year or a given calendar year.',
+  params: [
+    { name: 'year', type: 'number', min: 2008, description: 'Calendar year (default: last 12 months)' },
+    { name: 'months', type: 'boolean', default: true, description: 'Show month labels' }
+  ],
+  parse: (q) => ({
+    year: q.year ? int(q.year, new Date().getUTCFullYear(), 2008, new Date().getUTCFullYear()) : null,
+    months: bool(q.months, true)
+  }),
+  load: (client, p, common) =>
+    client.getCalendar(common.username, [p.year ? calendarYearRange(p.year) : lastYearRange()]),
+
+  render(days, p, { theme, common, title }) {
+    const header = title('Contribution Graph');
+    const top = contentTop(!!header);
+    const cells = layoutDays(days);
+    const columns = (cells.at(-1)?.col ?? 0) + 1;
+    const gx = PAD + 28;
+    const gy = top + (p.months ? 18 : 0);
+    const width = gx + columns * STEP - GAP + PAD;
+    const total = days.reduce((a, d) => a + d.count, 0);
+
+    const rects = cells
+      .map((c) => `<rect x="${c.col * STEP}" y="${c.dow * STEP}" width="${CELL}" height="${CELL}" rx="2" class="l${c.level}"/>`)
+      .join('');
+
+    let monthLabels = '';
+    if (p.months) {
+      const firstInCol = new Map<number, (typeof cells)[number]>();
+      const sizes = new Map<number, number>();
+      for (const c of cells) {
+        if (!firstInCol.has(c.col)) firstInCol.set(c.col, c);
+        sizes.set(c.col, (sizes.get(c.col) ?? 0) + 1);
+      }
+      let last = -1;
+      let lastCol = -Infinity;
+      for (const [col, c] of firstInCol) {
+        const m = Number(c.date.slice(5, 7)) - 1;
+        if (m === last) continue;
+        last = m;
+        // labels are ~3 columns wide; a sliver of a month at the edge would collide with its neighbour
+        if (col - lastCol < 3 || (col === 0 && (sizes.get(0) ?? 0) < 4)) continue;
+        lastCol = col;
+        monthLabels += `<text x="${gx + col * STEP}" y="${top + 8}" class="label muted" font-size="10">${MONTHS[m]}</text>`;
+      }
+    }
+
+    const weekdays = [1, 3, 5]
+      .map((d) => `<text x="${PAD}" y="${gy + d * STEP + 9}" class="label muted" font-size="9">${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d]}</text>`)
+      .join('');
+
+    const legendY = gy + 7 * STEP + 12;
+    const swatchX = width - PAD - 30 - 5 * STEP + 3;
+    const legend =
+      `<text x="${PAD}" y="${legendY + 9}" class="label muted" font-size="11">${fmt(total)} contributions ${p.year ? `in ${p.year}` : 'in the last year'}</text>` +
+      `<text x="${swatchX - 6}" y="${legendY + 9}" class="label muted" font-size="10" text-anchor="end">Less</text>` +
+      [0, 1, 2, 3, 4]
+        .map((l) => `<rect x="${swatchX + l * STEP}" y="${legendY}" width="${CELL}" height="${CELL}" rx="2" class="l${l}"/>`)
+        .join('') +
+      `<text x="${width - PAD}" y="${legendY + 9}" class="label muted" font-size="10" text-anchor="end">More</text>`;
+
+    return frame(`${monthLabels}${weekdays}<g transform="translate(${gx} ${gy})">${rects}</g>${legend}`, {
+      width: Math.max(width, 460),
+      height: legendY + CELL + PAD,
+      theme,
+      title: header,
+      subtitle: `@${common.username}`,
+      label: `${fmt(total)} contributions by ${common.username}`
+    });
+  }
+});

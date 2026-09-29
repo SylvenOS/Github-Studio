@@ -1,197 +1,318 @@
-export interface GitHubProfile {
-  username: string;
-  name: string;
-  avatarUrl: string;
-  bio: string | null;
-  followers: number;
-  following: number;
-  publicRepositories: number;
-  pullRequests: number;
-  commits: number;
-  contributions: number;
-  issues: number;
-  reviews: number;
+import { cached } from '../core/cache';
+import { notFound, rateLimited, upstream } from '../core/errors';
+import {
+  aggregateRepos,
+  levelFromEnum,
+  mergeCalendars,
+  parseContributionHtml,
+  type GqlRepoNode
+} from './parse';
+import type { CalendarDay, DateRange, RepoDetail, RepoSummary, UserData, LanguageStat } from './types';
+
+export * from './types';
+
+const API = 'https://api.github.com';
+const TIMEOUT_MS = 8000;
+const MAX_REPO_PAGES = 3; // 300 repositories
+
+export interface ClientOptions {
+  tokens?: string[];
+  /** Cache lifetime for upstream data, seconds. */
+  ttl?: number;
+  waitUntil?: (p: Promise<unknown>) => void;
 }
 
+// ---- date ranges ----------------------------------------------------------------------------
 
-export interface GitHubRepository {
-  name: string;
-  description: string | null;
-  stars: number;
-  forks: number;
-  language: string | null;
+const day = (d: Date) => d.toISOString().slice(0, 10);
+
+/** The rolling window GitHub shows on a profile (≈ last 12 months). */
+export function lastYearRange(now = new Date()): DateRange {
+  return { from: day(new Date(now.getTime() - 364 * 86_400_000)), to: day(now), rolling: true };
 }
+
+export function calendarYearRange(year: number, now = new Date()): DateRange {
+  const end = year >= now.getUTCFullYear() ? day(now) : `${year}-12-31`;
+  return { from: `${year}-01-01`, to: end };
+}
+
+// ---- GraphQL documents ----------------------------------------------------------------------
+
+const REPO_ARGS = 'ownerAffiliations:OWNER, privacy:PUBLIC, isFork:false, first:100, orderBy:{field:STARGAZERS, direction:DESC}';
+const REPO_NODES = `nodes{ name description url stargazerCount forkCount isArchived pushedAt
+  primaryLanguage{name color}
+  languages(first:10, orderBy:{field:SIZE, direction:DESC}){ edges{ size node{name color} } } }
+  pageInfo{ hasNextPage endCursor }`;
+
+const USER_QUERY = `query($login:String!){ user(login:$login){
+  login name avatarUrl bio createdAt
+  followers{totalCount} following{totalCount} gists(privacy:PUBLIC){totalCount}
+  all:repositories(ownerAffiliations:OWNER, privacy:PUBLIC){totalCount}
+  pullRequests{totalCount} issues{totalCount}
+  contributionsCollection{ totalCommitContributions totalPullRequestReviewContributions restrictedContributionsCount
+    contributionCalendar{totalContributions} }
+  repositories(${REPO_ARGS}){ ${REPO_NODES} }
+}}`;
+
+const REPO_PAGE_QUERY = `query($login:String!,$after:String){ user(login:$login){
+  repositories(${REPO_ARGS}, after:$after){ ${REPO_NODES} } }}`;
+
+const CALENDAR_FIELDS = 'contributionCalendar{ totalContributions weeks{ contributionDays{ date contributionCount contributionLevel } } }';
 
 export class GitHubClient {
-  private token?: string;
+  private readonly tokens: string[];
+  private readonly ttl: number;
+  private readonly waitUntil?: (p: Promise<unknown>) => void;
 
-  constructor(token?: string) {
-    this.token = token;
+  constructor(opts: ClientOptions = {}) {
+    this.tokens = (opts.tokens ?? []).filter(Boolean);
+    this.ttl = opts.ttl ?? 1800;
+    this.waitUntil = opts.waitUntil;
   }
 
-  async getProfile(username: string): Promise<GitHubProfile> {
-    const headers: Record<string, string> = {
-      'User-Agent': 'github-stats-app'
+  get hasToken() {
+    return this.tokens.length > 0;
+  }
+
+  // ---- public API ---------------------------------------------------------------------------
+
+  getUser(login: string): Promise<UserData> {
+    const mode = this.hasToken ? 'gql' : 'rest';
+    return this.cache(`user:${login.toLowerCase()}:${mode}`, () =>
+      this.hasToken ? this.getUserGraphQL(login) : this.getUserRest(login)
+    );
+  }
+
+  /** Daily contributions across one or more date ranges, merged and sorted. */
+  async getCalendar(login: string, ranges: DateRange[] = [lastYearRange()]): Promise<CalendarDay[]> {
+    const parts = await Promise.all(
+      ranges.map((r) => this.cache(`cal:${login.toLowerCase()}:${r.from}:${r.to}:${this.hasToken ? 'g' : 'h'}`, () =>
+        this.hasToken ? this.calendarGraphQL(login, [r]).then((p) => p[0]) : this.calendarHtml(login, r)
+      ))
+    );
+    return mergeCalendars(parts);
+  }
+
+  getRepository(owner: string, repo: string): Promise<RepoDetail> {
+    return this.cache(`repo:${owner.toLowerCase()}/${repo.toLowerCase()}`, async () => {
+      const r = await this.rest<Record<string, any>>(`/repos/${owner}/${repo}`);
+      return {
+        owner: r.owner?.login ?? owner,
+        name: r.name,
+        description: r.description ?? null,
+        url: r.html_url,
+        stars: r.stargazers_count ?? 0,
+        forks: r.forks_count ?? 0,
+        watchers: r.subscribers_count ?? r.watchers_count ?? 0,
+        openIssues: r.open_issues_count ?? 0,
+        language: r.language ?? null,
+        license: r.license?.spdx_id && r.license.spdx_id !== 'NOASSERTION' ? r.license.spdx_id : null,
+        topics: r.topics ?? [],
+        sizeKb: r.size ?? 0,
+        archived: !!r.archived,
+        isFork: !!r.fork,
+        updatedAt: r.pushed_at ?? r.updated_at
+      };
+    });
+  }
+
+  // ---- GraphQL ------------------------------------------------------------------------------
+
+  private async getUserGraphQL(login: string): Promise<UserData> {
+    const { user } = await this.graphql<{ user: any }>(USER_QUERY, { login });
+    const nodes: GqlRepoNode[] = [...user.repositories.nodes];
+
+    let page = user.repositories.pageInfo;
+    for (let i = 1; i < MAX_REPO_PAGES && page.hasNextPage; i++) {
+      const next = await this.graphql<{ user: any }>(REPO_PAGE_QUERY, { login, after: page.endCursor });
+      nodes.push(...next.user.repositories.nodes);
+      page = next.user.repositories.pageInfo;
+    }
+
+    const { repos, languages, stars, forks } = aggregateRepos(nodes);
+    const cc = user.contributionsCollection;
+    return {
+      login: user.login,
+      name: user.name || user.login,
+      avatarUrl: user.avatarUrl,
+      bio: user.bio || null,
+      createdAt: user.createdAt,
+      followers: user.followers.totalCount,
+      following: user.following.totalCount,
+      publicRepos: user.all.totalCount,
+      gists: user.gists.totalCount,
+      stars,
+      forks,
+      pullRequests: user.pullRequests.totalCount,
+      issues: user.issues.totalCount,
+      commits: cc.totalCommitContributions + cc.restrictedContributionsCount,
+      reviews: cc.totalPullRequestReviewContributions,
+      contributions: cc.contributionCalendar.totalContributions,
+      repos,
+      languages,
+      source: 'graphql'
     };
-    
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+  }
+
+  private async calendarGraphQL(login: string, ranges: DateRange[]): Promise<CalendarDay[][]> {
+    const vars: Record<string, string> = { login };
+    const decl = ranges.map((_, i) => `$f${i}:DateTime!,$t${i}:DateTime!`).join(',');
+    const body = ranges
+      .map((r, i) => {
+        vars[`f${i}`] = `${r.from}T00:00:00Z`;
+        vars[`t${i}`] = `${r.to}T23:59:59Z`;
+        return `r${i}:contributionsCollection(from:$f${i}, to:$t${i}){ ${CALENDAR_FIELDS} }`;
+      })
+      .join('\n');
+    const { user } = await this.graphql<{ user: any }>(`query($login:String!,${decl}){ user(login:$login){ ${body} } }`, vars);
+
+    return ranges.map((_, i) =>
+      (user[`r${i}`].contributionCalendar.weeks as any[]).flatMap((w) =>
+        (w.contributionDays as any[]).map((d): CalendarDay => ({
+          date: d.date,
+          count: d.contributionCount,
+          level: levelFromEnum(d.contributionLevel)
+        }))
+      )
+    );
+  }
+
+  private async graphql<T>(query: string, variables: Record<string, unknown>): Promise<T> {
+    const res = await this.request(`${API}/graphql`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, variables })
+    });
+    await this.assertOk(res);
+    const json = (await res.json()) as { data?: T; errors?: { type?: string; message: string }[] };
+    if (json.errors?.length) {
+      const e = json.errors[0];
+      if (e.type === 'NOT_FOUND') throw notFound('GitHub user not found');
+      if (e.type === 'RATE_LIMITED') throw rateLimited('GitHub API rate limit exceeded');
+      if (!json.data) throw upstream(`GitHub GraphQL error: ${e.message}`);
     }
+    if (!json.data) throw upstream('Empty response from GitHub');
+    return json.data;
+  }
 
-    const res = await fetch(`https://api.github.com/users/${username}`, { headers });
-    
-    if (!res.ok) {
-      throw new Error(`Failed to fetch user data for ${username}: ${res.statusText}`);
-    }
-    
-    const data = await res.json();
+  // ---- REST / HTML fallback (no token) --------------------------------------------------------
 
-    let pullRequests = 0;
-    let commits = 0;
-    let contributions = 0;
-    let issues = 0;
-    let reviews = 0;
+  private async getUserRest(login: string): Promise<UserData> {
+    const u = await this.rest<Record<string, any>>(`/users/${login}`);
+    const pages = Math.min(MAX_REPO_PAGES, Math.max(1, Math.ceil((u.public_repos ?? 0) / 100)));
 
-    try {
-      const prRes = await fetch(`https://api.github.com/search/issues?q=author:${username}+type:pr`, { headers });
-      if (prRes.ok) {
-        const prData = await prRes.json();
-        pullRequests = prData.total_count || 0;
-      }
+    const [repoPages, calendar, prs, issues, reviews, commits] = await Promise.all([
+      Promise.all(
+        Array.from({ length: pages }, (_, i) =>
+          this.rest<any[]>(`/users/${login}/repos?per_page=100&page=${i + 1}&type=owner`).catch(() => [] as any[])
+        )
+      ),
+      this.getCalendar(login).catch(() => [] as CalendarDay[]),
+      this.searchCount('issues', `author:${login} type:pr`),
+      this.searchCount('issues', `author:${login} type:issue`),
+      this.searchCount('issues', `reviewed-by:${login} -author:${login}`),
+      this.searchCount('commits', `author:${login}`)
+    ]);
 
-      const issueRes = await fetch(`https://api.github.com/search/issues?q=author:${username}+type:issue`, { headers });
-      if (issueRes.ok) {
-        const issueData = await issueRes.json();
-        issues = issueData.total_count || 0;
-      }
+    const own = repoPages.flat().filter((r) => !r.fork);
+    const repos: RepoSummary[] = own
+      .map((r) => ({
+        name: r.name,
+        description: r.description ?? null,
+        url: r.html_url,
+        stars: r.stargazers_count ?? 0,
+        forks: r.forks_count ?? 0,
+        language: r.language ?? null,
+        languageColor: null,
+        archived: !!r.archived,
+        pushedAt: r.pushed_at ?? null
+      }))
+      .sort((a, b) => b.stars - a.stars || b.forks - a.forks);
 
-      const reviewRes = await fetch(`https://api.github.com/search/issues?q=reviewed-by:${username}`, { headers });
-      if (reviewRes.ok) {
-        const reviewData = await reviewRes.json();
-        reviews = reviewData.total_count || 0;
-      }
-
-      const commitRes = await fetch(`https://api.github.com/search/commits?q=author:${username}`, { 
-        headers: { ...headers, 'Accept': 'application/vnd.github.cloak-preview+json' } 
-      });
-      if (commitRes.ok) {
-        const commitData = await commitRes.json();
-        commits = commitData.total_count || 0;
-      }
-
-      const profileRes = await fetch(`https://github.com/users/${username}/contributions`);
-      if (profileRes.ok) {
-        const profileHtml = await profileRes.text();
-        const match = profileHtml.match(/([0-9,]+)\s+contributions\s+in\s+the\s+last\s+year/);
-        if (match) {
-          contributions = parseInt(match[1].replace(/,/g, ''), 10);
-        }
-      }
-    } catch (e) {
-      console.error("Failed to fetch extended stats for", username, e);
-    }
+    const counts = new Map<string, number>();
+    for (const r of repos) if (r.language) counts.set(r.language, (counts.get(r.language) ?? 0) + 1);
+    const languages: LanguageStat[] = [...counts]
+      .map(([name, n]) => ({ name, color: null, size: n, repos: n }))
+      .sort((a, b) => b.size - a.size);
 
     return {
-      username: data.login,
-      name: data.name || data.login,
-      avatarUrl: data.avatar_url,
-      bio: data.bio || null,
-      followers: data.followers,
-      following: data.following,
-      publicRepositories: data.public_repos,
-      pullRequests,
-      commits,
-      contributions,
-      issues,
-      reviews
+      login: u.login,
+      name: u.name || u.login,
+      avatarUrl: u.avatar_url,
+      bio: u.bio || null,
+      createdAt: u.created_at ?? null,
+      followers: u.followers ?? 0,
+      following: u.following ?? 0,
+      publicRepos: u.public_repos ?? 0,
+      gists: u.public_gists ?? 0,
+      stars: repos.reduce((a, r) => a + r.stars, 0),
+      forks: repos.reduce((a, r) => a + r.forks, 0),
+      pullRequests: prs ?? 0,
+      issues: issues ?? 0,
+      commits: commits ?? 0, // lifetime in REST mode
+      reviews: reviews ?? 0,
+      contributions: calendar.reduce((a, d) => a + d.count, 0),
+      repos,
+      languages,
+      source: 'rest'
     };
   }
 
-  async getLanguages(username: string): Promise<{ name: string; count: number }[]> {
-    const headers: Record<string, string> = {
-      'User-Agent': 'gitpulse-app'
-    };
-    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+  private async calendarHtml(login: string, r: DateRange): Promise<CalendarDay[]> {
+    // The HTML endpoint only understands calendar years (`from`/`to` pick the year); with no params it
+    // returns the rolling last 12 months.
+    const query = r.rolling ? '' : `?from=${r.from.slice(0, 4)}-01-01&to=${r.from.slice(0, 4)}-12-31`;
+    const res = await this.request(`https://github.com/users/${login}/contributions${query}`, { auth: false });
+    if (res.status === 404) throw notFound('GitHub user not found');
+    if (!res.ok) throw upstream(`Could not load contribution graph (${res.status})`);
+    return parseContributionHtml(await res.text()).filter((d) => d.date <= r.to && (r.rolling || d.date >= r.from));
+  }
 
-    const res = await fetch(`https://api.github.com/users/${username}/repos?per_page=100`, { headers });
-    if (!res.ok) throw new Error(`Failed to fetch repos for ${username}`);
-
-    const repos = await res.json();
-    const languageCounts: Record<string, number> = {};
-
-    for (const repo of repos) {
-      if (repo.language && !repo.fork) {
-        languageCounts[repo.language] = (languageCounts[repo.language] || 0) + 1;
-      }
+  private async searchCount(kind: 'issues' | 'commits', q: string): Promise<number | null> {
+    try {
+      const res = await this.request(`${API}/search/${kind}?q=${encodeURIComponent(q)}&per_page=1`);
+      if (!res.ok) return null;
+      return ((await res.json()) as { total_count?: number }).total_count ?? null;
+    } catch {
+      return null;
     }
-
-    // Sort by count descending
-    return Object.entries(languageCounts)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count);
   }
 
-  async getContributionsGraph(username: string): Promise<{ date: string; level: number; count: number }[]> {
-    const headers: Record<string, string> = {
-      'User-Agent': 'gitpulse-app'
-    };
-    const res = await fetch(`https://github.com/users/${username}/contributions`, { headers });
-    if (!res.ok) throw new Error(`Failed to fetch contributions for ${username}`);
-    
-    const html = await res.text();
-    // GitHub's SVG graph uses data-date and data-level attributes on table cells or rects
-    const regex = /data-date="(\d{4}-\d{2}-\d{2})"[^>]*?data-level="(\d+)"/g;
-    
-    const days: { date: string; level: number; count: number }[] = [];
-    let match;
-    while ((match = regex.exec(html)) !== null) {
-      days.push({
-        date: match[1],
-        level: parseInt(match[2], 10),
-        // For accurate count, we'd need to parse the tooltips or other attributes,
-        // but level > 0 indicates > 0 contributions.
-        count: parseInt(match[2], 10) > 0 ? 1 : 0
-      });
+  // ---- plumbing -----------------------------------------------------------------------------
+
+  private async rest<T>(path: string): Promise<T> {
+    const res = await this.request(`${API}${path}`);
+    await this.assertOk(res);
+    return (await res.json()) as T;
+  }
+
+  private async assertOk(res: Response) {
+    if (res.ok) return;
+    if (res.status === 404) throw notFound('GitHub user or repository not found');
+    const limited = res.status === 429 || res.headers.get('x-ratelimit-remaining') === '0';
+    if (limited) {
+      throw rateLimited(
+        this.hasToken ? 'GitHub API rate limit exceeded' : 'GitHub API rate limit exceeded (server has no GITHUB_TOKEN configured)'
+      );
     }
-
-    return days.sort((a, b) => a.date.localeCompare(b.date));
+    if (res.status === 401) throw upstream('GitHub rejected the configured token');
+    throw upstream(`GitHub responded with ${res.status}`);
   }
 
-  async getRepository(username: string, repo: string): Promise<any> {
-    const headers: Record<string, string> = {
-      'User-Agent': 'gitpulse-app'
-    };
-    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
-
-    const res = await fetch(`https://api.github.com/repos/${username}/${repo}`, { headers });
-    if (!res.ok) throw new Error(`Failed to fetch repo ${username}/${repo}`);
-    
-    return await res.json();
+  private async request(url: string, init: RequestInit & { auth?: boolean } = {}): Promise<Response> {
+    const { auth = true, ...rest } = init;
+    const headers = new Headers(rest.headers);
+    headers.set('User-Agent', 'github-stats-api');
+    if (url.startsWith(API)) headers.set('Accept', 'application/vnd.github+json');
+    if (auth && this.tokens.length) headers.set('Authorization', `Bearer ${this.tokens[Math.floor(Math.random() * this.tokens.length)]}`);
+    try {
+      return await fetch(url, { ...rest, headers, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    } catch {
+      throw upstream('GitHub did not respond in time');
+    }
   }
 
-  async getTopRepositories(username: string, limit: number = 5): Promise<GitHubRepository[]> {
-    const headers: Record<string, string> = {
-      'User-Agent': 'gitpulse-app'
-    };
-    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
-
-    const res = await fetch(`https://api.github.com/users/${username}/repos?sort=updated&per_page=100`, { headers });
-    if (!res.ok) throw new Error(`Failed to fetch top repos for ${username}`);
-    
-    const repos = await res.json();
-    
-    // Sort by stars descending, then by forks
-    const sorted = repos
-      .filter((r: any) => !r.fork) // Exclude forks
-      .sort((a: any, b: any) => b.stargazers_count - a.stargazers_count || b.forks_count - a.forks_count);
-      
-    return sorted.slice(0, limit).map((r: any) => ({
-      name: r.name,
-      description: r.description,
-      stars: r.stargazers_count,
-      forks: r.forks_count,
-      language: r.language
-    }));
+  private cache<T>(key: string, load: () => Promise<T>): Promise<T> {
+    return cached(key, { ttl: this.ttl, waitUntil: this.waitUntil }, load);
   }
 }
-

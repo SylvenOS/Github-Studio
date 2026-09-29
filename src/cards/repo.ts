@@ -1,51 +1,62 @@
-import { renderSVG } from '../svg/renderer';
-import { Theme } from '../themes';
+import { defineCard } from './types';
+import { bool, repoName } from '../core/params';
+import { compact, esc, wrap } from '../core/text';
+import type { RepoDetail } from '../github/client';
+import { languageColor } from '../svg/colors';
+import { anim, contentTop, frame, PAD } from '../svg/frame';
+import { icon } from '../svg/icons';
 
-export function renderRepoCard(repo: any, theme: Theme, animate: boolean = false): string {
-  const f = (n: number) => n.toLocaleString();
-  
-  // Truncate description if too long
-  let desc = repo.description || 'No description provided.';
-  if (desc.length > 70) {
-    desc = desc.substring(0, 67) + '...';
-  }
-
-  const content = `
-    <g class="${animate ? 'fade-in' : ''}">
-      <!-- Repo Name -->
-      <text x="25" y="35" font-weight="700" font-size="20" fill="${theme.accent}" font-family="${theme.fontFamily}">${repo.name}</text>
-      
-      <!-- Description -->
-      <text x="25" y="65" font-weight="400" font-size="14" fill="${theme.foreground}" font-family="${theme.fontFamily}">${desc}</text>
-      
-      <!-- Bottom Row Stats -->
-      <g transform="translate(25, 105)">
-        <!-- Language Color Dot & Text -->
-        <circle cx="5" cy="-4" r="5" fill="${theme.accent}" />
-        <text x="15" y="0" font-size="12" fill="${theme.muted}" font-family="${theme.fontFamily}">${repo.language || 'Unknown'}</text>
-        
-        <!-- Stars -->
-        <g transform="translate(100, 0)">
-          <text x="0" y="0" font-size="12" fill="${theme.muted}" font-family="${theme.fontFamily}">⭐ ${f(repo.stargazers_count)}</text>
-        </g>
-        
-        <!-- Forks -->
-        <g transform="translate(160, 0)">
-          <text x="0" y="0" font-size="12" fill="${theme.muted}" font-family="${theme.fontFamily}">🍴 ${f(repo.forks_count)}</text>
-        </g>
-
-        <!-- Size -->
-        <g transform="translate(220, 0)">
-          <text x="0" y="0" font-size="12" fill="${theme.muted}" font-family="${theme.fontFamily}">📦 ${f(repo.size)} KB</text>
-        </g>
-      </g>
-    </g>
-  `;
-
-  return renderSVG(content, {
-    width: 400,
-    height: 140,
-    theme,
-    animate
-  });
+interface Params {
+  repo: string;
+  showOwner: boolean;
 }
+
+const CHAR_W = 6.6; // approx. glyph width at 12px, for laying out the stat row
+
+export const repoCard = defineCard<Params, RepoDetail>({
+  id: 'repos',
+  aliases: ['repo', 'pin'],
+  title: 'Repository',
+  description: 'Pinned-repository style card for a single repository.',
+  params: [
+    { name: 'repo', type: 'string', description: 'Repository name (required)', default: 'linux' },
+    { name: 'show_owner', type: 'boolean', default: false, description: 'Prefix the name with the owner' }
+  ],
+  parse: (q) => ({ repo: repoName(q.repo), showOwner: bool(q.show_owner, false) }),
+  load: (client, p, common) => client.getRepository(common.username, p.repo),
+
+  render(r, p, { theme, common, title }) {
+    const header = title(p.showOwner ? `${r.owner}/${r.name}` : r.name);
+    const top = contentTop(!!header);
+    const animate = common.animation;
+
+    const lines = wrap(r.description || 'No description provided.', 52, 2);
+    const desc = lines
+      .map((l, i) => `<text x="${PAD}" y="${top + i * 20}" class="fg" font-size="14">${esc(l)}</text>`)
+      .join('');
+
+    // stat row: language, stars, forks, [license]
+    const rowY = top + 60;
+    let x = PAD;
+    let row = '';
+    if (r.language) {
+      row += `<circle cx="${x + 5}" cy="${rowY - 4}" r="5" fill="${esc(languageColor(r.language))}"/><text x="${x + 15}" y="${rowY}" class="label muted">${esc(r.language)}</text>`;
+      x += 15 + r.language.length * CHAR_W + 18;
+    }
+    for (const [name, value] of [['star', r.stars], ['fork', r.forks]] as const) {
+      const text = compact(value);
+      row += icon(name, x, rowY - 12, 'muted') + `<text x="${x + 20}" y="${rowY}" class="label muted">${text}</text>`;
+      x += 20 + text.length * CHAR_W + 16;
+    }
+    if (r.license) row += `<text x="${x}" y="${rowY}" class="label muted">${esc(r.license)}</text>`;
+
+    return frame(`<g${anim(animate)}>${desc}${row}</g>`, {
+      width: 400,
+      height: rowY + 25,
+      theme,
+      title: header,
+      subtitle: r.archived ? 'archived' : undefined,
+      label: `${r.owner}/${r.name}: ${r.stars} stars, ${r.forks} forks`
+    });
+  }
+});
