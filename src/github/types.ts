@@ -46,12 +46,14 @@ export interface UserData {
   languages: LanguageStat[];
   /** `graphql` = full data; `rest` = token-less fallback with reduced accuracy. */
   source: 'graphql' | 'rest';
-
-  // ---- extended profile & impact data (null/0/[] when unavailable, e.g. without a token) ----
   company: string | null;
   location: string | null;
   website: string | null;
   twitter: string | null;
+}
+
+/** Second-tier data, fetched only by cards that need it (profile, impact, pinned, trophies, grade). */
+export interface UserExtended {
   pronouns: string | null;
   hireable: boolean;
   status: { emoji: string | null; message: string | null } | null;

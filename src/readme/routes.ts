@@ -12,7 +12,7 @@ import { SOCIALS } from './badges';
 export const readmeRoutes = new Hono<AppEnv>();
 
 const MAX_BODY = 200_000;
-const PREVIEW_CSP = "sandbox; default-src 'none'; img-src * data:; style-src 'unsafe-inline'";
+const PREVIEW_CSP = "sandbox; default-src 'none'; img-src * data:; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'";
 
 /** Images in the generated README point at this origin: the request's own, or `?base=` for a custom domain. */
 function originOf(c: Ctx, base?: string): string {
@@ -46,6 +46,12 @@ function respond(c: Ctx, spec: ReadmeSpec, origin: string, format: string, downl
   });
 }
 
+function withoutHtml(blocks: ReadmeSpec['blocks']): ReadmeSpec['blocks'] {
+  return blocks
+    .filter((b) => b.type !== 'html')
+    .map((b) => (b.type === 'details' ? { ...b, blocks: withoutHtml(b.blocks) } : b));
+}
+
 readmeRoutes.get('/readme', (c) => {
   try {
     const q = c.req.query();
@@ -60,6 +66,8 @@ readmeRoutes.get('/readme', (c) => {
     }
     const spec = normalizeSpec(input, overridesFrom(q));
     assertAllowed(c, spec.username);
+    // an HTML page served by GET from our origin must not carry arbitrary third-party HTML
+    if (q.format === 'html') spec.blocks = withoutHtml(spec.blocks);
     return respond(c, spec, originOf(c, q.base), q.format ?? 'md', q.download === '1' || q.download === 'true', cacheHeader(600));
   } catch (e) {
     return jsonError(c, e);
@@ -68,6 +76,7 @@ readmeRoutes.get('/readme', (c) => {
 
 readmeRoutes.post('/readme', async (c) => {
   try {
+    if (Number(c.req.header('content-length') ?? 0) > MAX_BODY) throw badRequest('Request body is too large');
     const raw = await c.req.text();
     if (raw.length > MAX_BODY) throw badRequest('Request body is too large');
     let body: unknown;

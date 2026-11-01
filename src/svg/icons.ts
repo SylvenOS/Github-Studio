@@ -14,5 +14,5 @@ const PATHS = {
 export type IconName = keyof typeof PATHS;
 
 export function icon(name: IconName, x: number, y: number, cls = 'accent', scale = 1): string {
-  return `<path d="${PATHS[name]}" class="${cls}" transform="translate(${x} ${y}) scale(${scale})"/>`;
+  return `<path d="${PATHS[name]}" class="${cls} ic" transform="translate(${x} ${y}) scale(${scale})"/>`;
 }

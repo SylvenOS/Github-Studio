@@ -78,7 +78,7 @@ export const profileCard = defineCard<Params, Data>({
       ? ''
       : d.avatar
         ? `<clipPath id="av"><circle cx="${PAD + avatarSize / 2}" cy="${top + avatarSize / 2}" r="${avatarSize / 2}"/></clipPath>` +
-          `<image href="${d.avatar}" x="${PAD}" y="${top}" width="${avatarSize}" height="${avatarSize}" clip-path="url(#av)" preserveAspectRatio="xMidYMid slice"/>` +
+          `<image href="${esc(d.avatar)}" x="${PAD}" y="${top}" width="${avatarSize}" height="${avatarSize}" clip-path="url(#av)" preserveAspectRatio="xMidYMid slice"/>` +
           `<circle cx="${PAD + avatarSize / 2}" cy="${top + avatarSize / 2}" r="${avatarSize / 2}" class="sk-accent" stroke-width="2"/>`
         : `<circle cx="${PAD + avatarSize / 2}" cy="${top + avatarSize / 2}" r="${avatarSize / 2}" class="bd"/>` +
           `<text x="${PAD + avatarSize / 2}" y="${top + avatarSize / 2 + 12}" text-anchor="middle" font-size="34" font-weight="700" class="accent">${initial}</text>`;

@@ -8,11 +8,20 @@ export interface RawImage {
   data: Uint8Array;
 }
 
-/** Decodes PNG or JPEG bytes (pure JS, so it runs inside a Worker). */
+const MAX_PIXELS = 1024 * 1024;
+
+/** Decodes PNG or JPEG bytes (pure JS, so it runs inside a Worker). Refuses images over ~1 megapixel. */
 export function decodeImage(bytes: Uint8Array): RawImage {
-  if (bytes[0] === 0x89 && bytes[1] === 0x50) return fromPng(bytes);
+  if (bytes[0] === 0x89 && bytes[1] === 0x50) {
+    // IHDR width/height live at bytes 16-23: check before allocating anything
+    if (bytes.length >= 24) {
+      const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      if (dv.getUint32(16) * dv.getUint32(20) > MAX_PIXELS) throw new Error('Image is too large');
+    }
+    return fromPng(bytes);
+  }
   if (bytes[0] === 0xff && bytes[1] === 0xd8) {
-    const img = decodeJpeg(bytes, { useTArray: true, formatAsRGBA: true, maxMemoryUsageInMB: 64 });
+    const img = decodeJpeg(bytes, { useTArray: true, formatAsRGBA: true, maxMemoryUsageInMB: 64, maxResolutionInMP: 1.1 });
     return { width: img.width, height: img.height, data: img.data as unknown as Uint8Array };
   }
   throw new Error('Unsupported image format');

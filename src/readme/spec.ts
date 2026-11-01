@@ -57,7 +57,7 @@ export interface ReadmeSpec {
 
 export const BLOCK_TYPES = ['card', 'row', 'heading', 'text', 'badges', 'divider', 'html', 'details'] as const;
 
-const LIMITS = { blocks: 60, rowItems: 4, badges: 40, text: 6000, html: 6000, str: 200, paramValue: 200, params: 30 };
+const LIMITS = { blocks: 60, rowItems: 4, badges: 40, text: 6000, html: 6000, str: 200, paramValue: 200, params: 30, nodes: 300, bytes: 100_000 };
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const str = (v: unknown, max = LIMITS.str) => (typeof v === 'string' ? v.slice(0, max) : '');
@@ -159,7 +159,7 @@ export function normalizeSpec(input: unknown, overrides: Partial<Pick<ReadmeSpec
 
   const theme = themeName(overrides.theme ?? input.theme, 'default');
   const dark = overrides.dark !== undefined ? themeName(overrides.dark, '') : themeName(input.dark, '');
-  return {
+  const spec: ReadmeSpec = {
     username: validateUsername(overrides.username ?? str(input.username, 40)),
     theme,
     dark: dark && dark !== theme ? dark : undefined,
@@ -168,6 +168,22 @@ export function normalizeSpec(input: unknown, overrides: Partial<Pick<ReadmeSpec
     footer: overrides.footer ?? input.footer === true,
     blocks: input.blocks.map((b) => block(b, 0))
   };
+  // bound the total work a single spec can cause (nested details, rows and badge lists multiply)
+  const nodes = countNodes(spec.blocks);
+  if (nodes > LIMITS.nodes) throw badRequest(`The README is too complex (${nodes} elements, max ${LIMITS.nodes})`);
+  if (JSON.stringify(spec).length > LIMITS.bytes) throw badRequest('The README spec is too large');
+  return spec;
+}
+
+function countNodes(blocks: Block[]): number {
+  let n = 0;
+  for (const b of blocks) {
+    n++;
+    if (b.type === 'row') n += b.items.length;
+    if (b.type === 'badges') n += b.items.length;
+    if (b.type === 'details') n += countNodes(b.blocks);
+  }
+  return n;
 }
 
 /** Decodes the compact `spec=` query parameter (base64url-encoded JSON). */

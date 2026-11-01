@@ -1,4 +1,4 @@
-import type { ResolvedTheme, Palette } from '../themes';
+import type { FrameStyle, ResolvedTheme, Palette } from '../themes';
 import { esc } from '../core/text';
 
 export const PAD = 25;
@@ -48,28 +48,67 @@ function gradientDef(theme: ResolvedTheme): string {
   return `<defs><linearGradient id="bgGrad" x1="${50 - dx}%" y1="${50 - dy}%" x2="${50 + dx}%" y2="${50 + dy}%">${stops}</linearGradient></defs>`;
 }
 
-/** Wraps card content in the shared SVG chrome: theme variables, border, optional header. */
+/** CSS for the generic style options. Every value here was validated to a number or hex colour. */
+function styleCss(st: FrameStyle): string {
+  let css = '';
+  const ts = (st.textScale ?? 100) / 100;
+  if (st.titleSize || ts !== 1) css += `.header{font-size:${((st.titleSize ?? 18) * (st.titleSize ? 1 : ts)).toFixed(1)}px}`;
+  if (ts !== 1) css += `.value{font-size:${(16 * ts).toFixed(1)}px}.label{font-size:${(12 * ts).toFixed(1)}px}`;
+  if (st.titleColor) css += `.header{fill:${st.titleColor}}`;
+  if (st.valueColor) css += `.value{fill:${st.valueColor}}`;
+  if (st.iconColor) css += `.ic{fill:${st.iconColor}}`;
+  if (st.heatColors) css += st.heatColors.map((c, i) => `.l${i}{fill:${c};fill-opacity:1}`).join('');
+  if (st.bgOpacity !== undefined && st.bgOpacity < 100) css += `.bgr{fill-opacity:${st.bgOpacity / 100}}`;
+  if (st.glow) css += '.header,.accent,.ic{filter:drop-shadow(0 0 3px var(--accent))}';
+  return css;
+}
+
+/** Scales inline font sizes for `text_scale` (cards set sizes as attributes). */
+const scaleFonts = (svg: string, ts: number) =>
+  ts === 1 ? svg : svg.replace(/font-size="(\d+(?:\.\d+)?)"/g, (_, n: string) => `font-size="${(Number(n) * ts).toFixed(1)}"`);
+
+/**
+ * Wraps card content in the shared SVG chrome: theme variables, background, border, optional header,
+ * plus the generic style options (width, padding, title alignment, colours, text scale, glow...).
+ */
 export function frame(content: string, o: FrameOptions): string {
   const { width, height, theme } = o;
+  const st = theme.style ?? {};
+  const ts = (st.textScale ?? 100) / 100;
+  // padding grows/shrinks the canvas around the card's own layout (designed for 25px)
+  const d = (st.padding ?? PAD) - PAD;
+  const vw = width + 2 * d;
+  const vh = height + 2 * d;
+  const outW = st.width ?? vw;
+  const outH = Math.round((vh * outW) / vw);
+  const bw = theme.hideBorder ? 0 : st.borderWidth ?? 1.5;
   const darkCss = theme.dark ? `@media (prefers-color-scheme:dark){:root{${vars(theme.dark)}}}` : '';
-  const border = theme.hideBorder
-    ? ''
-    : `<rect x=".5" y=".5" width="${width - 1}" height="${height - 1}" rx="${theme.borderRadius}" fill="none" class="sk-bd" stroke-width="1.5"/>`;
-  const header = o.title
-    ? `<text x="${PAD}" y="35" class="header accent">${esc(o.title)}</text>` +
-      (o.subtitle
-        ? `<text x="${width - PAD}" y="35" class="label muted" text-anchor="end" font-size="13">${esc(o.subtitle)}</text>`
-        : '')
+  const border = bw > 0
+    ? `<rect x="${bw / 2}" y="${bw / 2}" width="${vw - bw}" height="${vh - bw}" rx="${theme.borderRadius}" fill="none" class="sk-bd" stroke-width="${bw}"/>`
     : '';
 
+  let header = '';
+  if (o.title) {
+    const align = st.titleAlign ?? 'left';
+    const x = align === 'center' ? width / 2 : align === 'right' ? width - PAD : PAD;
+    const anchor = align === 'center' ? ' text-anchor="middle"' : align === 'right' ? ' text-anchor="end"' : '';
+    header = `<text x="${x}" y="35" class="header accent"${anchor}>${esc(o.title)}</text>`;
+    if (o.subtitle && !st.hideSubtitle && align === 'left') {
+      header += `<text x="${width - PAD}" y="35" class="label muted" text-anchor="end" font-size="13">${esc(o.subtitle)}</text>`;
+    }
+  }
+  const body = scaleFonts(header + content, ts);
+  const inner = d ? `<g transform="translate(${d} ${d})">${body}</g>` : body;
+
   return (
-    `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(o.label ?? o.title ?? 'GitHub card')}">` +
-    `<style>:root{${vars(theme)}}${darkCss}text{font-family:${theme.fontFamily.replace(/"/g, "'")}}${STYLE}${o.animate ?? /fade-in|pulse/.test(content) ? ANIMATION : ''}</style>` +
-    (o.transparent ? '' : gradientDef(theme) +
-      `<rect x=".5" y=".5" width="${width - 1}" height="${height - 1}" rx="${theme.borderRadius}" ${theme.gradient ? 'fill="url(#bgGrad)"' : 'class="bg"'}/>` +
-      border) +
-    header +
-    content +
+    `<svg width="${outW}" height="${outH}" viewBox="0 0 ${vw} ${vh}" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(o.label ?? o.title ?? 'GitHub card')}">` +
+    `<style>:root{${vars(theme)}}${darkCss}text{font-family:${theme.fontFamily.replace(/"/g, "'")}}${STYLE}${styleCss(st)}${o.animate ?? /fade-in|pulse/.test(content) ? ANIMATION : ''}</style>` +
+    (o.transparent
+      ? ''
+      : gradientDef(theme) +
+        `<rect x="0" y="0" width="${vw}" height="${vh}" rx="${theme.borderRadius}" ${theme.gradient ? 'fill="url(#bgGrad)" class="bgr"' : 'class="bg bgr"'}/>` +
+        border) +
+    inner +
     `</svg>`
   );
 }

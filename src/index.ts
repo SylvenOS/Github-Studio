@@ -5,9 +5,11 @@ import { calculateTrophies } from './achievements/engine';
 import { cards, findCard } from './cards';
 import type { CardDefinition } from './cards/types';
 import { cacheStats, canonicalKey, edgeResponse, l1Info } from './core/cache';
+import { applyCompat } from './core/compat';
 import { ApiError, badRequest, notFound, rateLimited, toApiError, type ErrorCode } from './core/errors';
 import { META_CACHE, assertAllowed, cacheHeader, cacheSeconds, jsonError, type Ctx } from './core/http';
 import { translator } from './core/i18n';
+import { withNumberFormat } from './core/text';
 import { COMMON_PARAMS, background, color, list, parseCommon, username, type ParamDoc, type Query } from './core/params';
 import { GitHubClient } from './github/client';
 import { poolStatus } from './github/tokens';
@@ -124,13 +126,15 @@ async function renderCard(c: Ctx, card: CardDefinition, query: Query, client: Gi
       return c.json((card.toJSON ? card.toJSON(data, params) : data) as object, 200, { 'Cache-Control': cache });
     }
 
-    const theme = resolveTheme(common.theme, common.colors, { radius: common.radius, font: common.font, hideBorder: common.hideBorder, gradient: common.gradient });
-    const svg = card.render(data, params, {
-      theme,
-      common,
-      title: (fallback) => (common.hideTitle ? undefined : common.title ?? fallback),
-      t: translator(common.locale)
-    });
+    const theme = resolveTheme(common.theme, common.colors, { radius: common.radius, font: common.font, hideBorder: common.hideBorder, gradient: common.gradient, style: common.style });
+    const svg = withNumberFormat(common.numberFormat, common.locale, () =>
+      card.render(data, params, {
+        theme,
+        common,
+        title: (fallback) => (common.hideTitle ? undefined : common.title ?? fallback),
+        t: translator(common.locale)
+      })
+    );
     if (svg.length > MAX_SVG_BYTES) throw badRequest('This combination of options produces an image that is too large');
     return c.body(svg, 200, { ...SVG_HEADERS, 'Cache-Control': cache });
   } catch (e) {
@@ -229,13 +233,14 @@ app.route('/api', readmeRoutes);
 
 // ---- cards ---------------------------------------------------------------------------------
 
-app.get('/api/:card', async (c) => {
+async function handleCard(c: Ctx, id: string) {
   const started = Date.now();
-  const query = c.req.query();
-  const card = findCard(c.req.param('card'));
+  const card = findCard(id);
   if (!card) {
-    return jsonError(c, notFound(`Unknown card "${c.req.param('card')}". Available: ${cards.map((x) => x.id).join(', ')}`));
+    return jsonError(c, notFound(`Unknown card "${id}". Available: ${cards.map((x) => x.id).join(', ')}`));
   }
+  // github-readme-stats parameter names are rewritten first, so both spellings share one cache entry
+  const query = applyCompat(card.id, c.req.query());
 
   // One cache entry per *meaningful* request: unknown params, defaults and param order don't matter.
   const key = canonicalKey(new URL(c.req.url).origin, `/api/${card.id}`, query, allowedFor(card));
@@ -247,7 +252,11 @@ app.get('/api/:card', async (c) => {
   });
   log({ evt: 'card', card: card.id, user: query.username?.toLowerCase(), cache: hit ? 'hit' : 'miss', status: res.status, error: res.headers.get('X-Card-Error') ?? undefined, ms: Date.now() - started, sub: client?.subrequests ?? 0 });
   return res;
-});
+}
+
+// `/api?username=` is github-readme-stats' stats card
+app.get('/api', (c) => handleCard(c, 'stats'));
+app.get('/api/:card', (c) => handleCard(c, c.req.param('card')));
 
 app.notFound((c) => c.json({ error: { code: 'not_found', message: 'Not found. See /api/cards for available endpoints.' } }, 404));
 app.onError((e, c) => jsonError(c, e));

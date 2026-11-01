@@ -221,10 +221,18 @@ describe('new endpoints and cards', () => {
     const spec = await (await get('/api/openapi.json')).json();
     expect(spec.openapi).toBe('3.0.3');
     expect(Object.keys(spec.paths)).toEqual(expect.arrayContaining(['/api/ascii', '/api/achievements', '/api/badge']));
-    const limits = await get('/api/rate-limit');
-    const body = await limits.text();
+    // public: token health from observed headers only, no GitHub calls, no secrets
+    const pub = await (await get('/api/rate-limit')).text();
+    expect(pub).toContain('token-1');
+    expect(pub).not.toContain('test-token');
+    expect(pub).not.toContain('4321');
+    // admin: live quota, still without the token values
+    const admin = await (app.request('/api/rate-limit', { headers: { Authorization: 'Bearer s3cret' } }, { ...env, ADMIN_TOKEN: 's3cret' }) as Promise<Res>);
+    const body = await admin.text();
     expect(body).toContain('4321');
     expect(body).not.toContain('test-token');
+    const wrong = await (app.request('/api/rate-limit', { headers: { Authorization: 'Bearer nope' } }, { ...env, ADMIN_TOKEN: 's3cret' }) as Promise<Res>).then((r) => r.text());
+    expect(wrong).not.toContain('4321');
   });
 });
 

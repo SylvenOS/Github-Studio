@@ -48,7 +48,9 @@ describe('param parsing', () => {
   });
   it('sanitises font and falls back for unknown themes', () => {
     const c = parseCommon({ username: 'octo', font: 'Fira Code;}</style><script>', theme: 'nope' });
-    expect(c.font).not.toMatch(/[;<>{}]/);
+    expect(c.font).toBeUndefined(); // anything outside [ws,-] is rejected outright
+    expect(parseCommon({ username: 'octo', font: 'Fira Code, monospace' }).font).toBe("'Fira Code', monospace");
+    expect(parseCommon({ username: 'octo', font: "x'y" }).font).toBeUndefined();
     expect(c.theme).toBe('default');
   });
 });

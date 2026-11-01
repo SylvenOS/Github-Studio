@@ -94,7 +94,16 @@ function rowSvg(row: AsciiCell[], i: number, cw: number, lh: number, blocks: boo
   return `<text y="${(i * lh + lh * 0.78).toFixed(1)}">${inner}</text>`;
 }
 
+/** Keeps 3D renders bounded: cells x frames <= 60k (about 1-2 MB of SVG, a few ms of CPU). */
+const CELL_BUDGET = 60_000;
+function budgetFrames(shape: Shape, cols: number, frames: number): number {
+  if (shape === 'flat') return frames;
+  const cells = cols * Math.round(cols / 2);
+  return Math.max(4, Math.min(frames, Math.floor(CELL_BUDGET / cells)));
+}
+
 export const asciiCard = defineCard<Params, Data>({
+  cacheSeconds: 86_400,
   id: 'ascii',
   category: 'art',
   tags: ['avatar', 'portrait', '3d', 'text', 'matrix'],
@@ -145,7 +154,7 @@ export const asciiCard = defineCard<Params, Data>({
       contrast: int(q.contrast, 130, 50, 250),
       caption: bool(q.caption, true),
       source: oneOf(q.source, SOURCES, 'avatar'),
-      frames: Math.min(int(q.frames, 20, 8, 48), mode === 'color' ? 16 : 48),
+      frames: budgetFrames(shape, cols, Math.min(int(q.frames, 20, 8, 48), mode === 'color' ? 16 : 48)),
       speed: int(q.speed, 8, 2, 30),
       cutout: bool(q.cutout, true)
     };

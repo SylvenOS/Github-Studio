@@ -46,11 +46,44 @@ export function shortDate(iso: string | null, now = new Date()): string {
   return `${MONTHS[m - 1]} ${d}${y === now.getUTCFullYear() ? '' : `, ${y}`}`;
 }
 
-const NUMBER = new Intl.NumberFormat('en-US');
-export const fmt = (n: number) => NUMBER.format(Math.round(n || 0));
+const LOCALE_TAGS: Record<string, string> = { en: 'en-US', zh: 'zh-CN', pt: 'pt-BR' };
+const formatters = new Map<string, Intl.NumberFormat>();
+let numberMode: 'auto' | 'full' | 'compact' = 'auto';
+let numberLocale = 'en';
 
-/** 1234 -> 1.2k, 1_500_000 -> 1.5M */
+function formatter(locale: string): Intl.NumberFormat {
+  let f = formatters.get(locale);
+  if (!f) {
+    f = new Intl.NumberFormat(LOCALE_TAGS[locale] ?? locale);
+    formatters.set(locale, f);
+  }
+  return f;
+}
+
+/**
+ * Runs a (synchronous) render with the request's number style. Rendering never awaits, so module state
+ * can't leak between concurrent requests.
+ */
+export function withNumberFormat<T>(mode: 'auto' | 'full' | 'compact', locale: string, render: () => T): T {
+  const prev = [numberMode, numberLocale] as const;
+  numberMode = mode;
+  numberLocale = locale;
+  try {
+    return render();
+  } finally {
+    [numberMode, numberLocale] = prev;
+  }
+}
+
+/** Full number with grouping in the request's locale (or compact when `number_format=compact`). */
+export const fmt = (n: number): string => (numberMode === 'compact' ? compactRaw(n) : formatter(numberLocale).format(Math.round(n || 0)));
+
+/** 1234 -> 1.2k, 1_500_000 -> 1.5M (or the full number when `number_format=full`). */
 export function compact(n: number): string {
+  return numberMode === 'full' ? formatter(numberLocale).format(Math.round(n || 0)) : compactRaw(n);
+}
+
+function compactRaw(n: number): string {
   n = Math.round(n || 0);
   if (n < 1000) return String(n);
   const units: [number, string][] = [[1e9, 'B'], [1e6, 'M'], [1e3, 'k']];

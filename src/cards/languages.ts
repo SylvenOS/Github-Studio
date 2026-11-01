@@ -43,7 +43,7 @@ export const languagesCard = defineCard<Params, LanguageStat[]>({
     { label: 'Top 8', params: { langs_count: '8' } },
     { label: 'By repositories', params: { by: 'repos' } }
   ],
-  aliases: ['langs'],
+  aliases: ['langs', 'top-langs'],
   title: 'Top Languages',
   description: 'Most used languages across public, non-fork repositories.',
   params: [

@@ -49,10 +49,11 @@ const wrapAligned = (align: Align, items: string[]) => `<p align="${align}">\n  
 
 function inline(s: string): string {
   return esc(s)
-    .replace(/!\[([^\]]*)\]\((https?:[^)\s]+)\)/g, '<img alt="$1" src="$2">')
-    .replace(/\[([^\]]+)\]\((https?:[^)\s]+|mailto:[^)\s]+)\)/g, '<a href="$2">$1</a>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>');
+    // bounded quantifiers keep these linear even on adversarial input (lots of unclosed brackets)
+    .replace(/!\[([^\]\n]{0,200})\]\((https?:[^)\s]{1,500})\)/g, '<img alt="$1" src="$2">')
+    .replace(/\[([^\]\n]{1,200})\]\((https?:[^)\s]{1,500}|mailto:[^)\s]{1,200})\)/g, '<a href="$2">$1</a>')
+    .replace(/\*\*([^*\n]{1,300})\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`\n]{1,300})`/g, '<code>$1</code>');
 }
 
 export function markdownToHtml(md: string): string {
@@ -73,10 +74,14 @@ export function markdownToHtml(md: string): string {
 /** Defence in depth for previews: drop scripts, inline handlers and javascript: URLs from raw HTML blocks. */
 export function stripActive(html: string): string {
   return html
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<(script|iframe|object|embed)\b[^>]*>/gi, '')
+    // drop the tags themselves (linear; script bodies become inert text and the preview is sandboxed anyway)
+    .replace(/<\/?(script|iframe|frame|frameset|object|embed|meta|base|link|form|style|svg|math)\b[^>]*>/gi, '')
     .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/javascript:/gi, 'blocked:');
+    // only http(s), mailto, fragments and relative paths survive in URL attributes (entities decoded first)
+    .replace(/\s(href|src|action|formaction|xlink:href|srcset|poster)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, (m, _a: string, v: string) => {
+      const raw = v.replace(/^["']|["']$/g, '').replace(/&#x?[0-9a-f]+;?|&[a-z]+;/gi, '').replace(/[\s\u0000-\u001f]/g, '');
+      return /^(https?:|mailto:|#|\/|\.|[\w-]+(\/|\.|$))/i.test(raw) && !/^[\w+.-]+:/i.test(raw.replace(/^(https?|mailto):/i, '')) ? m : '';
+    });
 }
 
 // ---- blocks ----------------------------------------------------------------------------------

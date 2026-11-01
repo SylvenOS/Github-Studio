@@ -8,7 +8,7 @@ import {
   type GqlRepoNode
 } from './parse';
 import { benchUntilReset, observe, pick, poolFor, poolStatus, type TokenState } from './tokens';
-import type { CalendarDay, ContributionDetail, DateRange, PinnedRepo, RepoDetail, RepoSummary, UserData, LanguageStat } from './types';
+import type { CalendarDay, ContributionDetail, DateRange, PinnedRepo, RepoDetail, RepoSummary, UserData, UserExtended, LanguageStat } from './types';
 
 export * from './types';
 
@@ -54,27 +54,31 @@ const REPO_NODES = `nodes{ name description url stargazerCount forkCount isArchi
   pageInfo{ hasNextPage endCursor }`;
 
 const USER_QUERY = `query($login:String!){ user(login:$login){
-  login name avatarUrl bio createdAt company location websiteUrl twitterUsername pronouns isHireable
+  login name avatarUrl bio createdAt company location websiteUrl twitterUsername
+  followers{totalCount} following{totalCount} gists(privacy:PUBLIC){totalCount}
+  all:repositories(ownerAffiliations:OWNER, privacy:PUBLIC){totalCount}
+  pullRequests{totalCount} issues{totalCount}
+  contributionsCollection{ totalCommitContributions totalPullRequestReviewContributions restrictedContributionsCount
+    contributionCalendar{totalContributions} }
+  repositories(${REPO_ARGS}){ ${REPO_NODES} }
+}}`;
+
+/** Second-tier fields: only cards that show them pay for them. */
+const EXTENDED_QUERY = `query($login:String!){ user(login:$login){
+  pronouns isHireable
   status{ emoji message }
   socialAccounts(first:10){ nodes{ provider url displayName } }
-  followers{totalCount} following{totalCount} gists(privacy:PUBLIC){totalCount}
   starredRepositories{totalCount}
   sponsors(first:1){totalCount} sponsoring(first:1){totalCount}
   organizations(first:12){ nodes{ login name avatarUrl } }
   repositoryDiscussions{totalCount}
   repositoryDiscussionComments(onlyAnswers:true){totalCount}
-  all:repositories(ownerAffiliations:OWNER, privacy:PUBLIC){totalCount}
-  pullRequests{totalCount}
   mergedPRs:pullRequests(states:MERGED){totalCount}
   closedPRs:pullRequests(states:CLOSED){totalCount}
-  issues{totalCount}
   closedIssues:issues(states:CLOSED){totalCount}
   repositoriesContributedTo(contributionTypes:[COMMIT, PULL_REQUEST, ISSUE, PULL_REQUEST_REVIEW], includeUserRepositories:false, first:1){totalCount}
   pinnedItems(first:6, types:[REPOSITORY]){ nodes{ ... on Repository{ name description url stargazerCount forkCount owner{login} primaryLanguage{name color} } } }
-  contributionsCollection{ totalCommitContributions totalPullRequestReviewContributions totalPullRequestContributions
-    totalIssueContributions restrictedContributionsCount contributionYears
-    contributionCalendar{totalContributions} }
-  repositories(${REPO_ARGS}){ ${REPO_NODES} }
+  contributionsCollection{ totalPullRequestContributions totalIssueContributions contributionYears }
 }}`;
 
 const REPO_PAGE_QUERY = `query($login:String!,$after:String){ user(login:$login){
@@ -91,6 +95,12 @@ const CONTRIB_QUERY = `query($login:String!,$from:DateTime!,$to:DateTime!,$q:Str
     pullRequestContributionsByRepository(maxRepositories:50){ ${REPO_REF} }
     commitContributionsByRepository(maxRepositories:50){ ${REPO_REF} } } }
   ext:search(type:ISSUE, query:$q, first:1){ issueCount } }`;
+
+export const emptyExtended = (): UserExtended => ({
+  pronouns: null, hireable: false, status: null, socials: [], pinned: [], mergedPullRequests: 0, closedPullRequests: 0,
+  closedIssues: 0, organizations: [], discussionAnswers: 0, discussions: 0, sponsors: 0, sponsoring: 0, starred: 0,
+  contributionYears: [], reposContributedTo: 0, pullRequestContributions: 0, issueContributions: 0
+});
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const jitter = (attempt: number) => Math.round(150 * 2 ** attempt * (0.5 + Math.random()));
@@ -128,6 +138,12 @@ export class GitHubClient {
     return this.cache(`user:${login.toLowerCase()}:${mode}`, () =>
       this.hasToken ? this.getUserGraphQL(login) : this.getUserRest(login)
     );
+  }
+
+  /** Extra profile data (pinned repos, orgs, merged PRs, sponsors, ...). Token-less mode returns empty values. */
+  getUserExtended(login: string): Promise<UserExtended> {
+    if (!this.hasToken) return Promise.resolve(emptyExtended());
+    return this.cache(`userx:${login.toLowerCase()}`, () => this.getExtendedGraphQL(login), Math.max(this.ttl, 3600));
   }
 
   /**
@@ -273,18 +289,6 @@ export class GitHubClient {
 
     const { repos, languages, stars, forks } = aggregateRepos(nodes);
     const cc = user.contributionsCollection;
-    const pinned: PinnedRepo[] = (user.pinnedItems?.nodes ?? [])
-      .filter((n: any) => n && n.name)
-      .map((n: any) => ({
-        name: n.name,
-        owner: n.owner?.login ?? login,
-        description: n.description ?? null,
-        url: n.url,
-        stars: n.stargazerCount ?? 0,
-        forks: n.forkCount ?? 0,
-        language: n.primaryLanguage?.name ?? null,
-        languageColor: n.primaryLanguage?.color ?? null
-      }));
     return {
       login: user.login,
       name: user.name || user.login,
@@ -308,7 +312,27 @@ export class GitHubClient {
       company: user.company || null,
       location: user.location || null,
       website: user.websiteUrl || null,
-      twitter: user.twitterUsername || null,
+      twitter: user.twitterUsername || null
+    };
+  }
+
+  private async getExtendedGraphQL(login: string): Promise<UserExtended> {
+    const { user } = await this.graphql<{ user: any }>(EXTENDED_QUERY, { login });
+    if (!user) throw notFound('GitHub user not found');
+    const cc = user.contributionsCollection;
+    const pinned: PinnedRepo[] = (user.pinnedItems?.nodes ?? [])
+      .filter((n: any) => n && n.name)
+      .map((n: any) => ({
+        name: n.name,
+        owner: n.owner?.login ?? login,
+        description: n.description ?? null,
+        url: n.url,
+        stars: n.stargazerCount ?? 0,
+        forks: n.forkCount ?? 0,
+        language: n.primaryLanguage?.name ?? null,
+        languageColor: n.primaryLanguage?.color ?? null
+      }));
+    return {
       pronouns: user.pronouns || null,
       hireable: !!user.isHireable,
       status: user.status ? { emoji: user.status.emoji ?? null, message: user.status.message ?? null } : null,
@@ -444,25 +468,7 @@ export class GitHubClient {
       company: u.company || null,
       location: u.location || null,
       website: u.blog || null,
-      twitter: u.twitter_username || null,
-      pronouns: null,
-      hireable: !!u.hireable,
-      status: null,
-      socials: [],
-      pinned: [],
-      mergedPullRequests: 0,
-      closedPullRequests: 0,
-      closedIssues: 0,
-      organizations: [],
-      discussionAnswers: 0,
-      discussions: 0,
-      sponsors: 0,
-      sponsoring: 0,
-      starred: 0,
-      contributionYears: [],
-      reposContributedTo: 0,
-      pullRequestContributions: 0,
-      issueContributions: 0
+      twitter: u.twitter_username || null
     };
   }
 
@@ -527,7 +533,8 @@ export class GitHubClient {
       if (url.startsWith(API)) headers.set('Accept', 'application/vnd.github+json');
       let token: TokenState | undefined;
       if (useTokens) {
-        token = pick(this.pool, tried);
+        // prefer an untried token; for 5xx/timeouts a healthy token may be retried
+        token = pick(this.pool, tried) ?? pick(this.pool, new Set());
         if (!token) {
           lastError = rateLimited('All configured GitHub tokens are rate-limited right now');
           break;

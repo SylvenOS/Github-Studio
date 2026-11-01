@@ -12,8 +12,32 @@ export interface Theme extends Palette {
   borderRadius: number;
 }
 
+/** Card-wide presentation options applied generically by `frame()` (all optional; unset = theme default). */
+export interface FrameStyle {
+  /** Outer width in px; the drawing scales, the layout doesn't change. */
+  width?: number;
+  padding?: number;
+  /** Percent, 100 = normal. */
+  textScale?: number;
+  titleSize?: number;
+  titleAlign?: 'left' | 'center' | 'right';
+  hideSubtitle?: boolean;
+  titleColor?: string;
+  iconColor?: string;
+  valueColor?: string;
+  /** Five colours for contribution levels 0-4. */
+  heatColors?: string[];
+  /** Series colours for charts (languages, activity, radar, compare). */
+  chartColors?: string[];
+  /** Percent, 100 = opaque. */
+  bgOpacity?: number;
+  borderWidth?: number;
+  glow?: boolean;
+}
+
 /** A theme after query overrides; `dark` is set for `theme=auto` and applied via prefers-color-scheme. */
 export interface ResolvedTheme extends Theme {
+  style?: FrameStyle;
   dark?: Palette;
   hideBorder?: boolean;
   /** Replaces the flat background when set (`bg=135,c1,c2`). */
@@ -53,7 +77,11 @@ export const themes: Record<string, Theme> = Object.fromEntries([
   t('rose_pine', '#191724', '#e0def4', '#908caa', '#eb6f92', '#26233a', 10),
   t('synthwave', '#2b213a', '#e2e9ec', '#a99bc4', '#ff7edb', '#495495', 8),
   t('ayu_light', '#fafafa', '#575f66', '#8a9199', '#ff9940', '#e6e6e6', 8),
-  t('paper', '#f5efe0', '#3b3228', '#7d6f5d', '#b5541c', '#e0d5bd', 2, 'Georgia, serif')
+  t('paper', '#f5efe0', '#3b3228', '#7d6f5d', '#b5541c', '#e0d5bd', 2, 'Georgia, serif'),
+  // github-readme-stats favourites, so migrated URLs keep their look
+  t('onedark', '#282c34', '#abb2bf', '#7f848e', '#e4bf7a', '#3e4451', 6),
+  t('transparent', '#0000', '#417e87', '#858585', '#006aff', '#e4e2e2', 6),
+  t('highcontrast', '#000000', '#ffffff', '#c0c0c0', '#e7f216', '#ffffff', 6)
 ]);
 
 export interface ThemeOverrides {
@@ -67,7 +95,7 @@ export interface ThemeOverrides {
 export function resolveTheme(
   name: string,
   overrides: ThemeOverrides = {},
-  opts: { radius?: number | null; font?: string; hideBorder?: boolean; gradient?: ResolvedTheme['gradient'] } = {}
+  opts: { radius?: number | null; font?: string; hideBorder?: boolean; gradient?: ResolvedTheme['gradient']; style?: FrameStyle } = {}
 ): ResolvedTheme {
   const auto = name === 'auto';
   const base = auto ? themes.default : themes[name] ?? themes.default;
@@ -85,6 +113,7 @@ export function resolveTheme(
     borderRadius: opts.radius ?? base.borderRadius,
     hideBorder: opts.hideBorder,
     gradient: opts.gradient,
+    style: opts.style,
     dark: auto ? apply(themes.github_dark) : undefined
   };
 }

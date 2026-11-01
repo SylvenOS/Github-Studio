@@ -5,11 +5,28 @@ minify = true
 
 [observability]
 enabled = true
+# one structured log line per card request; sample to keep log volume sane under heavy traffic
+head_sampling_rate = 0.2
 
 # Configuration (set secrets with `wrangler secret put <NAME>`):
 #   GITHUB_TOKEN   - recommended. Enables GraphQL: real stars, language bytes, exact daily
 #                    contributions and far higher rate limits. No scopes needed (public data).
-#   GITHUB_TOKENS  - optional comma-separated pool of extra tokens to spread load across.
+#   GITHUB_TOKENS  - optional comma-separated pool of extra tokens. Requests go to the healthiest
+#                    token; rate-limited or revoked tokens are benched automatically.
 #   BLOCKLIST      - optional comma-separated usernames to refuse.
+#   ADMIN_TOKEN    - optional bearer token for live quota at /api/rate-limit.
 [vars]
 CACHE_SECONDS = "1800"
+
+# Abuse protection (Workers Rate Limiting). Only consulted on cache misses, so cached traffic is free.
+# Regular clients are limited per IP; GitHub's image proxy (camo) is limited per username instead,
+# because it fetches every README image from a few shared IPs. Remove these blocks to disable.
+[[ratelimits]]
+name = "RL_IP"
+namespace_id = "1001"
+simple = { limit = 120, period = 60 }
+
+[[ratelimits]]
+name = "RL_USER"
+namespace_id = "1002"
+simple = { limit = 60, period = 60 }
