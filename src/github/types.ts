@@ -46,6 +46,65 @@ export interface UserData {
   languages: LanguageStat[];
   /** `graphql` = full data; `rest` = token-less fallback with reduced accuracy. */
   source: 'graphql' | 'rest';
+
+  // ---- extended profile & impact data (null/0/[] when unavailable, e.g. without a token) ----
+  company: string | null;
+  location: string | null;
+  website: string | null;
+  twitter: string | null;
+  pronouns: string | null;
+  hireable: boolean;
+  status: { emoji: string | null; message: string | null } | null;
+  socials: { provider: string; url: string; name: string | null }[];
+  /** Pinned repositories (may include org repos). */
+  pinned: PinnedRepo[];
+  /** Lifetime pull requests by state. */
+  mergedPullRequests: number;
+  closedPullRequests: number;
+  closedIssues: number;
+  organizations: { login: string; name: string | null; avatarUrl: string }[];
+  discussionAnswers: number;
+  discussions: number;
+  sponsors: number;
+  sponsoring: number;
+  starred: number;
+  /** Years with contributions, newest first. */
+  contributionYears: number[];
+  /** Repositories (not owned by the user) contributed to in roughly the last year. */
+  reposContributedTo: number;
+  /** Last 12 months. */
+  pullRequestContributions: number;
+  issueContributions: number;
+}
+
+export interface PinnedRepo {
+  name: string;
+  owner: string;
+  description: string | null;
+  url: string;
+  stars: number;
+  forks: number;
+  language: string | null;
+  languageColor: string | null;
+}
+
+/** Contribution breakdown for a time window, including work in other people's repositories. */
+export interface ContributionDetail {
+  from: string;
+  to: string;
+  commits: number;
+  pullRequests: number;
+  issues: number;
+  reviews: number;
+  restricted: number;
+  reposWithCommits: number;
+  reposWithPullRequests: number;
+  reposWithIssues: number;
+  reposWithReviews: number;
+  /** Pull requests merged into repositories the user doesn't own (lifetime, via search). */
+  externalMergedPullRequests: number;
+  /** Repositories outside the user's account they opened PRs in during the window, most-starred first. */
+  externalRepos: { nameWithOwner: string; owner: string; stars: number; language: string | null; languageColor: string | null; pullRequests: number; commits: number }[];
 }
 
 export interface CalendarDay {
