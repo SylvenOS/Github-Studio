@@ -126,6 +126,8 @@ export const profileCard = defineCard<Params, Data>({
       const y = statsY + 38;
       let x = 0;
       const barW = width - PAD * 2;
+      const palette = theme.style?.chartColors;
+      if (palette) d = { ...d, languages: d.languages.map((l, i) => ({ ...l, color: palette[i % palette.length] })) };
       const segs = d.languages
         .map((l) => {
           const w = (l.percent / 100) * barW;

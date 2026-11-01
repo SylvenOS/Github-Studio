@@ -71,12 +71,12 @@ export const compareCard = defineCard<Params, Data>({
         const y = top + 26 + i * rowH;
         const wa = Math.max(va ? 3 : 0, (va / max) * half);
         const wb = Math.max(vb ? 3 : 0, (vb / max) * half);
-        const cls = (win: boolean) => (win ? 'accent' : 'bd');
+        const cls = (win: boolean, side: 'ser' | 'ser2') => (win ? side : 'bd');
         return (
           `<g${anim(common.animation, i)}>` +
           `<text x="${mid}" y="${y + 9}" text-anchor="middle" class="muted" font-size="11">${esc(t(`stat.${k}` as 'stat.repos'))}</text>` +
-          `<rect x="${(mid - 4 - wa).toFixed(1)}" y="${y + 14}" width="${wa.toFixed(1)}" height="10" rx="5" class="${cls(aWins)}"/>` +
-          `<rect x="${mid + 4}" y="${y + 14}" width="${wb.toFixed(1)}" height="10" rx="5" class="${cls(bWins)}"/>` +
+          `<rect x="${(mid - 4 - wa).toFixed(1)}" y="${y + 14}" width="${wa.toFixed(1)}" height="10" rx="5" class="${cls(aWins, 'ser')}"/>` +
+          `<rect x="${mid + 4}" y="${y + 14}" width="${wb.toFixed(1)}" height="10" rx="5" class="${cls(bWins, 'ser2')}"/>` +
           `<text x="${PAD}" y="${y + 24}" class="${aWins ? 'fg' : 'muted'}" font-size="13" font-weight="${aWins ? 700 : 400}">${compact(va)}</text>` +
           `<text x="${width - PAD}" y="${y + 24}" text-anchor="end" class="${bWins ? 'fg' : 'muted'}" font-size="13" font-weight="${bWins ? 700 : 400}">${compact(vb)}</text></g>`
         );

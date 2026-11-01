@@ -52,7 +52,7 @@ export const radarCard = defineCard<Params, LanguageStat[]>({
       })
       .join("");
     const points = shares.map((s, i) => pt(i, R * Math.max(Math.sqrt(s.percent / max), 0.15)));
-    const dots = points.map(([x, y]) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" class="bg sk-accent" stroke-width="2"/>`).join('');
+    const dots = points.map(([x, y]) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" class="bg sk-ser" stroke-width="2"/>`).join('');
     const labels = shares
       .map((s, i) => {
         const cos = Math.cos(angle(i));
@@ -62,7 +62,7 @@ export const radarCard = defineCard<Params, LanguageStat[]>({
       })
       .join('');
 
-    const body = `<g transform="translate(0 10)">${web}${axes}<g${anim(common.animation)}><polygon points="${points.map((p) => p.map((v) => v.toFixed(1)).join(",")).join(" ")}" class="accent sk-accent" fill-opacity=".35" stroke-width="2"/>${dots}</g>${labels}</g>`;
+    const body = `<g transform="translate(0 10)">${web}${axes}<g${anim(common.animation)}><polygon points="${points.map((p) => p.map((v) => v.toFixed(1)).join(",")).join(" ")}" class="ser sk-ser" fill-opacity=".35" stroke-width="2"/>${dots}</g>${labels}</g>`;
     return frame(body, {
       width,
       height,

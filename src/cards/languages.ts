@@ -5,7 +5,7 @@ import type { LanguageStat } from '../github/client';
 import { languageColor } from '../svg/colors';
 import { anim, contentTop, frame, messageCard, PAD } from '../svg/frame';
 
-const LAYOUTS = ['bar', 'donut'] as const;
+const LAYOUTS = ['bar', 'donut', 'pie', 'bars', 'chips'] as const;
 const BY = ['size', 'repos'] as const;
 
 interface Params {
@@ -13,6 +13,7 @@ interface Params {
   count: number;
   hide: string[];
   by: (typeof BY)[number];
+  decimals: number;
 }
 
 export interface LanguageShare {
@@ -41,7 +42,10 @@ export const languagesCard = defineCard<Params, LanguageStat[]>({
     { label: 'Bar' },
     { label: 'Donut', params: { layout: 'donut' } },
     { label: 'Top 8', params: { langs_count: '8' } },
-    { label: 'By repositories', params: { by: 'repos' } }
+    { label: 'By repositories', params: { by: 'repos' } },
+    { label: 'Pie', params: { layout: 'pie' } },
+    { label: 'Progress bars', params: { layout: 'bars' } },
+    { label: 'Chips', params: { layout: 'chips' } }
   ],
   aliases: ['langs', 'top-langs'],
   title: 'Top Languages',
@@ -50,20 +54,24 @@ export const languagesCard = defineCard<Params, LanguageStat[]>({
     { name: 'layout', type: 'enum', options: [...LAYOUTS], default: 'bar', description: 'Chart style' },
     { name: 'langs_count', type: 'number', default: 5, min: 1, max: 10, description: 'Number of languages' },
     { name: 'hide', type: 'list', description: 'Languages to hide, e.g. HTML,CSS' },
-    { name: 'by', type: 'enum', options: [...BY], default: 'size', description: 'Rank by bytes of code or by repository count' }
+    { name: 'by', type: 'enum', options: [...BY], default: 'size', description: 'Rank by bytes of code or by repository count' },
+    { name: 'decimals', type: 'number', default: 1, min: 0, max: 2, description: 'Decimals in percentages' }
   ],
   parse: (q) => ({
     layout: oneOf(q.layout, LAYOUTS, 'bar'),
     count: int(q.langs_count, 5, 1, 10),
     hide: list(q.hide),
-    by: oneOf(q.by, BY, 'size')
+    by: oneOf(q.by, BY, 'size'),
+    decimals: int(q.decimals, 1, 0, 2)
   }),
   load: async (client, _p, common) => (await client.getUser(common.username)).languages,
   toJSON: (langs, p) => languageShares(langs, p),
 
   render(langs, p, { theme, common, title, t }) {
     const header = title(t('title.languages'));
-    const shares = languageShares(langs, p);
+    const palette = theme.style?.chartColors;
+    const shares = languageShares(langs, p).map((s, i) => (palette ? { ...s, color: palette[i % palette.length] } : s));
+    const pct = (v: number) => `${v.toFixed(p.decimals)}%`;
     const subtitle = `@${common.username}`;
     if (!shares.length) return messageCard('No language data available.', theme, { title: header ?? 'Top Languages' });
 
@@ -72,8 +80,8 @@ export const languagesCard = defineCard<Params, LanguageStat[]>({
     const width = 440;
     const label = `Top languages: ${shares.map((s) => `${s.name} ${s.percent.toFixed(1)}%`).join(', ')}`;
 
-    if (p.layout === 'donut') {
-      const r = 50;
+    if (p.layout === 'donut' || p.layout === 'pie') {
+      const r = p.layout === 'pie' ? 30 : 50;
       const C = 2 * Math.PI * r;
       const cx = PAD + 65;
       const cy = top + 65;
@@ -81,7 +89,7 @@ export const languagesCard = defineCard<Params, LanguageStat[]>({
       const arcs = shares
         .map((s, i) => {
           const len = (s.percent / 100) * C;
-          const seg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${esc(s.color)}" stroke-width="18" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"${anim(animate, i)}/>`;
+          const seg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${esc(s.color)}" stroke-width="${p.layout === 'pie' ? 60 : 18}" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"${anim(animate, i)}/>`;
           offset += len;
           return seg;
         })
@@ -91,11 +99,50 @@ export const languagesCard = defineCard<Params, LanguageStat[]>({
           (s, i) =>
             `<g transform="translate(200 ${top + 12 + i * 26})"><circle cx="6" cy="-4" r="5" fill="${esc(s.color)}"/>` +
             `<text x="20" y="0" class="fg" font-size="13" font-weight="600">${esc(s.name)}</text>` +
-            `<text x="215" y="0" class="label muted" text-anchor="end">${s.percent.toFixed(1)}%</text></g>`
+            `<text x="215" y="0" class="label muted" text-anchor="end">${pct(s.percent)}</text></g>`
         )
         .join('');
       const height = top + Math.max(140, shares.length * 26 + 10) + 10;
       return frame(arcs + legend, { width, height, theme, title: header, subtitle, label });
+    }
+
+    if (p.layout === 'bars') {
+      const max = Math.max(...shares.map((s) => s.percent));
+      const rows = shares
+        .map((s, i) => {
+          const y = top + 10 + i * 36;
+          const w = Math.max(4, (s.percent / max) * (width - PAD * 2));
+          return (
+            `<g${anim(animate, i)}><circle cx="${PAD + 5}" cy="${y - 4}" r="5" fill="${esc(s.color)}"/>` +
+            `<text x="${PAD + 16}" y="${y}" class="fg" font-size="13" font-weight="600">${esc(s.name)}</text>` +
+            `<text x="${width - PAD}" y="${y}" class="label muted" text-anchor="end">${pct(s.percent)}</text>` +
+            `<rect x="${PAD}" y="${y + 8}" width="${width - PAD * 2}" height="8" rx="4" class="bd"/>` +
+            `<rect x="${PAD}" y="${y + 8}" width="${w.toFixed(1)}" height="8" rx="4" fill="${esc(s.color)}"/></g>`
+          );
+        })
+        .join('');
+      return frame(rows, { width, height: top + shares.length * 36 + 14, theme, title: header, subtitle, label });
+    }
+
+    if (p.layout === 'chips') {
+      let x = PAD;
+      let y = top + 6;
+      const chips = shares
+        .map((s, i) => {
+          const text = `${s.name} ${pct(s.percent)}`;
+          const w = Math.round(Array.from(text).length * 7.2 + 32);
+          if (x + w > width - PAD) {
+            x = PAD;
+            y += 34;
+          }
+          const chip =
+            `<g transform="translate(${x} ${y})"${anim(animate, i)}><rect width="${w}" height="26" rx="13" class="bd" fill-opacity=".6"/>` +
+            `<circle cx="15" cy="13" r="5" fill="${esc(s.color)}"/><text x="26" y="17.5" class="fg" font-size="12" font-weight="600">${esc(text)}</text></g>`;
+          x += w + 8;
+          return chip;
+        })
+        .join('');
+      return frame(chips, { width, height: y + 26 + PAD, theme, title: header, subtitle, label });
     }
 
     const barW = 360;
@@ -116,7 +163,7 @@ export const languagesCard = defineCard<Params, LanguageStat[]>({
         return (
           `<g transform="translate(${gx} ${gy})"${anim(animate, i)}><circle cx="6" cy="6" r="6" fill="${esc(s.color)}"/>` +
           `<text x="20" y="10" class="fg" font-size="13" font-weight="600">${esc(s.name)}</text>` +
-          `<text x="140" y="10" class="label muted" text-anchor="end">${s.percent.toFixed(1)}%</text></g>`
+          `<text x="140" y="10" class="label muted" text-anchor="end">${pct(s.percent)}</text></g>`
         );
       })
       .join('');

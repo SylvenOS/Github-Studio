@@ -28,7 +28,8 @@ const STYLE = `
 .sk-bd{stroke:var(--border)}.sk-accent{stroke:var(--accent)}.sk-fg{stroke:var(--fg)}.sk-bg{stroke:var(--bg)}
 .header{font-size:18px;font-weight:600}.value{font-size:16px;font-weight:600}.label{font-size:12px}
 .l0{fill:var(--fg);fill-opacity:.1}.l1{fill:var(--accent);fill-opacity:.4}.l2{fill:var(--accent);fill-opacity:.6}
-.l3{fill:var(--accent);fill-opacity:.8}.l4{fill:var(--accent)}`;
+.l3{fill:var(--accent);fill-opacity:.8}.l4{fill:var(--accent)}
+.ser{fill:var(--s0,var(--accent))}.ser2{fill:var(--s1,var(--accent))}.sk-ser{stroke:var(--s0,var(--accent))}`;
 
 const ANIMATION = `
 @keyframes fadeIn{from{opacity:0;translate:0 8px}to{opacity:1;translate:0 0}}
@@ -57,6 +58,7 @@ function styleCss(st: FrameStyle): string {
   if (st.titleColor) css += `.header{fill:${st.titleColor}}`;
   if (st.valueColor) css += `.value{fill:${st.valueColor}}`;
   if (st.iconColor) css += `.ic{fill:${st.iconColor}}`;
+  if (st.chartColors) css += `:root{${st.chartColors.map((c, i) => `--s${i}:${c}`).join(';')}}`;
   if (st.heatColors) css += st.heatColors.map((c, i) => `.l${i}{fill:${c};fill-opacity:1}`).join('');
   if (st.bgOpacity !== undefined && st.bgOpacity < 100) css += `.bgr{fill-opacity:${st.bgOpacity / 100}}`;
   if (st.glow) css += '.header,.accent,.ic{filter:drop-shadow(0 0 3px var(--accent))}';

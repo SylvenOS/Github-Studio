@@ -1,5 +1,5 @@
 import { defineCard } from './types';
-import { int, oneOf } from '../core/params';
+import { bool, int, num, oneOf } from '../core/params';
 import { MONTHS, WEEKDAYS, compact, fmt } from '../core/text';
 import { calendarYearRange, lastYearRange, type CalendarDay } from '../github/client';
 import { anim, cls, contentTop, frame, messageCard, PAD } from '../svg/frame';
@@ -11,6 +11,9 @@ interface Params {
   by: (typeof BY)[number];
   style: (typeof STYLES)[number];
   year: number | null;
+  barRadius: number;
+  lineWidth: number;
+  grid: boolean;
 }
 
 export interface Bucket {
@@ -60,12 +63,18 @@ export const activityCard = defineCard<Params, CalendarDay[]>({
   params: [
     { name: 'by', type: 'enum', options: [...BY], default: 'month', description: 'Group by' },
     { name: 'style', type: 'enum', options: [...STYLES], default: 'bar', description: 'Chart style' },
-    { name: 'year', type: 'number', min: 2008, description: 'Calendar year (default: last 12 months)' }
+    { name: 'year', type: 'number', min: 2008, description: 'Calendar year (default: last 12 months)' },
+    { name: 'bar_radius', type: 'number', default: 3, min: 0, max: 14, description: 'Corner radius of bars' },
+    { name: 'line_width', type: 'number', default: 2.5, min: 1, max: 6, step: 0.5, description: 'Line thickness (line/area)' },
+    { name: 'grid', type: 'boolean', default: true, description: 'Show grid lines and axis labels' }
   ],
   parse: (q) => ({
     by: oneOf(q.by, BY, 'month'),
     style: oneOf(q.style, STYLES, 'bar'),
-    year: q.year ? int(q.year, new Date().getUTCFullYear(), 2008, new Date().getUTCFullYear()) : null
+    year: q.year ? int(q.year, new Date().getUTCFullYear(), 2008, new Date().getUTCFullYear()) : null,
+    barRadius: int(q.bar_radius, 3, 0, 14),
+    lineWidth: num(q.line_width, 2.5, 1, 6, 0.5),
+    grid: bool(q.grid, true)
   }),
   load: (client, p, common) => client.getCalendar(common.username, [p.year ? calendarYearRange(p.year) : lastYearRange()]),
   toJSON: (days, p) => bucketize(days, p.by),
@@ -86,7 +95,7 @@ export const activityCard = defineCard<Params, CalendarDay[]>({
     const y = (v: number) => top + plotH - (v / max) * plotH;
     const x = (i: number) => left + step * i + step / 2;
 
-    const grid = [0, 0.5, 1]
+    const grid = !p.grid ? '' : [0, 0.5, 1]
       .map((f) => {
         const gy = top + plotH - f * plotH;
         return `<line x1="${left}" y1="${gy}" x2="${width - PAD}" y2="${gy}" class="sk-bd" stroke-width="1" stroke-dasharray="${f === 0 ? '0' : '3 4'}"/>` +
@@ -100,16 +109,16 @@ export const activityCard = defineCard<Params, CalendarDay[]>({
       marks = buckets
         .map((b, i) => {
           const h = Math.max(b.value ? 2 : 0, (b.value / max) * plotH);
-          return `<rect x="${(x(i) - bw / 2).toFixed(1)}" y="${(top + plotH - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3"${cls('accent', common.animation, i % 12)}/>`;
+          return `<rect x="${(x(i) - bw / 2).toFixed(1)}" y="${(top + plotH - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="${p.barRadius}"${cls('ser', common.animation, i % 12)}/>`;
         })
         .join('');
     } else {
       const pts = buckets.map((b, i) => `${x(i).toFixed(1)},${y(b.value).toFixed(1)}`);
-      const line = `<polyline points="${pts.join(' ')}" class="sk-accent" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" fill="none"/>`;
+      const line = `<polyline points="${pts.join(' ')}" class="sk-ser" stroke-width="${p.lineWidth}" stroke-linejoin="round" stroke-linecap="round" fill="none"/>`;
       const area = p.style === 'area'
-        ? `<polygon points="${x(0).toFixed(1)},${top + plotH} ${pts.join(' ')} ${x(buckets.length - 1).toFixed(1)},${top + plotH}" class="accent" fill-opacity=".18"/>`
+        ? `<polygon points="${x(0).toFixed(1)},${top + plotH} ${pts.join(' ')} ${x(buckets.length - 1).toFixed(1)},${top + plotH}" class="ser" fill-opacity=".18"/>`
         : '';
-      const dots = buckets.length <= 30 ? buckets.map((b, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(b.value).toFixed(1)}" r="3" class="bg sk-accent" stroke-width="2"/>`).join('') : '';
+      const dots = buckets.length <= 30 ? buckets.map((b, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(b.value).toFixed(1)}" r="3" class="bg sk-ser" stroke-width="2"/>`).join('') : '';
       marks = `<g${anim(common.animation)}>${area}${line}${dots}</g>`;
     }
 
