@@ -1,36 +1,62 @@
 import { defineCard } from './types';
-import { int, list } from '../core/params';
+import { int, list, oneOf } from '../core/params';
 import { esc, truncate } from '../core/text';
-import type { LanguageStat } from '../github/client';
 import { anim, frame, messageCard } from '../svg/frame';
 import { languageShares } from './languages';
+
+const DATA = ['languages', 'activity'] as const;
 
 interface Params {
   count: number;
   hide: string[];
+  data: (typeof DATA)[number];
 }
 
-export const radarCard = defineCard<Params, LanguageStat[]>({
+interface Axis {
+  name: string;
+  percent: number;
+}
+
+interface Data {
+  kind: Params['data'];
+  axes: Axis[];
+}
+
+export const radarCard = defineCard<Params, Data>({
   id: 'radar',
   category: 'languages',
   tags: ['tech', 'skills', 'chart'],
   variants: [
-    { label: 'Default' }
+    { label: 'Languages' },
+    { label: 'Activity overview', params: { data: 'activity' } }
   ],
   title: 'Tech Stack Radar',
-  description: 'Radar chart of the most used languages.',
+  description: 'Radar chart of your language mix, or of how your activity splits into commits, pull requests, issues and code review (like GitHub’s activity overview).',
   params: [
     { name: 'langs_count', type: 'number', default: 6, min: 3, max: 8, description: 'Number of axes' },
-    { name: 'hide', type: 'list', description: 'Languages to hide' }
+    { name: 'hide', type: 'list', description: 'Languages to hide' },
+    { name: 'data', type: 'enum', options: [...DATA], default: 'languages', description: 'What the axes show' }
   ],
-  parse: (q) => ({ count: int(q.langs_count, 6, 3, 8), hide: list(q.hide) }),
-  load: async (client, _p, common) => (await client.getUser(common.username)).languages,
-  toJSON: (langs, p) => languageShares(langs, { ...p, by: 'size' }),
+  parse: (q) => ({ count: int(q.langs_count, 6, 3, 8), hide: list(q.hide), data: oneOf(q.data, DATA, 'languages') }),
+  async load(client, p, common): Promise<Data> {
+    if (p.data === 'activity') {
+      const c = await client.getContributions(common.username);
+      const parts: [string, number][] = [['Commits', c.commits + c.restricted], ['Pull requests', c.pullRequests], ['Code review', c.reviews], ['Issues', c.issues]];
+      const total = parts.reduce((a, [, v]) => a + v, 0) || 1;
+      return { kind: 'activity', axes: parts.map(([name, v]) => ({ name, percent: (v / total) * 100 })) };
+    }
+    const langs = (await client.getUser(common.username)).languages;
+    return { kind: 'languages', axes: languageShares(langs, { ...p, by: 'size' }).map(({ name, percent }) => ({ name, percent })) };
+  },
+  toJSON: (d) => d,
 
-  render(langs, p, { theme, common, title, t }) {
-    const header = title(t('title.radar'));
-    const shares = languageShares(langs, { ...p, by: 'size' });
-    if (shares.length < 3) return messageCard('Not enough language data for a radar chart.', theme, { title: header ?? 'Tech Stack Radar' });
+  render(d, p, { theme, common, title, t }) {
+    const activity = d.kind === 'activity';
+    const header = title(activity ? 'Activity Overview' : t('title.radar'));
+    const shares = d.axes;
+    if (shares.length < 3 || (activity && shares.every((s) => s.percent === 0))) {
+      return messageCard(activity ? 'No contribution activity found for this period.' : 'Not enough language data for a radar chart.', theme, { title: header ?? 'Tech Stack Radar' });
+    }
 
     const width = 480;
     const height = 320;
@@ -58,7 +84,7 @@ export const radarCard = defineCard<Params, LanguageStat[]>({
         const cos = Math.cos(angle(i));
         const anchor = Math.abs(cos) < 0.1 ? 'middle' : cos > 0 ? 'start' : 'end';
         const [x, y] = pt(i, R + 22);
-        return `<text x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="${anchor}" class="fg" font-size="12" font-weight="600">${esc(truncate(s.name, 14))}</text>`;
+        return `<text x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="${anchor}" class="fg" font-size="12" font-weight="600">${esc(truncate(s.name, 14))}${activity ? ` ${Math.round(s.percent)}%` : ''}</text>`;
       })
       .join('');
 

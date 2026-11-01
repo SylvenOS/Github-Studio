@@ -1,6 +1,8 @@
 # GitPulse
 
-An all-in-one, customisable **GitHub stats API**. It renders crisp SVG cards for READMEs and profiles (stats, profile, ASCII avatar, languages, streaks, heatmap, trophies, activity charts, badges, repo pins) and exposes the same data as JSON. It runs on Cloudflare Workers and is built to be extended: a new card is one file.
+An all-in-one, customisable **GitHub stats API**. It renders crisp SVG cards for READMEs and profiles - realistic impact stats, work patterns, pinned repos, a 3D contribution skyline, tech-stack icon grids, typing headers, composites, stats, languages, streaks, heatmaps (with a snake), trophies, ASCII avatars and more - and exposes the same data as JSON. It runs on Cloudflare Workers, is built to survive heavy traffic and GitHub outages, and is built to be extended: a new card is one file.
+
+**Coming from github-readme-stats?** That project is no longer maintained. Swap the host in your existing URLs (`/api?username=`, `/api/top-langs`, `/api/pin`) - its parameter names (`bg_color`, `text_color`, `border_radius`, `custom_title`, `card_width`, `hide_rank`, `exclude_repo`, `disable_animations`...) and favourite themes (`onedark`, `transparent`, `highcontrast`) are understood.
 
 ```md
 ![Stats](https://your-worker.workers.dev/api/stats?username=torvalds&theme=auto)
@@ -11,7 +13,7 @@ An all-in-one, customisable **GitHub stats API**. It renders crisp SVG cards for
 Open `/` on your deployment for the web app. It is generated from the API, so new cards, options, themes and presets show up automatically:
 
 - **Playground** - pick a card, tweak every option with live preview, copy Markdown/HTML/URL.
-- **Store** - browse every card in every ready-made style (54+), search and filter by category, then *Customize* or add it straight to your README.
+- **Store** - browse every card in every ready-made style (90+), search and filter by category, then *Customize* or add it straight to your README.
 - **README Builder** - assemble a whole profile README: start from a preset, then add, reorder (drag or ▲▼), edit and remove blocks. Live preview, editable Markdown, download `README.md`, share link, and **Reset** to go back to the preset.
 
 ---
@@ -46,6 +48,13 @@ Without a token the API still works through a REST and HTML fallback, but it is 
 | Endpoint | Description |
 |----------|-------------|
 | `/api/stats` | Repos, stars, forks, followers, contributions, PRs, issues, reviews (choose which with `hide`/`show`). |
+| `/api/impact` | **Realistic** collaboration stats: PRs merged into other people's repos, merge rate, repos contributed to, reviews, accepted discussion answers, organizations, top external projects. |
+| `/api/patterns` | Work patterns: active days, weekly consistency, average per active day, busiest weekday, weekend share, best day, longest break, weekday chart. |
+| `/api/pinned` | Your actual pinned repositories (including org repos), grid or list. |
+| `/api/skyline` | Isometric 3D contribution skyline. |
+| `/api/tech` | Tech-stack logo grid as one image (120+ logos; auto from your languages). |
+| `/api/typing` | Animated typewriter lines (no GitHub data needed). |
+| `/api/composite` | Several cards in one image (fewer images = faster README). |
 | `/api/profile-card` (`card`, `bio`) | Avatar, bio, key numbers, language bar and an overall grade (S to C) ring. |
 | `/api/ascii` (`avatar`) | Your profile picture drawn from characters, optionally animated. `format=text` returns paste-ready plain text. |
 | `/api/compare` (`vs`) | Two users head to head (stars, followers, commits, ...). Needs `vs`. |
@@ -76,9 +85,20 @@ Every card also supports `format=json` to get the underlying data instead of an 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `username` | required | GitHub username. |
-| `theme` | `default` | `default`, `dark`, `github_dark`, `sylven`, `dracula`, `monokai`, `radical`, `tokyonight`, `cyberpunk`, `neon`, `nord`, `gruvbox`, `solarized`, `catppuccin`, `matrix`, `ocean`, `rose_pine`, `synthwave`, `ayu_light`, `paper`, or **`auto`**. `auto` follows the viewer's light/dark preference. |
+| `theme` | `default` | `default`, `dark`, `github_dark`, `sylven`, `dracula`, `monokai`, `radical`, `tokyonight`, `cyberpunk`, `neon`, `nord`, `gruvbox`, `solarized`, `catppuccin`, `matrix`, `ocean`, `rose_pine`, `synthwave`, `ayu_light`, `paper`, `onedark`, `transparent`, `highcontrast`, or **`auto`**. `auto` follows the viewer's light/dark preference. |
 | `bg` `fg` `muted` `accent` `border` | theme | Colour overrides as hex without `#` (3, 4, 6 or 8 digits). Invalid values are ignored. `bg` also takes a gradient: `bg=135,0f2027,2c5364`. |
-| `locale` | `en` | Labels and titles in `en es fr de pt zh ja ru`. |
+| `title_color` `value_color` `icon_color` | theme | Colours of the title, the big numbers and the icons. |
+| `chart_colors` | theme | Up to 10 comma-separated hex colours for chart series (languages, activity, radar, compare). |
+| `heat_colors` | theme | Five comma-separated hex colours for heatmap levels (empty → most); also used by the 3D skyline. |
+| `bg_opacity` | `100` | Background opacity % (0 = transparent card). |
+| `width` | card | Card width in px, 200-1600: the whole card scales. |
+| `padding` | `25` | Inner padding, 8-60. |
+| `border_width` | `1.5` | Border thickness, 0-6. |
+| `title_align` / `hide_subtitle` | `left` / `false` | Title alignment (left, center, right); hide the @username. |
+| `title_size` / `text_scale` | `18` / `100` | Title font size; all text size in % (70-150). |
+| `number_format` | `auto` | `full` (12,345), `compact` (12.3k) or as designed. Numbers follow `locale`. |
+| `glow` | `false` | Neon glow on titles and accents. |
+| `locale` | `en` | Labels, titles and number formatting in `en es fr de pt zh ja ru`. |
 | `radius` | theme | Corner radius, 0 to 40. |
 | `font` | theme | Font family. |
 | `title` | per card | Custom title. |
@@ -92,24 +112,31 @@ Every card also supports `format=json` to get the underlying data instead of an 
 | Card | Parameters |
 |------|------------|
 | stats | `layout` (`grid`, `compact`, `minimal`), `show_icons`, `hide`, `show`, `compact_numbers`, `footer`. Stat keys: `repos stars forks followers following gists commits contributions prs issues reviews age`. |
-| languages | `layout` (`bar`, `donut`), `langs_count` (1–10), `hide`, `by` (`size`, `repos`) |
-| radar | `langs_count` (3–8), `hide` |
+| languages | `layout` (`bar`, `donut`, `pie`, `bars`, `chips`), `langs_count` (1–10), `hide`, `by` (`size`, `repos`), `decimals` (0–2) |
+| radar | `data` (`languages`, `activity` = commits/PRs/reviews/issues split), `langs_count` (3–8), `hide` |
 | streak | `years` (1–15) |
-| contributions | `year`, `months` |
+| contributions | `year`, `shape` (`square`, `round`, `circle`), `cell` (6–18), `gap` (1–6), `week_start` (`sun`, `mon`), `months`, `weekdays`, `legend`, `effect` (`none`, `snake`, `wave`; with `animation=true`) |
+| skyline | `year`, `height` (20–140), `cell` (6–16), `stats` |
+| patterns | `year`, `week_start`, `hide` (`active consistency average busiest weekend best break`) |
+| impact | `count` (0–6 external projects), `orgs`, `hide` (`external merge_rate repos reviews answers orgs`) |
+| pinned | `layout` (`grid`, `list`), `count` (1–6), `descriptions`, `owner` |
+| tech | `icons` (e.g. `ts,react,docker`; empty = your languages), `style` (`tile`, `plain`, `mono`, `outline`), `size`, `per_line`, `gap`, `labels` |
+| typing | `lines` (separated by `;`), `mode` (`cycle`, `stack`), `size`, `speed`, `pause`, `align`, `width`, `cursor` |
+| composite | `cards` (up to 4 ids), `columns`, `gap`, `valign`; per-card options with a prefix, e.g. `stats.layout=compact` |
 | top-repos | `limit` (1–10), `sort` (`stars`, `forks`, `updated`), `exclude`, `skip_archived` |
 | repos | `repo` (name, or `auto` = your most-starred repository, the default), `show_owner` |
-| achievements | `style` (`trophy`, `badge`), `columns` (1–6), `sort` (`default`, `rank`), `min_rank` (`E`..`SSS+`), `progress`, `hide` (`commits prs contributions repos stars followers issues reviews years`) |
+| achievements | `style` (`trophy`, `badge`), `columns` (1–6), `sort` (`default`, `rank`), `min_rank` (`E`..`SSS+`), `progress`, `hide` (`commits prs contributions repos stars followers issues reviews years external collaborations consistency answers orgs sponsors`) |
 | ascii | `shape` (`flat`, `sphere`, `cylinder`, `coin`), `charset` (`classic dense blocks binary hex alnum text`), `text`, `mode` (`mono`, `color`), `anim` (`scan reveal type wave flicker pulse none`), `speed`, `frames`, `cutout`, `cols` (20–110), `cell`, `contrast`, `invert`, `caption`, `source` (`avatar`, `identicon`) |
-| profile-card | `avatar`, `languages` |
+| profile-card | `avatar`, `languages`, `details` (company, location, pronouns, status), `grade` |
 | compare | `vs` (required), `metrics` (`repos stars forks followers following gists commits contributions prs issues reviews age`) |
 | banner | `text`, `subtitle`, `style` (`wave gradient grid terminal`), `height`, `size`, `align`, `border` |
-| divider | `style` (`wave dots line gradient dashed stars`), `height` |
-| activity | `by` (`month`, `week`, `weekday`), `style` (`bar`, `area`, `line`), `year` |
-| badge | `stat` (`stars followers following repos forks commits prs issues reviews contributions gists years rank top_language`), `label`, `style` (`flat`, `pill`, `for-the-badge`), `color`, `label_color` |
+| divider | `style` (`wave dots line gradient dashed stars footer header`), `height` |
+| activity | `by` (`month`, `week`, `weekday`), `style` (`bar`, `area`, `line`), `year`, `bar_radius`, `line_width`, `grid` |
+| badge | `stat` (`stars followers following repos forks commits prs issues reviews contributions gists years rank top_language external_prs collaborations consistency merge_rate`), `label`, `style` (`flat`, `pill`, `for-the-badge`), `color`, `label_color` |
 
 ### Errors
 
-- **SVG cards** return an SVG error card with HTTP 200, so READMEs show the reason instead of a broken image. The real error code is in the `X-Card-Error` header. Error cards are cached for 60 seconds.
+- **SVG cards** return an SVG error card with HTTP 200, so READMEs show the reason instead of a broken image. The real error code is in the `X-Card-Error` header. Error cards are cached briefly for outages (1-2 min), an hour for unknown users and a day for invalid parameters.
 - **`format=json`** and `/api/profile` return real status codes and `{ "error": { "code", "message" } }`. Codes: `bad_request` (400), `not_found` (404), `rate_limited` (429), `upstream` (502).
 
 ---
@@ -265,6 +292,26 @@ Tip: `theme=auto` follows the viewer's light or dark preference.
 
 ---
 
+## Realistic metrics
+
+Vanity numbers (raw commit counts, repo counts, account age) are easy to game. GitPulse leans on stats that reflect real collaboration:
+
+- **Activity score** (`profile-card`, `badge?stat=rank`): one 12-month window for every input, so it's the same with or without a server token. Weighs PRs merged into other people's repos, repos contributed to, weekly consistency, reviews, contributions, stars and followers. Missing data renormalises the weights instead of lowering the score. It's an activity indicator, not a measure of code quality.
+- **Trophies v2**: Open Sourcerer (external merged PRs), Collaborator, Consistent, Answerer, Team Player, Sponsored. Seniority/volume trophies (years, repo count, orgs) are shown but don't count towards the overall rank.
+- **Impact** and **Work patterns** cards (above).
+
+## Reliability, scale and security
+
+Built to sit in thousands of READMEs behind GitHub's image proxy:
+
+- **Canonical cache keys** - only parameters a card understands are part of the key, defaults and order are ignored, usernames are lower-cased. Random junk parameters can't bust the cache or force re-renders.
+- **Stale-while-revalidate + stale-if-error** - GitHub data has a soft TTL (fresh) and a 7-day hard TTL. Stale data is served instantly while refreshing in the background, and if GitHub is down or rate-limiting, the last good data keeps being served. Unknown users are cached negatively.
+- **Token pool health** - requests go to the token with the most remaining quota; revoked (401) or rate-limited (403/429, secondary limits) tokens are benched until reset and the request is retried on another token, with jittered backoff and a 9 s overall deadline.
+- **Bounded work per request** - at most 30 GitHub calls per card (Workers allows 50 subrequests on the free plan), past calendar years batched into one query and cached for a month, ASCII 3D capped by a cell budget, rendered SVGs capped at 2.5 MB, avatars capped at 1 MB / 1 megapixel.
+- **Rate limiting** (optional, `wrangler.toml`) - Workers Rate Limiting on cache misses only: per IP for normal clients, per username for GitHub's camo proxy (which uses a few shared IPs).
+- **Security** - every parameter is validated to numbers, enums or hex colours before reaching SVG/CSS; all text is escaped; SVGs and pages ship strict CSPs; the README HTML preview is sandboxed, strips active content and never includes raw HTML blocks when served by GET; the avatar fetch is host-allowlisted without redirects; `/api/rate-limit` shows live quota only with `ADMIN_TOKEN`; tokens never appear in responses or logs.
+- **Observability** - one structured JSON log line per card request (card, user, cache hit/miss, status, ms, GitHub calls), sampled via `[observability]`; `/api/health` reports token health and cache counters (503 when every token is benched).
+
 ## How it works
 
 ```text
@@ -289,8 +336,11 @@ src/
   themes/         palettes + resolveTheme (overrides, auto)
   svg/            frame (shared chrome), icons, language colours
   plugins/        third-party providers for /api/profile
-  core/           params/validation, cache, errors, text helpers
-  playground.ts   the UI served at /
+  core/           params/validation, cache (SWR, canonical keys), compat, errors, i18n, text helpers
+  github/tokens.ts token-pool health
+  readme/         README generator (spec, presets, renderer, routes)
+  ui/             the web app served at / (playground, store, builder)
+  scripts/        gen-tech-icons.mjs (bundled simple-icons subset)
 ```
 
 ---
@@ -341,7 +391,12 @@ Add it to the array in `src/cards/index.ts`. That's all: the route, `format=json
 - [x] Trophy artwork by rank, ASCII avatar (animated, plain text), profile card, activity chart, badges
 - [x] Locales, gradient backgrounds, OpenAPI spec, rate-limit endpoint
 - [x] Store with style variants, README generator and visual builder, banner/divider/compare cards
-- [ ] Request analytics, profile view counter
+- [x] Realistic impact & work-pattern stats, pinned repos, activity score v2, trophies v2
+- [x] 3D skyline, tech icon grid, typing header, composite card, snake/wave heatmaps, footer waves
+- [x] Unified customization (size, padding, colours per element, heat/chart palettes, glow, number formats)
+- [x] github-readme-stats compatibility, canonical caching, stale-if-error, token health, rate limiting
+- [ ] Request analytics, profile view counter (needs storage)
+- [ ] Stars & growth, language trend, sponsors wall
 - [ ] Contribution timeline and repository-health cards
 - [ ] PNG output, theme editor and gallery
 - [ ] Plugin cards (WakaTime, Dev.to) rendered as SVG

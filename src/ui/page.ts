@@ -53,6 +53,8 @@ export const pageHtml = `<!DOCTYPE html>
     </div>
     <div class="bar">
       <button class="primary" id="add-readme">＋ Add to README</button>
+      <button class="ghost" id="copy-settings" title="Copy these settings as JSON">Copy settings</button>
+      <button class="ghost" id="import-settings" title="Paste a URL or settings JSON">Import</button>
       <button class="primary hidden" id="update-block">✔ Update README block</button>
       <span class="grow"></span>
       <span class="bgs">Preview on
@@ -110,6 +112,7 @@ export const pageHtml = `<!DOCTYPE html>
         <button class="ghost" id="b-raw">Open raw</button>
       </div>
       <div class="note hidden" id="build-err" style="color:var(--danger)"></div>
+      <div class="note hidden" id="build-warn" style="color:#d29922">⚠</div>
       <div id="pane-preview">
         <div class="btnrow" style="margin-bottom:8px"><span class="note">Preview on</span><button class="ghost small pvbtn" data-pv="light">Light</button><button class="ghost small pvbtn" data-pv="dark">Dark</button></div>
         <iframe class="preview" id="frame" sandbox="" title="README preview"></iframe>
@@ -123,7 +126,7 @@ export const pageHtml = `<!DOCTYPE html>
   </section>
 </main>
 </div>
-<div class="toast" id="toast">Copied!</div>
+<div class="toast" id="toast" role="status" aria-live="polite">Copied!</div>
 <script>${SCRIPT}</script>
 </body>
 </html>`;

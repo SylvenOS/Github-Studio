@@ -6,6 +6,7 @@ import { contentTop, frame, PAD } from '../svg/frame';
 
 const SHAPES = ['square', 'round', 'circle'] as const;
 const STARTS = ['sun', 'mon'] as const;
+const EFFECTS = ['none', 'snake', 'wave'] as const;
 
 interface Params {
   year: number | null;
@@ -16,6 +17,7 @@ interface Params {
   weekStart: (typeof STARTS)[number];
   legend: boolean;
   weekdays: boolean;
+  effect: (typeof EFFECTS)[number];
 }
 
 /** Places each day on a week/weekday grid. Columns start on Sunday, or Monday with `weekStart='mon'`. */
@@ -45,7 +47,9 @@ export const contributionsCard = defineCard<Params, CalendarDay[]>({
     { label: 'No month labels', params: { months: 'false' } },
     { label: 'Round cells', params: { shape: 'round' } },
     { label: 'Dots', params: { shape: 'circle', gap: '4' } },
-    { label: 'Big cells, Monday first', params: { cell: '14', week_start: 'mon' } }
+    { label: 'Big cells, Monday first', params: { cell: '14', week_start: 'mon' } },
+    { label: 'Snake (animated)', params: { effect: 'snake', animation: 'true' } },
+    { label: 'Wave (animated)', params: { effect: 'wave', shape: 'round', animation: 'true' } }
   ],
   aliases: ['heatmap'],
   title: 'Contribution Graph',
@@ -58,7 +62,8 @@ export const contributionsCard = defineCard<Params, CalendarDay[]>({
     { name: 'week_start', type: 'enum', options: [...STARTS], default: 'sun', description: 'First day of the week' },
     { name: 'months', type: 'boolean', default: true, description: 'Show month labels' },
     { name: 'weekdays', type: 'boolean', default: true, description: 'Show weekday labels' },
-    { name: 'legend', type: 'boolean', default: true, description: 'Show total and the less/more legend' }
+    { name: 'legend', type: 'boolean', default: true, description: 'Show total and the less/more legend' },
+    { name: 'effect', type: 'enum', options: [...EFFECTS], default: 'none', description: 'Animation (with animation=true): a snake eating your contributions, or a wave' }
   ],
   parse: (q) => ({
     year: q.year ? int(q.year, new Date().getUTCFullYear(), 2008, new Date().getUTCFullYear()) : null,
@@ -68,7 +73,8 @@ export const contributionsCard = defineCard<Params, CalendarDay[]>({
     gap: int(q.gap, 3, 1, 6),
     weekStart: oneOf(q.week_start, STARTS, 'sun'),
     legend: bool(q.legend, true),
-    weekdays: bool(q.weekdays, true)
+    weekdays: bool(q.weekdays, true),
+    effect: oneOf(q.effect, EFFECTS, 'none')
   }),
   load: (client, p, common) =>
     client.getCalendar(common.username, [p.year ? calendarYearRange(p.year) : lastYearRange()]),
@@ -86,7 +92,32 @@ export const contributionsCard = defineCard<Params, CalendarDay[]>({
     const width = gx + columns * STEP - GAP + PAD;
     const total = days.reduce((a, d) => a + d.count, 0);
 
-    const rects = cells.map((c) => cellSvg(c.col * STEP, c.dow * STEP, CELL, p.shape, `l${c.level}`)).join('');
+    const effect = common.animation ? p.effect : 'none';
+    // snake: visit cells column by column, alternating direction, eating the active ones
+    const order = (c: { col: number; dow: number }) => c.col * 7 + (c.col % 2 ? 6 - c.dow : c.dow);
+    const steps = columns * 7;
+    const loop = Math.max(8, steps * 0.045); // seconds per loop
+    const rects = cells
+      .map((c) => {
+        const cell = cellSvg(c.col * STEP, c.dow * STEP, CELL, p.shape, `l${c.level}`);
+        if (effect === 'snake' && c.level > 0) return `<g class="eat" style="--d:${((order(c) / steps) * loop * 0.85).toFixed(2)}s">${cell}</g>`;
+        if (effect === 'wave') return `<g class="wv" style="--d:${((c.col + c.dow) * 0.06).toFixed(2)}s">${cell}</g>`;
+        return cell;
+      })
+      .join('');
+    let fxStyle = '';
+    let fxHead = '';
+    if (effect === 'snake') {
+      const centre = (col: number, dow: number) => `${(col * STEP + CELL / 2).toFixed(1)},${(dow * STEP + CELL / 2).toFixed(1)}`;
+      const path: string[] = [];
+      for (let col = 0; col < columns; col++) for (let k = 0; k < 7; k++) path.push(centre(col, col % 2 ? 6 - k : k));
+      fxStyle =
+        `<style>.eat{animation:eat ${loop.toFixed(1)}s linear infinite;animation-delay:var(--d)}@keyframes eat{0%{opacity:1}1%,88%{opacity:.12}100%{opacity:1}}@media (prefers-reduced-motion:reduce){.eat{animation:none}}</style>`;
+      fxHead =
+        `<circle r="${(CELL * 0.62).toFixed(1)}" class="accent"><animateMotion dur="${(loop * 0.85).toFixed(2)}s" repeatCount="indefinite" path="M${path.join(' L')}"/></circle>`;
+    } else if (effect === 'wave') {
+      fxStyle = '<style>.wv{transform-box:fill-box;transform-origin:center;animation:wv 2.4s ease-in-out infinite;animation-delay:var(--d)}@keyframes wv{0%,100%{transform:scale(1)}50%{transform:scale(.55)}}@media (prefers-reduced-motion:reduce){.wv{animation:none}}</style>';
+    }
 
     let monthLabels = '';
     if (p.months) {
@@ -130,7 +161,7 @@ export const contributionsCard = defineCard<Params, CalendarDay[]>({
         [0, 1, 2, 3, 4].map((l) => cellSvg(swatchX + l * (sw + 3), legendY, sw, p.shape, `l${l}`)).join('') +
         `<text x="${width - PAD}" y="${legendY + 9}" class="label muted" font-size="10" text-anchor="end">${t('misc.more')}</text>`;
 
-    return frame(`${monthLabels}${weekdays}<g transform="translate(${gx} ${gy})">${rects}</g>${legend}`, {
+    return frame(`${monthLabels}${weekdays}<g transform="translate(${gx} ${gy})">${rects}${fxHead}</g>${fxStyle}${legend}`, {
       width: Math.max(width, 460),
       height: (p.legend ? legendY + sw : gy + 7 * STEP - GAP) + PAD,
       theme,

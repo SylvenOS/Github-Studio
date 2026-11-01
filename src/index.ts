@@ -243,7 +243,7 @@ async function handleCard(c: Ctx, id: string) {
   const query = applyCompat(card.id, c.req.query());
 
   // One cache entry per *meaningful* request: unknown params, defaults and param order don't matter.
-  const key = canonicalKey(new URL(c.req.url).origin, `/api/${card.id}`, query, allowedFor(card));
+  const key = canonicalKey(new URL(c.req.url).origin, `/api/${card.id}`, query, allowedFor(card), card.extraParam);
   let client: GitHubClient | undefined;
   const [res, hit] = await edgeResponse(c, key, async () => {
     if (await overLimit(c, query.username)) return errorResponse(c, rateLimited('Too many requests, please try again in a minute'), query);

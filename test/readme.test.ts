@@ -127,7 +127,7 @@ describe('rendering', () => {
     expect(out.markdown).toContain('# Hello');
     expect(out.markdown).toContain('<h3 align="center">Centered</h3>');
     expect(out.markdown).toContain('<div align="center">\n\nSome **bold** words.\n\n</div>');
-    expect(out.markdown).toContain('<a href="https://github.com/octo"><img src="https://x.dev/api/stats?username=octo" alt="GitHub Stats" width="400" /></a>');
+    expect(out.markdown).toMatch(/<a href="https:\/\/github\.com\/octo"><img src="https:\/\/x\.dev\/api\/stats\?username=octo&v=\w+" alt="GitHub Stats for @octo" width="400" \/><\/a>/);
     expect(out.markdown).toContain('/api/divider?style=dots');
     expect(out.markdown).toContain('<details>\n<summary>More</summary>');
     expect(out.markdown).toContain('Generated with');
@@ -153,6 +153,27 @@ describe('rendering', () => {
       expect(md.length, p.id).toBeGreaterThan(100);
       expect(md, p.id).not.toContain('undefined');
     }
+  });
+});
+
+describe('generator rules', () => {
+  const spec = (blocks: unknown[], extra: object = {}) => normalizeSpec({ username: 'octo', blocks, ...extra });
+  it('adds a cache-busting version that is stable but changes with the README', () => {
+    const v = (md: string) => /v=(\w+)/.exec(md)?.[1];
+    const a = renderReadme(spec([{ type: 'card', card: 'stats' }]), 'https://x.dev').markdown;
+    expect(v(a)).toBeTruthy();
+    expect(v(renderReadme(spec([{ type: 'card', card: 'stats' }]), 'https://x.dev').markdown)).toBe(v(a));
+    expect(v(renderReadme(spec([{ type: 'card', card: 'stats', params: { layout: 'compact' } }]), 'https://x.dev').markdown)).not.toBe(v(a));
+  });
+  it('warns about too many images and several animations', () => {
+    const many = renderReadme(spec(Array.from({ length: 9 }, () => ({ type: 'card', card: 'stats' }))), 'https://x.dev');
+    expect(many.warnings.join(' ')).toMatch(/9 images/);
+    const moving = renderReadme(spec([{ type: 'card', card: 'skyline', params: { animation: 'true' } }, { type: 'card', card: 'typing', params: { animation: 'true' } }]), 'https://x.dev');
+    expect(moving.warnings.join(' ')).toMatch(/2 animated/);
+    expect(renderReadme(spec([{ type: 'card', card: 'stats' }]), 'https://x.dev').warnings).toEqual([]);
+  });
+  it('the new presets exist', () => {
+    expect(PRESETS.map((p) => p.id)).toEqual(expect.arrayContaining(['recruiter', 'maximal']));
   });
 });
 

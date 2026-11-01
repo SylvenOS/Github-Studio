@@ -45,6 +45,8 @@ export interface CardDefinition<P = any, D = any> {
   parse(query: Query, common: CommonParams): P;
   /** Other GitHub users this request touches (besides `username`), so the blocklist can cover them. */
   users?(params: P): string[];
+  /** Accepts parameters beyond `params` (e.g. composite's `stats.layout`) - they become part of the cache key. */
+  extraParam?(name: string): boolean;
   /** Overrides the response cache lifetime (seconds), e.g. for expensive, slow-changing cards. */
   cacheSeconds?: number;
   /** Fetch everything the card needs. Results must be JSON-serialisable. */

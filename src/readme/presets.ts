@@ -16,6 +16,35 @@ const divider = (style = 'wave'): Block => ({ type: 'divider', style });
 /** Starting points for the README builder and `GET /api/readme?preset=`. Add one here to offer it everywhere. */
 export const PRESETS: Preset[] = [
   {
+    id: 'recruiter',
+    title: 'Minimal recruiter',
+    description: 'Calm and scannable: a typed intro, realistic impact, one stats image and your pinned work. Adapts to light/dark.',
+    theme: 'auto',
+    build: (u) => [
+      card('typing', { lines: `Hi, I'm ${u};I build reliable software in the open`, align: 'left', size: '20' }),
+      card('impact', { count: '3' }),
+      card('composite', { cards: 'stats,languages', 'languages.layout': 'donut' }),
+      card('pinned')
+    ]
+  },
+  {
+    id: 'maximal',
+    title: 'Maximal showcase',
+    description: 'Everything at once: header waves, typing intro, tech grid, stats, streak, 3D skyline, snake heatmap, trophies, pins and a footer wave.',
+    build: (u) => [
+      { type: 'divider', style: 'header' },
+      card('typing', { lines: `Hi there, I'm ${u};Welcome to my corner of GitHub;Thanks for stopping by`, animation: 'true' }),
+      card('tech'),
+      card('composite', { cards: 'stats,languages', 'stats.show_icons': 'true', 'languages.layout': 'donut' }),
+      row(card('streak'), card('patterns')),
+      card('skyline'),
+      card('contributions', { effect: 'snake' }),
+      card('achievements'),
+      card('pinned'),
+      { type: 'divider', style: 'footer' }
+    ]
+  },
+  {
     id: 'classic',
     title: 'Classic',
     description: 'Banner, stats and languages side by side, streak, heatmap, trophies and top repositories.',

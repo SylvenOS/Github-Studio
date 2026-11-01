@@ -8,6 +8,8 @@ export interface Rendered {
   markdown: string;
   /** The same document as an HTML fragment, for previews. Wrap it in a sandboxed iframe. */
   html: string;
+  /** Advice about the result (too many images, several animations...). */
+  warnings: string[];
 }
 
 interface Part {
@@ -25,6 +27,9 @@ function cardUrl(origin: string, spec: ReadmeSpec, b: CardBlock, theme: string):
   q.set('username', spec.username);
   if (theme !== 'default') q.set('theme', theme);
   for (const [k, v] of Object.entries({ ...spec.params, ...b.params })) if (k !== 'theme') q.set(k, v);
+  // GitHub's image proxy caches by URL; a version token that changes with the README makes edits show up.
+  // Our own cache ignores `v` (it isn't a card parameter).
+  if (spec.version) q.set('v', spec.version);
   return `${origin}/api/${b.card}?${q.toString().replace(/%2C/gi, ',')}`;
 }
 
@@ -35,7 +40,7 @@ function cardImage(origin: string, spec: ReadmeSpec, b: CardBlock, fallbackWidth
   const width = w ? ` width="${w}"` : '';
   const explicit = b.params?.theme;
   const light = cardUrl(origin, spec, b, explicit ?? spec.theme);
-  let img = `<img src="${attr(light)}" alt="${attr(b.alt ?? title)}"${width} />`;
+  let img = `<img src="${attr(light)}" alt="${attr(b.alt ?? `${title} for @${spec.username}`)}"${width} />`;
   if (spec.dark && !explicit) {
     const dark = cardUrl(origin, spec, b, spec.dark);
     img = `<picture>\n    <source media="(prefers-color-scheme: dark)" srcset="${attr(dark)}">\n    ${img}\n  </picture>`;
@@ -127,6 +132,7 @@ function renderBlock(b: Block, spec: ReadmeSpec, origin: string): Part {
     case 'divider': {
       const q = new URLSearchParams({ style: b.style ?? 'wave' });
       if (spec.theme !== 'default') q.set('theme', spec.theme);
+      if (spec.version) q.set('v', spec.version);
       return both(wrapAligned(b.align ?? 'center', [`<img src="${attr(`${origin}/api/divider?${q}`)}" alt="" width="100%" />`]));
     }
 
@@ -145,11 +151,44 @@ function renderBlock(b: Block, spec: ReadmeSpec, origin: string): Part {
 }
 
 /** Renders a spec to Markdown (what users paste into their profile README) and an HTML preview of it. */
+/** Short, stable hash (FNV-1a, base36). */
+function shortHash(s: string): string {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return (h >>> 0).toString(36).slice(0, 6);
+}
+
+/** Images and animated cards in a README, for the advice in `warnings`. */
+function audit(spec: ReadmeSpec): string[] {
+  let images = 0;
+  let animated = 0;
+  const globalAnim = spec.params.animation === 'true';
+  const visit = (blocks: Block[]) => {
+    for (const b of blocks) {
+      const cards = b.type === 'card' ? [b] : b.type === 'row' ? b.items : [];
+      for (const c of cards) {
+        images++;
+        if (globalAnim || c.params?.animation === 'true') animated++;
+      }
+      if (b.type === 'badges') images += b.items.length;
+      if (b.type === 'divider') images++;
+      if (b.type === 'details') visit(b.blocks);
+    }
+  };
+  visit(spec.blocks);
+  const out: string[] = [];
+  if (images > 8) out.push(`${images} images: READMEs load faster with 8 or fewer - consider a composite card or fewer badges.`);
+  if (animated > 1) out.push(`${animated} animated cards: one moving element is usually enough (and kinder to readers who prefer less motion).`);
+  return out;
+}
+
 export function renderReadme(spec: ReadmeSpec, origin: string): Rendered {
+  spec = { ...spec, version: shortHash(JSON.stringify({ ...spec, version: undefined })) };
   const parts = spec.blocks.map((b) => renderBlock(b, spec, origin)).filter((p) => p.md.trim());
   if (spec.footer) parts.push(both(`<p align="center"><sub>Generated with <a href="${attr(origin)}">GitPulse</a></sub></p>`));
   return {
     markdown: `${parts.map((p) => p.md).join('\n\n')}\n`,
-    html: `<div class="markdown-body">${parts.map((p) => p.html).join('\n')}</div>`
+    html: `<div class="markdown-body">${parts.map((p) => p.html).join('\n')}</div>`,
+    warnings: audit(spec)
   };
 }

@@ -6,6 +6,13 @@ import { badgeCard } from './badge';
 import { bannerCard } from './banner';
 import { compareCard } from './compare';
 import { dividerCard } from './divider';
+import { impactCard } from './impact';
+import { compositeCard } from './composite';
+import { skylineCard } from './skyline';
+import { techCard } from './tech';
+import { typingCard } from './typing';
+import { patternsCard } from './patterns';
+import { pinnedCard } from './pinned';
 import { contributionsCard } from './contributions';
 import { languagesCard } from './languages';
 import { profileCard } from './profile';
@@ -19,17 +26,24 @@ import { topReposCard } from './top-repos';
 export const cards: CardDefinition[] = [
   statsCard,
   profileCard,
+  impactCard,
   asciiCard,
   languagesCard,
+  techCard,
   streakCard,
   contributionsCard,
+  skylineCard,
+  patternsCard,
   repoCard,
   topReposCard,
+  pinnedCard,
   radarCard,
   achievementsCard,
   activityCard,
   compareCard,
   badgeCard,
+  compositeCard,
+  typingCard,
   bannerCard,
   dividerCard
 ];

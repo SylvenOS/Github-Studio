@@ -62,6 +62,14 @@ export const STYLES = String.raw`
   body.t-store .view-play, body.t-store .view-builder, body.t-play .view-store, body.t-play .view-builder, body.t-builder .view-play, body.t-builder .view-store { display:none; }
 
   body.t-store .not-store { display:none; }
+  details.grp { border:1px solid var(--line); border-radius:10px; padding:4px 10px 10px; margin:10px 0; background:var(--panel2); }
+  details.grp > summary { cursor:pointer; font-weight:700; font-size:12.5px; padding:6px 0; list-style:none; }
+  details.grp > summary::-webkit-details-marker { display:none; }
+  details.grp > summary::after { content:'▸'; float:right; color:var(--muted); }
+  details.grp[open] > summary::after { content:'▾'; }
+  .presets { margin:6px 0 4px; } .presets button { flex:1 1 30%; }
+  .rangerow { display:flex; gap:6px; align-items:center; } .rangerow input { flex:1; } .clr { padding:1px 7px; }
+  .swatches { display:flex; gap:4px; margin-top:6px; } .swatches i { width:18px; height:18px; border-radius:4px; border:1px solid var(--line); display:block; }
 
   /* playground */
   .view-play { display:flex; flex-direction:column; align-items:center; gap:16px; }

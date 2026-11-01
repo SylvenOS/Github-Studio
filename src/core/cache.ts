@@ -179,10 +179,16 @@ export async function edgeResponse(c: Context, key: string, produce: () => Promi
  * Canonical cache key: only parameters the endpoint understands, with empty values and defaults
  * removed, usernames lower-cased and keys sorted.
  */
-export function canonicalKey(origin: string, path: string, query: Record<string, string>, allowed: Map<string, { default?: unknown }>): string {
+export function canonicalKey(
+  origin: string,
+  path: string,
+  query: Record<string, string>,
+  allowed: Map<string, { default?: unknown }>,
+  extra?: (name: string) => boolean
+): string {
   const out = new URLSearchParams();
   for (const k of Object.keys(query).sort()) {
-    const doc = allowed.get(k);
+    const doc = allowed.get(k) ?? (extra?.(k) ? {} : undefined);
     if (!doc) continue;
     let v = (query[k] ?? '').trim().slice(0, 300);
     if (k === 'username' || k === 'vs') v = v.toLowerCase();

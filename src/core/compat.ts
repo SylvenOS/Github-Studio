@@ -19,7 +19,8 @@ const RENAMES: Record<string, string> = {
 /** Accepted for compatibility but meaningless here. */
 const IGNORED = new Set(['count_private', 'include_all_commits', 'hide_rank', 'rank_icon', 'show_owner_name', 'disable_animations', 'line_height', 'hide_progress', 'description_lines_count']);
 
-const LANGUAGE_LAYOUTS: Record<string, string> = { normal: 'bar', compact: 'bar', 'donut-vertical': 'donut', pie: 'donut', donut: 'donut' };
+// only names we don't have natively (our own pie/donut layouts must not be rewritten)
+const LANGUAGE_LAYOUTS: Record<string, string> = { normal: 'bar', compact: 'bar', 'donut-vertical': 'donut' };
 const STAT_KEYS: Record<string, string> = { contribs: 'contributions', prs_merged: 'prs' };
 
 export function applyCompat(cardId: string, query: Query): Query {

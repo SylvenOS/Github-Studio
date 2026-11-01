@@ -36,7 +36,7 @@ function overridesFrom(q: Record<string, string>) {
 
 function respond(c: Ctx, spec: ReadmeSpec, origin: string, format: string, download: boolean, cache: string) {
   const out = renderReadme(spec, origin);
-  if (format === 'json') return c.json({ spec, markdown: out.markdown, html: out.html }, 200, { 'Cache-Control': cache });
+  if (format === 'json') return c.json({ spec, markdown: out.markdown, html: out.html, warnings: out.warnings }, 200, { 'Cache-Control': cache });
   if (format === 'html') return c.body(out.html, 200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': PREVIEW_CSP, 'Cache-Control': cache });
   return c.body(out.markdown, 200, {
     'Content-Type': 'text/markdown; charset=utf-8',

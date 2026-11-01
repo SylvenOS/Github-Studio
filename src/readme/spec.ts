@@ -53,6 +53,8 @@ export interface ReadmeSpec {
   params: Record<string, string>;
   footer: boolean;
   blocks: Block[];
+  /** Internal: cache-busting token appended to image URLs (set by the renderer). */
+  version?: string;
 }
 
 export const BLOCK_TYPES = ['card', 'row', 'heading', 'text', 'badges', 'divider', 'html', 'details'] as const;

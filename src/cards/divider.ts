@@ -2,7 +2,7 @@ import { defineCard } from './types';
 import { int, oneOf } from '../core/params';
 import { frame } from '../svg/frame';
 
-const STYLES = ['wave', 'dots', 'line', 'gradient', 'dashed', 'stars'] as const;
+const STYLES = ['wave', 'dots', 'line', 'gradient', 'dashed', 'stars', 'footer', 'header'] as const;
 const WIDTH = 900;
 
 interface Params {
@@ -21,9 +21,13 @@ export const dividerCard = defineCard<Params, null>({
   description: 'A themed separator between README sections. No GitHub data needed.',
   params: [
     { name: 'style', type: 'enum', options: [...STYLES], default: 'wave', description: 'Look of the divider' },
-    { name: 'height', type: 'number', default: 28, min: 8, max: 80, description: 'Height in pixels' }
+    { name: 'height', type: 'number', default: 28, min: 8, max: 200, description: 'Height in pixels (footer/header waves default to 120)' }
   ],
-  parse: (q) => ({ style: oneOf(q.style, STYLES, 'wave'), height: int(q.height, 28, 8, 80) }),
+  parse: (q) => {
+    const style = oneOf(q.style, STYLES, 'wave');
+    const big = style === 'footer' || style === 'header';
+    return { style, height: int(q.height, big ? 120 : 28, 8, 200) };
+  },
   load: async () => null,
   toJSON: (_d, p) => p,
 
@@ -56,6 +60,19 @@ export const dividerCard = defineCard<Params, null>({
           `<defs><linearGradient id="dg" x1="0" x2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity="0"/><stop offset=".5" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>` +
           `<rect x="0" y="${mid - 2}" width="${WIDTH}" height="4" rx="2" fill="url(#dg)"/>`;
         break;
+      case 'footer':
+      case 'header': {
+        // layered filled waves, like a capsule banner footer (or flipped as a header)
+        const flip = p.style === 'header';
+        const layer = (amp: number, phase: number, base: number, op: number, cls: string) => {
+          const pts: string[] = [];
+          for (let x = 0; x <= WIDTH + 200; x += 12) pts.push(`${x} ${(base + amp * Math.sin((x / 200) * 2 * Math.PI + phase)).toFixed(1)}`);
+          return `<g class="${cls}"><path d="M${pts.join(' L')} L${WIDTH + 200} ${h} L0 ${h}Z" class="accent" fill-opacity="${op}"${flip ? ` transform="translate(0 ${h}) scale(1 -1)"` : ''}/></g>`;
+        };
+        body = layer(h * 0.12, 0, h * 0.35, 0.25, 'fw1') + layer(h * 0.1, 1.8, h * 0.5, 0.45, 'fw2') + layer(h * 0.08, 3.4, h * 0.66, 0.9, 'fw3');
+        if (common.animation) css = '.fw1{animation:fw 9s linear infinite}.fw2{animation:fw 6s linear infinite reverse}.fw3{animation:fw 12s linear infinite}@keyframes fw{to{transform:translateX(-200px)}}@media (prefers-reduced-motion:reduce){.fw1,.fw2,.fw3{animation:none}}';
+        break;
+      }
       case 'stars':
         body =
           `<rect x="40" y="${mid - 0.5}" width="${WIDTH / 2 - 70}" height="1" class="bd"/><rect x="${WIDTH / 2 + 30}" y="${mid - 0.5}" width="${WIDTH / 2 - 70}" height="1" class="bd"/>` +

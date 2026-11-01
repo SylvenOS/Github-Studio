@@ -78,6 +78,8 @@ describe('token pool failover', () => {
       return inner(input, init);
     });
     vi.stubGlobal('fetch', fetchMock);
+    // deterministic: always try the first of the healthiest tokens (the bad one) first
+    vi.spyOn(Math, 'random').mockReturnValue(0);
     const client = new GitHubClient({ tokens: ['bad', 'good'] });
     for (let i = 0; i < 4; i++) {
       clearMemoryCache();
@@ -88,6 +90,7 @@ describe('token pool failover', () => {
     expect(status.find((t) => t.label === 'token-2')?.healthy).toBe(true);
     expect(JSON.stringify(status)).not.toContain('good');
     expect(client.hasToken).toBe(true);
+    vi.restoreAllMocks();
   });
 
   it('a card keeps rendering from stale data while GitHub is rate-limiting', async () => {
