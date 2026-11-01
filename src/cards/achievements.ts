@@ -2,7 +2,7 @@ import { defineCard } from './types';
 import { bool, int, list, oneOf } from '../core/params';
 import { compact, esc, fmt } from '../core/text';
 import { RANKS, calculateTrophies, overallRank, trophyIds, type Trophy, type TrophyRank } from '../achievements/engine';
-import { calculateProfileMetrics } from '../metrics';
+import { loadInsights } from '../metrics';
 import { anim, contentTop, frame, PAD } from '../svg/frame';
 import { trophyArt, trophyDefs } from '../svg/trophy';
 
@@ -84,7 +84,7 @@ export const achievementsCard = defineCard<Params, Trophy[]>({
     minRank: oneOf(q.min_rank, RANKS, 'E'),
     progress: bool(q.progress, true)
   }),
-  load: async (client, _p, common) => calculateTrophies(calculateProfileMetrics(await client.getUser(common.username))),
+  load: async (client, _p, common) => calculateTrophies((await loadInsights(client, common.username)).metrics),
   toJSON: (trophies, p) => ({ overall: overallRank(trophies), trophies: selectTrophies(trophies, p) }),
 
   render(all, p, { theme, common, title, t }) {

@@ -79,6 +79,49 @@ export const USER_FIXTURE = {
   }
 };
 
+export const EXTENDED_FIXTURE = {
+  pronouns: 'they/them',
+  isHireable: true,
+  status: { emoji: '🚀', message: 'Shipping things' },
+  socialAccounts: { nodes: [{ provider: 'TWITTER', url: 'https://twitter.com/octo', displayName: '@octo' }] },
+  starredRepositories: { totalCount: 120 },
+  sponsors: { totalCount: 4 },
+  sponsoring: { totalCount: 2 },
+  organizations: { nodes: [{ login: 'acme', name: 'Acme', avatarUrl: 'https://avatars.githubusercontent.com/u/9' }, { login: 'rustlang', name: 'Rust', avatarUrl: 'https://avatars.githubusercontent.com/u/8' }] },
+  repositoryDiscussions: { totalCount: 6 },
+  repositoryDiscussionComments: { totalCount: 14 },
+  mergedPRs: { totalCount: 250 },
+  closedPRs: { totalCount: 50 },
+  closedIssues: { totalCount: 30 },
+  repositoriesContributedTo: { totalCount: 18 },
+  pinnedItems: {
+    nodes: [
+      { name: 'alpha', description: 'The alpha project', url: 'https://github.com/octo/alpha', stargazerCount: 5000, forkCount: 500, owner: { login: 'octo' }, primaryLanguage: { name: 'TypeScript', color: '#3178c6' } },
+      { name: 'cool-lib', description: 'An org library <b>bold</b>', url: 'https://github.com/acme/cool-lib', stargazerCount: 900, forkCount: 40, owner: { login: 'acme' }, primaryLanguage: { name: 'Rust', color: '#dea584' } },
+      { name: 'gamma', description: null, url: 'https://github.com/octo/gamma', stargazerCount: 12, forkCount: 1, owner: { login: 'octo' }, primaryLanguage: null }
+    ]
+  },
+  contributionsCollection: { totalPullRequestContributions: 120, totalIssueContributions: 30, contributionYears: [2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019] }
+};
+
+const repoRef = (nameWithOwner: string, stars: number, lang: string, n: number) => ({
+  repository: { nameWithOwner, owner: { login: nameWithOwner.split('/')[0] }, isPrivate: false, stargazerCount: stars, primaryLanguage: { name: lang, color: '#3178c6' } },
+  contributions: { totalCount: n }
+});
+
+export const CONTRIB_FIXTURE = {
+  user: {
+    contributionsCollection: {
+      totalCommitContributions: 800, totalPullRequestContributions: 120, totalIssueContributions: 30, totalPullRequestReviewContributions: 60,
+      restrictedContributionsCount: 12, totalRepositoriesWithContributedCommits: 25, totalRepositoriesWithContributedPullRequests: 14,
+      totalRepositoriesWithContributedIssues: 9, totalRepositoriesWithContributedPullRequestReviews: 7,
+      pullRequestContributionsByRepository: [repoRef('vercel/next.js', 130000, 'TypeScript', 12), repoRef('octo/alpha', 5000, 'TypeScript', 40), repoRef('rust-lang/rust', 100000, 'Rust', 3)],
+      commitContributionsByRepository: [repoRef('vercel/next.js', 130000, 'TypeScript', 30), repoRef('denoland/deno', 95000, 'Rust', 5)]
+    }
+  },
+  ext: { issueCount: 42 }
+};
+
 export interface MockOptions {
   calendarDays?: number;
   gaps?: number[];
@@ -95,7 +138,7 @@ export function mockGitHub(opts: MockOptions = {}) {
         return Response.json({ data: { user: null }, errors: [{ type: 'NOT_FOUND', message: 'nope' }] });
       }
       const { query, variables } = JSON.parse(String(init?.body));
-      if (query.includes('contributionsCollection(from')) {
+      if (query.includes('contributionsCollection(from') && !query.includes('ContributionsByRepository')) {
         const days = makeCalendar(opts.calendarDays ?? 60, opts.gaps);
         const user: Record<string, unknown> = {};
         for (const k of Object.keys(variables).filter((k) => /^f\d/.test(k))) {
@@ -103,6 +146,8 @@ export function mockGitHub(opts: MockOptions = {}) {
         }
         return Response.json({ data: { user } });
       }
+      if (query.includes('pinnedItems')) return Response.json({ data: { user: EXTENDED_FIXTURE } });
+      if (query.includes('ContributionsByRepository')) return Response.json({ data: CONTRIB_FIXTURE });
       return Response.json({ data: { user: USER_FIXTURE } });
     }
     if (url.startsWith('https://avatars.githubusercontent.com/')) {

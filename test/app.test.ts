@@ -93,8 +93,11 @@ describe('card output', () => {
   it('achievements JSON respects hide', async () => {
     mockGitHub();
     const json = await (await get('/api/achievements?username=octo&format=json&hide=stars,years')).json();
-    expect(json.trophies.map((t: { id: string }) => t.id)).not.toContain('stars');
-    expect(json.trophies).toHaveLength(7);
+    const ids = json.trophies.map((t: { id: string }) => t.id);
+    expect(ids).not.toContain('stars');
+    expect(ids).not.toContain('years');
+    // realistic-impact trophies are included when the extended data is available
+    expect(ids).toEqual(expect.arrayContaining(['external', 'collaborations', 'consistency']));
     expect(json.overall.rank).toBeDefined();
   });
 });

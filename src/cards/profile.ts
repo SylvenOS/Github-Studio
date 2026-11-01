@@ -2,7 +2,7 @@ import { defineCard } from './types';
 import { bool } from '../core/params';
 import { MONTHS, compact, esc, truncate, wrap } from '../core/text';
 import { calculateGrade, type Grade } from '../metrics/grade';
-import { calculateProfileMetrics, type ProfileMetrics } from '../metrics';
+import { loadInsights, type ProfileMetrics } from '../metrics';
 import { anim, contentTop, frame, PAD } from '../svg/frame';
 import { icon } from '../svg/icons';
 import { languageShares } from './languages';
@@ -11,6 +11,8 @@ import type { LanguageShare } from './languages';
 interface Params {
   avatar: boolean;
   languages: boolean;
+  details: boolean;
+  grade: boolean;
 }
 
 interface Data {
@@ -21,6 +23,9 @@ interface Data {
   languages: LanguageShare[];
   /** `data:` URI, or null when the picture couldn't be loaded. */
   avatar: string | null;
+  /** company · location · pronouns, in display order. */
+  details: string[];
+  status: string | null;
 }
 
 
@@ -37,13 +42,14 @@ export const profileCard = defineCard<Params, Data>({
   description: 'Profile summary: avatar, bio, key numbers, top languages and an overall grade.',
   params: [
     { name: 'avatar', type: 'boolean', default: true, description: 'Show the profile picture' },
-    { name: 'languages', type: 'boolean', default: true, description: 'Show the language bar' }
+    { name: 'languages', type: 'boolean', default: true, description: 'Show the language bar' },
+    { name: 'details', type: 'boolean', default: true, description: 'Show company, location, pronouns and status' },
+    { name: 'grade', type: 'boolean', default: true, description: 'Show the activity score ring' }
   ],
-  parse: (q) => ({ avatar: bool(q.avatar, true), languages: bool(q.languages, true) }),
+  parse: (q) => ({ avatar: bool(q.avatar, true), languages: bool(q.languages, true), details: bool(q.details, true), grade: bool(q.grade, true) }),
 
   async load(client, p, common) {
-    const user = await client.getUser(common.username);
-    const metrics = calculateProfileMetrics(user);
+    const { user, extended, metrics } = await loadInsights(client, common.username);
     let avatar: string | null = null;
     if (p.avatar) {
       try {
@@ -59,7 +65,9 @@ export const profileCard = defineCard<Params, Data>({
       bio: user.bio,
       joined: user.createdAt,
       languages: languageShares(user.languages, { count: 5, hide: [], by: 'size' }),
-      avatar
+      avatar,
+      details: [user.company, user.location, extended?.pronouns].filter((x): x is string => !!x).map((x) => x.replace(/^@/, '')),
+      status: extended?.status?.message ? `${extended.status.emoji && /^:\w+:$/.test(extended.status.emoji) ? '' : extended.status.emoji ?? ''} ${extended.status.message}`.trim() : null
     };
   },
 
@@ -84,12 +92,15 @@ export const profileCard = defineCard<Params, Data>({
           `<text x="${PAD + avatarSize / 2}" y="${top + avatarSize / 2 + 12}" text-anchor="middle" font-size="34" font-weight="700" class="accent">${initial}</text>`;
 
     const tx = p.avatar ? PAD + avatarSize + 20 : PAD;
-    const bio = d.bio ? wrap(d.bio, p.avatar ? 34 : 50, 2) : [];
+    const detailLine = p.details ? [...d.details, ...(d.status ? [d.status] : [])].join(' · ') : '';
+    const bioTop = detailLine ? top + 78 : top + 62;
+    const bio = d.bio ? wrap(d.bio, p.avatar ? 34 : 50, detailLine ? 1 : 2) : [];
     const joined = d.joined ? `${t('misc.joined')} ${MONTHS[new Date(d.joined).getUTCMonth()]} ${new Date(d.joined).getUTCFullYear()}` : '';
     const text =
       `<text x="${tx}" y="${top + 20}" class="fg" font-size="19" font-weight="700">${esc(truncate(m.name, 24))}</text>` +
       `<text x="${tx}" y="${top + 40}" class="muted" font-size="13">@${esc(m.username)}${joined ? ` · ${esc(joined)}` : ''}</text>` +
-      bio.map((l, i) => `<text x="${tx}" y="${top + 62 + i * 16}" class="fg" font-size="12">${esc(l)}</text>`).join('');
+      (detailLine ? `<text x="${tx}" y="${top + 58}" class="muted" font-size="11.5">${esc(truncate(detailLine, p.grade ? 40 : 52))}</text>` : '') +
+      bio.map((l, i) => `<text x="${tx}" y="${bioTop + i * 16}" class="fg" font-size="12">${esc(l)}</text>`).join('');
 
     // grade ring: the arc length is how far into the top of the distribution the user is
     const cx = width - PAD - 30;
@@ -144,7 +155,7 @@ export const profileCard = defineCard<Params, Data>({
       height = y + 48;
     }
 
-    return frame(picture + text + ring + stats + langs, {
+    return frame(picture + text + (p.grade ? ring : '') + stats + langs, {
       width,
       height,
       theme,

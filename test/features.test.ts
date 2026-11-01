@@ -63,10 +63,28 @@ function baseUser() {
 describe('grade', () => {
   it('ranks stronger profiles higher', () => {
     const weak = calculateGrade(calculateProfileMetrics(baseUser() as any));
-    const strong = calculateGrade(calculateProfileMetrics({ ...baseUser(), stars: 50000, followers: 90000, commits: 4000, pullRequests: 3000, issues: 900, reviews: 800 } as any));
+    const strong = calculateGrade({
+      ...calculateProfileMetrics({ ...baseUser(), stars: 50000, followers: 90000, contributions: 4000, reviews: 800 } as any),
+      externalMergedPRs: 400, reposContributedTo: 60, consistency: 98
+    });
     expect(weak.level).toBe('C');
     expect(strong.level).toBe('S');
     expect(strong.percentile).toBeLessThan(weak.percentile);
+  });
+  it('missing data renormalises instead of lowering the score (same grade with or without a token)', () => {
+    const base = calculateProfileMetrics({ ...baseUser(), stars: 300, followers: 80, contributions: 900, reviews: 40 } as any);
+    const withNeutralExtras = calculateGrade(base);
+    expect(calculateGrade({ ...base }).level).toBe(withNeutralExtras.level);
+    // commits no longer influence the score (they mean different things with and without a token)
+    expect(calculateGrade({ ...base, commits: 99999 })).toEqual(calculateGrade(base));
+  });
+  it('vanity trophies are shown but excluded from the overall rank', async () => {
+    const { overallRank, calculateTrophies } = await import('../src/achievements/engine');
+    const m = calculateProfileMetrics({ ...baseUser(), publicRepos: 900, createdAt: '2008-01-01T00:00:00Z' } as any);
+    const trophies = calculateTrophies(m);
+    expect(trophies.find((t) => t.id === 'years')?.rank).toBe('SSS+');
+    expect(overallRank(trophies).level).toBeLessThan(5);
+    expect(trophies.map((t) => t.id)).not.toContain('external'); // no extended data -> left out, not shown as zero
   });
 });
 

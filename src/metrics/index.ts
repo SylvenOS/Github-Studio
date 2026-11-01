@@ -1,4 +1,6 @@
-import type { UserData } from '../github/client';
+import type { CalendarDay, ContributionDetail, GitHubClient, UserData, UserExtended } from '../github/client';
+import { lastYearRange } from '../github/client';
+import { analyzePatterns } from './patterns';
 
 export interface ProfileMetrics {
   username: string;
@@ -18,6 +20,19 @@ export interface ProfileMetrics {
   issues: number;
   reviews: number;
   accountAgeYears: number;
+
+  // ---- realistic-impact extras (present when the insights were loaded, see loadInsights) ----
+  /** PRs merged into repositories the user doesn't own (lifetime). */
+  externalMergedPRs?: number;
+  /** Repositories outside the user's account contributed to (≈ last year). */
+  reposContributedTo?: number;
+  organizations?: number;
+  discussionAnswers?: number;
+  sponsors?: number;
+  /** Share of weeks with a contribution over the last year, 0-100. */
+  consistency?: number;
+  /** merged / (merged + closed-unmerged), 0-100. */
+  mergeRate?: number;
 }
 
 export function calculateProfileMetrics(user: UserData, now = new Date()): ProfileMetrics {
@@ -39,4 +54,38 @@ export function calculateProfileMetrics(user: UserData, now = new Date()): Profi
     reviews: user.reviews,
     accountAgeYears: Number.isFinite(created) ? Math.floor((now.getTime() - created) / (365.25 * 86_400_000)) : 0
   };
+}
+
+/** Adds the realistic-impact fields. Values that couldn't be loaded (e.g. no token) are left undefined, not zero. */
+export function withExtras(
+  m: ProfileMetrics,
+  x: { extended?: UserExtended; contributions?: ContributionDetail; calendar?: CalendarDay[]; hasToken?: boolean }
+): ProfileMetrics {
+  const out = { ...m };
+  if (x.contributions && x.hasToken !== false) out.externalMergedPRs = x.contributions.externalMergedPullRequests;
+  if (x.extended && x.hasToken !== false) {
+    out.reposContributedTo = x.extended.reposContributedTo;
+    out.organizations = x.extended.organizations.length;
+    out.discussionAnswers = x.extended.discussionAnswers;
+    out.sponsors = x.extended.sponsors;
+    const decided = x.extended.mergedPullRequests + x.extended.closedPullRequests;
+    if (decided > 0) out.mergeRate = Math.round((x.extended.mergedPullRequests / decided) * 1000) / 10;
+  }
+  if (x.calendar?.length) out.consistency = analyzePatterns(x.calendar).consistencyPct;
+  return out;
+}
+
+/**
+ * Everything the realistic metrics need, loaded in parallel. Each part is cached and shared with other
+ * cards (profile, heatmap, impact), so this rarely costs more than one extra GitHub call.
+ */
+export async function loadInsights(client: GitHubClient, login: string) {
+  const [user, extended, contributions, calendar] = await Promise.all([
+    client.getUser(login),
+    client.getUserExtended(login).catch(() => undefined),
+    client.getContributions(login).catch(() => undefined),
+    client.getCalendar(login, [lastYearRange()]).catch(() => undefined)
+  ]);
+  const metrics = withExtras(calculateProfileMetrics(user), { extended, contributions, calendar, hasToken: client.hasToken });
+  return { user, extended, contributions, calendar, metrics };
 }

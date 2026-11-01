@@ -3,7 +3,9 @@ import { color, oneOf } from '../core/params';
 import { badRequest } from '../core/errors';
 import { compact, esc, fmt } from '../core/text';
 import { calculateGrade } from '../metrics/grade';
-import { calculateProfileMetrics } from '../metrics';
+import { calculateProfileMetrics, loadInsights } from '../metrics';
+
+const REALISTIC = new Set(['rank', 'external_prs', 'collaborations', 'consistency', 'merge_rate']);
 
 const STYLES = ['flat', 'pill', 'for-the-badge'] as const;
 
@@ -21,7 +23,11 @@ const VALUES: Record<string, (d: Data) => [string, string]> = {
   contributions: (d) => ['contributions', compact(d.m.contributions)],
   gists: (d) => ['gists', fmt(d.m.gists)],
   years: (d) => ['on GitHub', `${d.m.accountAgeYears}y`],
-  rank: (d) => ['rank', d.grade],
+  rank: (d) => ['activity score', d.grade],
+  external_prs: (d) => ['merged PRs (external)', compact(d.m.externalMergedPRs ?? 0)],
+  collaborations: (d) => ['repos contributed to', compact(d.m.reposContributedTo ?? 0)],
+  consistency: (d) => ['consistency', `${Math.round(d.m.consistency ?? 0)}%`],
+  merge_rate: (d) => ['PR merge rate', `${Math.round(d.m.mergeRate ?? 0)}%`],
   top_language: (d) => ['top language', d.m.topLanguage ?? 'n/a']
 };
 
@@ -72,8 +78,9 @@ export const badgeCard = defineCard<Params, Data>({
       labelColor: color(q.label_color)
     };
   },
-  load: async (client, _p, common) => {
-    const m = calculateProfileMetrics(await client.getUser(common.username));
+  load: async (client, p, common) => {
+    // only the realistic stats need the extra data; plain numbers stay a single cached query
+    const m = REALISTIC.has(p.stat) ? (await loadInsights(client, common.username)).metrics : calculateProfileMetrics(await client.getUser(common.username));
     return { m, grade: calculateGrade(m).level };
   },
   toJSON: (d, p) => {
