@@ -347,3 +347,4 @@ Add it to the array in `src/cards/index.ts`. That's all: the route, `format=json
 - [ ] Plugin cards (WakaTime, Dev.to) rendered as SVG
 
 *Built for the open-source community.*
+ 
