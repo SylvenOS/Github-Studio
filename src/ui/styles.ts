@@ -126,4 +126,16 @@ export const STYLES = String.raw`
   .toast.on { opacity:1; }
   @media (max-width:1100px) { .view-builder { grid-template-columns:1fr; } .col-out { position:static; } }
   @media (max-width:860px) { .app { flex-direction:column; } aside { width:auto; border-right:0; border-bottom:1px solid var(--line); } }
+
+.designs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.designs .design{display:flex;flex-direction:column;gap:6px;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--panel);cursor:pointer;color:inherit;font:inherit;text-align:left}
+.designs .design:hover,.designs .design.on{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 30%,transparent)}
+.designs img{width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top;border-radius:6px;background:#0d1117}
+.designs span{font-size:12px;font-weight:600}
+@media (max-width:700px){.designs{grid-template-columns:repeat(2,1fr)}}
+iframe.preview.mobile{width:390px;max-width:100%;margin:0 auto;display:block}
+#build-check.good{color:#3fb950}#build-check.bad{color:var(--danger)}
+details.defs{margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+details.defs summary{cursor:pointer;font-weight:600;font-size:13px}
+details.defs .def{margin-top:8px;font-size:12.5px}details.defs .def p{margin:2px 0 0;opacity:.85}
 `;

@@ -39,6 +39,8 @@ export function applyCompat(cardId: string, query: Query): Query {
 
   if (cardId === 'languages' && q.layout && LANGUAGE_LAYOUTS[q.layout]) q.layout = LANGUAGE_LAYOUTS[q.layout];
   if (cardId === 'stats' && q.hide) q.hide = q.hide.split(',').map((s) => STAT_KEYS[s.trim()] ?? s.trim()).join(',');
+  // their rank circle: hide_rank=false shows it, rank_icon=percentile shows the percentile instead of the letter
+  if (cardId === 'stats' && !q.rank && query.hide_rank === 'false') q.rank = query.rank_icon === 'percentile' ? 'percentile' : 'letter';
   if (cardId === 'stats' && q.show) q.show = q.show.split(',').map((s) => STAT_KEYS[s.trim()] ?? s.trim()).join(',');
   return q;
 }

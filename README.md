@@ -1,6 +1,6 @@
 # GitPulse
 
-An all-in-one, customisable **GitHub stats API**. It renders crisp SVG cards for READMEs and profiles - realistic impact stats, work patterns, pinned repos, a 3D contribution skyline, tech-stack icon grids, typing headers, composites, stats, languages, streaks, heatmaps (with a snake), trophies, ASCII avatars and more - and exposes the same data as JSON. It runs on Cloudflare Workers, is built to survive heavy traffic and GitHub outages, and is built to be extended: a new card is one file.
+An all-in-one, customisable **GitHub stats API and profile design studio**. It renders crisp SVG cards for READMEs and profiles - whole-profile designs (terminal, code editor, editorial, dashboard, blueprint, retro arcade), year in review, monthly trends, a commit punch card, star history, repository comparison and health, language trends, WakaTime, Spotify, a views counter, realistic impact stats, work patterns, pinned repos, a 3D contribution skyline, tech-stack icon grids, typing headers, composites, stats, languages, streaks, heatmaps (with a snake), trophies, ASCII avatars and more - and exposes the same data as JSON. It runs on Cloudflare Workers, is built to survive heavy traffic and GitHub outages, and is built to be extended: a new card is one file.
 
 **Coming from github-readme-stats?** That project is no longer maintained. Swap the host in your existing URLs (`/api?username=`, `/api/top-langs`, `/api/pin`) - its parameter names (`bg_color`, `text_color`, `border_radius`, `custom_title`, `card_width`, `hide_rank`, `exclude_repo`, `disable_animations`...) and favourite themes (`onedark`, `transparent`, `highcontrast`) are understood.
 
@@ -14,7 +14,8 @@ Open `/` on your deployment for the web app. It is generated from the API, so ne
 
 - **Playground** - pick a card, tweak every option with live preview, copy Markdown/HTML/URL.
 - **Store** - browse every card in every ready-made style (90+), search and filter by category, then *Customize* or add it straight to your README.
-- **README Builder** - assemble a whole profile README: start from a preset, then add, reorder (drag or ▲▼), edit and remove blocks. Live preview, editable Markdown, download `README.md`, share link, and **Reset** to go back to the preset.
+- **README Studio** - assemble a whole profile README. Pick a **design system** (Terminal OS, Code Studio, Editorial, Dashboard, Blueprint, Retro Arcade) or a preset, then add, reorder (drag or ▲▼), edit and remove blocks. Live preview in light/dark and desktop/mobile width, every image is checked for errors, editable Markdown, share link, **save/open the design as JSON**, and **Export ZIP** (see *Self-hosted mode*).
+- **Metric definitions** - every number's source and calculation, next to each card and at `/api/definitions`.
 
 ---
 
@@ -38,6 +39,9 @@ Locally, put secrets in `.env` (gitignored; copy `.env.example`). In production 
 | `GITHUB_TOKENS` | No | Comma-separated extra tokens. Requests are spread across all tokens to multiply rate limits. |
 | `CACHE_SECONDS` | No | Default cache lifetime (default `1800`). |
 | `BLOCKLIST` | No | Comma-separated usernames to refuse. |
+| `ADMIN_TOKEN` | No | Bearer token that unlocks live token quota at `/api/rate-limit`. |
+| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN` | No | Enables `/api/spotify` for **your own** Spotify account (see *Spotify setup*). |
+| `VIEWS` binding | No | Durable Object for the views counter, already declared in `wrangler.toml`. |
 
 Without a token the API still works through a REST and HTML fallback, but it is slower and less accurate, and it hits GitHub's 60 requests/hour unauthenticated limit quickly. `GET /api/health` reports whether a token is configured.
 
@@ -47,7 +51,20 @@ Without a token the API still works through a REST and HTML fallback, but it is 
 
 | Endpoint | Description |
 |----------|-------------|
-| `/api/stats` | Repos, stars, forks, followers, contributions, PRs, issues, reviews (choose which with `hide`/`show`). |
+| `/api/design` (`hero`, `identity`) | **Your whole profile as one designed image**: identity, projects, stats, languages and activity as a `terminal`, `ide`, `editorial`, `dashboard`, `blueprint` or `retro` design. Uses the design's own palette unless you pass `theme`. |
+| `/api/stats` | Repos, stars, forks, followers, contributions, PRs, issues, reviews (choose which with `hide`/`show`), optional activity-score ring (`rank=letter` or `percentile`). |
+| `/api/year` (`wrapped`, `recap`) | **Year in review**: contributions, commits, PRs, reviews, issues, active days, longest streak, best day, months, top repos and languages. |
+| `/api/monthly` (`trend`) | Contributions per month with last year as a ghost series, plus year-to-date change. |
+| `/api/punchcard` (`rhythm`) | Commit punch card (weekday × hour) with a night-owl / early-bird summary. Needs a token. |
+| `/api/stars` (`star-history`) | Star history of up to 3 repositories (sampled stargazer timestamps). |
+| `/api/repo-compare` (`repo-health`) | 1-3 repositories side by side with health signals (activity, issue close rate, release recency, 30-day commits). |
+| `/api/language-trend` | Share of commits by language, year by year (stream, stacked bars or lines). Needs a token. |
+| `/api/code` (`loc`) | Code volume: bytes per language and an estimated line count, clearly labelled as an estimate. Needs a token. |
+| `/api/sponsors` | Sponsors wall (or who you sponsor) with avatars. Needs a token. |
+| `/api/views` (`visitors`) | Profile views counter. Live, never cached. Needs the `VIEWS` Durable Object. |
+| `/api/wakatime` | WakaTime coding time: total, daily average, best day, languages/editors/OS/projects. `username` = your WakaTime username (public profile). |
+| `/api/spotify` (`now-playing`) | What you're playing on Spotify now, or the last track. Deployer's own account. |
+| `/api/quote` | Daily programming quote or your own, in four layouts. |
 | `/api/impact` | **Realistic** collaboration stats: PRs merged into other people's repos, merge rate, repos contributed to, reviews, accepted discussion answers, organizations, top external projects. |
 | `/api/patterns` | Work patterns: active days, weekly consistency, average per active day, busiest weekday, weekend share, best day, longest break, weekday chart. |
 | `/api/pinned` | Your actual pinned repositories (including org repos), grid or list. |
@@ -72,6 +89,7 @@ Without a token the API still works through a REST and HTML fallback, but it is 
 | `/api/readme` | **Generates a full profile README** (see below). `GET` with a preset or `spec`, or `POST` a JSON layout. |
 | `/api/presets` | README presets with ready-to-edit blocks. |
 | `/api/profile` | JSON only: GitHub data, derived metrics, trophies and plugin data (Dev.to, WakaTime). Pick plugins with `plugins=devto,wakatime` or `plugins=none`. |
+| `/api/definitions` | Source and calculation of every metric (data transparency). |
 | `/api/cards` | Machine-readable list of cards and every parameter. |
 | `/api/themes` | Theme palettes. |
 | `/api/openapi.json` | OpenAPI 3 spec generated from the card registry. |
@@ -111,7 +129,20 @@ Every card also supports `format=json` to get the underlying data instead of an 
 
 | Card | Parameters |
 |------|------------|
-| stats | `layout` (`grid`, `compact`, `minimal`), `show_icons`, `hide`, `show`, `compact_numbers`, `footer`. Stat keys: `repos stars forks followers following gists commits contributions prs issues reviews age`. |
+| design | `design` (`terminal ide editorial dashboard blueprint retro`), `role`, `intro` (default: bio), `now`, `links`, `projects` (0–6), `hide` (`stats languages projects activity now links`), `prompt` |
+| year | `year`, `hide` (`commits prs reviews issues active streak best_day repos months repos_list languages`) |
+| monthly | `year`, `compare`, `layout` (`bars`, `line`), `values` |
+| punchcard | `tz` (UTC offset in hours; default = each commit's own timezone), `shape` (`circle`, `square`, `heat`), `week_start` |
+| stars | `repo` (up to 3, `owner/name`; bare name = `username`'s repo; default = top repo), `scale` (`linear`, `log`), `area`, `points`, `legend` |
+| repo-compare | `repos` (1–3; default = `username`'s top 2), `signals`, `highlight` |
+| language-trend | `years` (2–10), `count` (2–8), `layout` (`stream`, `bars`, `lines`), `exclude` |
+| code | `count`, `exclude`, `layout` (`bars`, `tiles`) |
+| sponsors | `mode` (`sponsors`, `sponsoring`), `count` (1–60), `size`, `per_line`, `names`, `shape` (`circle rounded square`) |
+| views | `style` (`badge flat pill digits card`), `label`, `key` (separate counter, e.g. a repo), `base`, `abbreviated`, `count` (`false` = read only) |
+| wakatime | `range` (`last_7_days last_30_days last_6_months last_year all_time`), `section` (`languages editors operating_systems categories projects`), `layout` (`bars compact totals`), `count`, `percent` |
+| spotify | `layout` (`card compact bar`), `show` (`auto now recent`), `cover`, `equalizer` |
+| quote | `layout` (`card minimal terminal bubble`), `topic`, `index`, `text`, `author`, `quote_width` |
+| stats | `layout` (`grid`, `compact`, `minimal`), `show_icons`, `hide`, `show`, `compact_numbers`, `footer`, `rank` (`none`, `letter`, `percentile`; readme-stats `hide_rank=false` maps here). Stat keys: `repos stars forks followers following gists commits contributions prs issues reviews age`. |
 | languages | `layout` (`bar`, `donut`, `pie`, `bars`, `chips`), `langs_count` (1–10), `hide`, `by` (`size`, `repos`), `decimals` (0–2) |
 | radar | `data` (`languages`, `activity` = commits/PRs/reviews/issues split), `langs_count` (3–8), `hide` |
 | streak | `years` (1–15) |
@@ -155,7 +186,7 @@ curl "https://your-worker.workers.dev/api/readme?username=torvalds&preset=showca
 .../api/readme?username=torvalds&base=https://stats.example.com
 ```
 
-**Presets:** `classic`, `minimal`, `showcase`, `hacker`, `dashboard`, `badges`, `ascii`. `GET /api/presets` lists them with their blocks so you can use one as a starting point.
+**Design presets:** `terminal-os`, `code-studio`, `editorial`, `dev-dashboard`, `blueprint`, `retro` - each pairs the matching profile design with cards in the same palette. **Other presets:** `analyst`, `recruiter`, `maximal`, `classic`, `minimal`, `showcase`, `hacker`, `dashboard`, `badges`, `ascii`. `GET /api/presets` lists them with their blocks so you can use one as a starting point.
 
 **Fully custom:** describe the layout as JSON and `POST` it to `/api/readme` (or pass it base64url-encoded in `?spec=`). Every card block takes any card plus any of that card's options, so anything you can do in the playground you can put in a README.
 
@@ -290,6 +321,26 @@ GET /api/themes
 
 Tip: `theme=auto` follows the viewer's light or dark preference.
 
+### Design systems
+
+Content, style and layout are independent: one profile model (identity, work, signals) is drawn by six design systems, and every design takes any theme and colour override. The new palettes (`terminal`, `vscode`, `editorial`, `blueprint`, `retro`, `linear`) work on every card, so a whole README can share one identity.
+
+```md
+![me](https://your-worker.workers.dev/api/design?username=you&design=terminal&role=Backend%20engineer&now=building%20a%20database)
+```
+
+### Self-hosted mode (Export ZIP)
+
+**Export ZIP** in the README Studio downloads:
+
+- `README.md` pointing at `./assets/*.svg` (no third-party image host needed),
+- `README.live.md` served live from your deployment,
+- `assets/` with every rendered SVG,
+- `.github/workflows/gitpulse.yml`, a GitHub Action that refreshes the assets twice a day and keeps the old file if a card fails,
+- `gitpulse.config.json`, which reopens the design with **Open config**.
+
+Live-only cards (views counter, Spotify) always stay live.
+
 ---
 
 ## Realistic metrics
@@ -300,6 +351,24 @@ Vanity numbers (raw commit counts, repo counts, account age) are easy to game. G
 - **Trophies v2**: Open Sourcerer (external merged PRs), Collaborator, Consistent, Answerer, Team Player, Sponsored. Seniority/volume trophies (years, repo count, orgs) are shown but don't count towards the overall rank.
 - **Impact** and **Work patterns** cards (above).
 
+## Data transparency
+
+Every metric has a documented source and calculation at `GET /api/definitions` (also shown under each card in the Playground). Estimates (lines of code, star history between samples, the activity score, view counts) are marked as such; token-only values are flagged. No metric is presented as more precise than it is.
+
+## Integrations setup
+
+**Views counter.** `wrangler.toml` declares a SQLite-backed Durable Object (`VIEWS`, free plan friendly). Every image load counts once and the response is `no-store`, so GitHub's proxy always fetches the live number. Use `key=` for separate counters and `base=` to carry over an old count.
+
+**WakaTime.** Make your stats public on wakatime.com (Profile → *Display coding activity/languages publicly*), then use `/api/wakatime?username=<wakatime-username>`.
+
+**Spotify setup** (one account per deployment):
+
+1. Create an app at developer.spotify.com and add a redirect URI such as `http://127.0.0.1:8888/callback`.
+2. Authorize once with scopes `user-read-currently-playing user-read-recently-played` and exchange the code for a refresh token.
+3. Set `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` and `SPOTIFY_REFRESH_TOKEN` as secrets.
+
+Access tokens stay in memory only. The card is cached for 60 seconds.
+
 ## Reliability, scale and security
 
 Built to sit in thousands of READMEs behind GitHub's image proxy:
@@ -309,6 +378,8 @@ Built to sit in thousands of READMEs behind GitHub's image proxy:
 - **Token pool health** - requests go to the token with the most remaining quota; revoked (401) or rate-limited (403/429, secondary limits) tokens are benched until reset and the request is retried on another token, with jittered backoff and a 9 s overall deadline.
 - **Bounded work per request** - at most 30 GitHub calls per card (Workers allows 50 subrequests on the free plan), past calendar years batched into one query and cached for a month, ASCII 3D capped by a cell budget, rendered SVGs capped at 2.5 MB, avatars capped at 1 MB / 1 megapixel.
 - **Rate limiting** (optional, `wrangler.toml`) - Workers Rate Limiting on cache misses only: per IP for normal clients, per username for GitHub's camo proxy (which uses a few shared IPs).
+- **External providers** - WakaTime, Spotify and album art go through one fetcher with an https host allowlist, no redirects, timeouts and size caps.
+- **Motion** - all animations are CSS (including the typing header and snake), so `prefers-reduced-motion` stops them; animation stays off unless `animation=true`.
 - **Security** - every parameter is validated to numbers, enums or hex colours before reaching SVG/CSS; all text is escaped; SVGs and pages ship strict CSPs; the README HTML preview is sandboxed, strips active content and never includes raw HTML blocks when served by GET; the avatar fetch is host-allowlisted without redirects; `/api/rate-limit` shows live quota only with `ADMIN_TOKEN`; tokens never appear in responses or logs.
 - **Observability** - one structured JSON log line per card request (card, user, cache hit/miss, status, ms, GitHub calls), sampled via `[observability]`; `/api/health` reports token health and cache counters (503 when every token is benched).
 
@@ -331,7 +402,10 @@ src/
   index.ts        routes, error handling, caching headers
   cards/          one file per card + registry (index.ts) + contract (types.ts)
   github/         client (GraphQL/REST), parsers, shared types
-  metrics/        derived stats (profile metrics, streaks)
+  metrics/        derived stats (profile metrics, streaks, patterns, grade, definitions)
+  designs/        profile model + the six design systems
+  providers/      safe fetcher for non-GitHub providers
+  counter.ts      Durable Object behind /api/views
   achievements/   trophy definitions and ranking
   themes/         palettes + resolveTheme (overrides, auto)
   svg/            frame (shared chrome), icons, language colours
@@ -395,11 +469,15 @@ Add it to the array in `src/cards/index.ts`. That's all: the route, `format=json
 - [x] 3D skyline, tech icon grid, typing header, composite card, snake/wave heatmaps, footer waves
 - [x] Unified customization (size, padding, colours per element, heat/chart palettes, glow, number formats)
 - [x] github-readme-stats compatibility, canonical caching, stale-if-error, token health, rate limiting
-- [ ] Request analytics, profile view counter (needs storage)
-- [ ] Stars & growth, language trend, sponsors wall
-- [ ] Contribution timeline and repository-health cards
-- [ ] PNG output, theme editor and gallery
-- [ ] Plugin cards (WakaTime, Dev.to) rendered as SVG
+- [x] Profile design systems (terminal, IDE, editorial, dashboard, blueprint, retro) with matching palettes and presets
+- [x] Year in review, monthly trend, commit punch card, language trend, code volume
+- [x] Star history, repository compare & health, sponsors wall, views counter
+- [x] WakaTime and Spotify cards, daily quote, letter-grade ring, CSS-only motion
+- [x] README Studio: design picker, image validation, mobile preview, config save/open, ZIP export with GitHub Action
+- [x] Metric definitions endpoint
+- [ ] Historical snapshots (follower/star growth for any user) - needs scheduled storage
+- [ ] PNG output, theme editor and community gallery
+- [ ] More providers (Dev.to, Stack Overflow, npm) as SVG cards
 
 *Built for the open-source community.*
  

@@ -89,9 +89,13 @@ export const typingCard = defineCard<Params, null>({
     const total = slots.reduce((a, s) => a + s.type + s.hold + s.erase, 0) + (stack ? 1 : 0.3);
     const kt = (t: number) => (Math.min(total, Math.max(0, t)) / total).toFixed(4);
 
+    // CSS keyframes (not SMIL), so viewers who prefer reduced motion get a still first line instead
+    const pc = (t: number) => `${(Number(kt(t)) * 100).toFixed(2)}%`;
+    const dur = `${total.toFixed(2)}s`;
     let at = 0;
     let defs = '';
     let body = '';
+    let css = '';
     lines.forEach((l, i) => {
       const s = slots[i];
       const w = widthOf(l) + 2;
@@ -100,22 +104,28 @@ export const typingCard = defineCard<Params, null>({
       const t1 = t0 + s.type;
       const t2 = t1 + s.hold;
       const t3 = t2 + s.erase;
-      // clip width: hidden -> typing -> full -> erasing -> hidden (stack mode keeps lines until the loop restarts)
+      // reveal: hidden -> typing -> full -> erasing -> hidden (stack mode keeps lines until the loop restarts)
       const end = stack ? total - 0.4 : t3;
-      const values = `0;0;${w};${w};0;0`;
-      const times = `0;${kt(t0)};${kt(t1)};${kt(stack ? end : t2)};${kt(stack ? end + 0.2 : t3)};1`;
-      defs += `<clipPath id="tc${i}"><rect x="${x.toFixed(1)}" y="${baseline(i) - fs}" height="${Math.round(fs * 1.3)}" width="0"><animate attributeName="width" values="${values}" keyTimes="${times}" dur="${total.toFixed(2)}s" repeatCount="indefinite"/></rect></clipPath>`;
-      body += text(l, i, ` clip-path="url(#tc${i})"`);
+      const holdEnd = stack ? end : t2;
+      const goneAt = stack ? end + 0.2 : t3;
+      const frames = (from: string, to: string) => `0%{transform:${from}}${pc(t0)}{transform:${from}}${pc(t1)}{transform:${to}}${pc(holdEnd)}{transform:${to}}${pc(goneAt)}{transform:${from}}100%{transform:${from}}`;
+      css += `@keyframes tw${i}{${frames('scaleX(0)', 'scaleX(1)')}}.tw${i}{transform-box:fill-box;transform-origin:left center;animation:tw${i} ${dur} linear infinite}`;
+      defs += `<clipPath id="tc${i}"><rect x="${x.toFixed(1)}" y="${baseline(i) - fs}" height="${Math.round(fs * 1.3)}" width="${w}" class="tw${i}"/></clipPath>`;
+      const line = text(l, i, ` clip-path="url(#tc${i})"`);
+      // in cycle mode only the first line stays visible when motion is reduced
+      body += !stack && i > 0 ? line.replace('class="accent"', 'class="accent tx-rest"') : line;
       if (p.cursor) {
-        const cx = (v: number) => (x + v).toFixed(1);
-        body +=
-          `<rect x="${cx(0)}" y="${baseline(i) - fs * 0.85}" width="${Math.max(2, Math.round(fs * 0.08))}" height="${Math.round(fs * 1.05)}" class="accent cur" opacity="0">` +
-          `<animate attributeName="x" values="${cx(0)};${cx(0)};${cx(w)};${cx(w)};${cx(0)};${cx(0)}" keyTimes="${times}" dur="${total.toFixed(2)}s" repeatCount="indefinite"/>` +
-          `<animate attributeName="opacity" values="0;1;1;${stack && i < lines.length - 1 ? 0 : 1};0;0" keyTimes="${times}" dur="${total.toFixed(2)}s" repeatCount="indefinite" calcMode="discrete"/></rect>`;
+        const lastOpacity = stack && i < lines.length - 1 ? 0 : 1;
+        css +=
+          `@keyframes cm${i}{${frames('translateX(0px)', `translateX(${w}px)`)}}` +
+          `@keyframes co${i}{0%{opacity:0}${pc(t0)}{opacity:1}${pc(holdEnd)}{opacity:${lastOpacity}}${pc(goneAt)}{opacity:0}100%{opacity:0}}` +
+          `.c${i}{opacity:0;animation:cm${i} ${dur} linear infinite,co${i} ${dur} step-end infinite,blink 1s step-end infinite}`;
+        body += `<rect x="${x.toFixed(1)}" y="${baseline(i) - fs * 0.85}" width="${Math.max(2, Math.round(fs * 0.08))}" height="${Math.round(fs * 1.05)}" class="accent cur c${i}"/>`;
       }
       at = t3;
     });
-    const css = p.cursor ? '<style>@keyframes blink{50%{fill-opacity:0}}.cur{animation:blink 1s step-end infinite}@media (prefers-reduced-motion:reduce){.cur{animation:none}}</style>' : '';
-    return frame(`${css}<defs>${defs}</defs>${body}`, { width: W, height, theme: { ...theme, hideBorder: true }, transparent: true, label: lines.join('. ') });
+    css += '@keyframes blink{50%{fill-opacity:0}}';
+    css += '@media (prefers-reduced-motion:reduce){[class^="tw"]{animation:none;transform:none}.cur{display:none}.tx-rest{display:none}}';
+    return frame(`<style>${css}</style><defs>${defs}</defs>${body}`, { width: W, height, theme: { ...theme, hideBorder: true }, transparent: true, label: lines.join('. ') });
   }
 });

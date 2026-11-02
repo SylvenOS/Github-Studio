@@ -15,6 +15,7 @@ import { GitHubClient } from './github/client';
 import { poolStatus } from './github/tokens';
 import { calculateProfileMetrics } from './metrics';
 import { calculateGrade } from './metrics/grade';
+import { DEFINITIONS } from './metrics/definitions';
 import { buildOpenApi } from './openapi';
 import { playgroundHtml } from './playground';
 import { runPlugins } from './plugins';
@@ -187,6 +188,8 @@ app.get('/api/cards', (c) =>
   )
 );
 
+app.get('/api/definitions', (c) => c.json({ metrics: DEFINITIONS }, 200, { 'Cache-Control': META_CACHE }));
+
 app.get('/api/themes', (c) => c.json(themes, 200, { 'Cache-Control': META_CACHE }));
 
 app.get('/api/openapi.json', (c) => c.json(buildOpenApi(new URL(c.req.url).origin, pkg.version), 200, { 'Cache-Control': META_CACHE }));
@@ -266,3 +269,5 @@ app.notFound((c) => c.json({ error: { code: 'not_found', message: 'Not found. Se
 app.onError((e, c) => jsonError(c, e));
 
 export default app;
+// Durable Object class for the view counter (bound as VIEWS in wrangler.toml)
+export { ViewCounter } from './counter';

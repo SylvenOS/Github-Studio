@@ -81,7 +81,14 @@ export const themes: Record<string, Theme> = Object.fromEntries([
   // github-readme-stats favourites, so migrated URLs keep their look
   t('onedark', '#282c34', '#abb2bf', '#7f848e', '#e4bf7a', '#3e4451', 6),
   t('transparent', '#0000', '#417e87', '#858585', '#006aff', '#e4e2e2', 6),
-  t('highcontrast', '#000000', '#ffffff', '#c0c0c0', '#e7f216', '#ffffff', 6)
+  t('highcontrast', '#000000', '#ffffff', '#c0c0c0', '#e7f216', '#ffffff', 6),
+  // signature palettes of the profile designs (usable by every card)
+  t('terminal', '#0b0f14', '#e2e8f0', '#64748b', '#4ade80', '#1e293b', 10, "'JetBrains Mono', 'Fira Code', Consolas, monospace"),
+  t('vscode', '#1e1e1e', '#d4d4d4', '#858585', '#569cd6', '#333333', 8, "'Cascadia Code', 'Fira Code', Consolas, monospace"),
+  t('blueprint', '#0d3b8c', '#eaf2ff', '#9fc2ff', '#ffffff', '#3f72c9', 2, "'Courier New', Consolas, monospace"),
+  t('editorial', '#faf7f2', '#1b1b1b', '#6d6a64', '#c8462b', '#e5ded2', 4, "Georgia, 'Times New Roman', serif"),
+  t('retro', '#1a1033', '#fbf4ff', '#a993d6', '#ffcc00', '#ff4f9a', 0, "'Press Start 2P', 'Courier New', monospace"),
+  t('linear', '#0f1012', '#f7f8f8', '#8a8f98', '#5e6ad2', '#23252a', 12, "Inter, 'Segoe UI', sans-serif")
 ]);
 
 export interface ThemeOverrides {

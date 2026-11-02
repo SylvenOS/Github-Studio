@@ -78,7 +78,7 @@ export const viewsCard = defineCard<Params, { views: number }>({
     if (p.style === 'card') {
       const body =
         `<text x="20" y="32" class="label muted" font-size="12">${esc(p.label.toUpperCase())}</text>` +
-        `<text x="20" y="64" class="value accent" font-size="30" font-weight="700">${esc(value)}</text>`;
+        `<text x="20" y="64" class="accent" font-size="30" font-weight="700">${esc(value)}</text>`;
       return frame(body, { width: Math.max(180, textW(value) * 2 + 20), height: 86, theme, label });
     }
     const lw = p.label ? textW(p.label) : 0;

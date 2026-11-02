@@ -6,11 +6,11 @@ import { resolveBadge, shieldUrl } from '../src/readme/badges';
 import { PRESETS } from '../src/readme/presets';
 import { markdownToHtml, renderReadme, stripActive } from '../src/readme/render';
 import { encodeSpecParam, normalizeSpec } from '../src/readme/spec';
-import { assertWellFormedSvg, mockGitHub } from './helpers';
+import { assertWellFormedSvg, mockGitHub, testEnv } from './helpers';
 
 type Res = { json(): Promise<any> } & Response;
-const env = { GITHUB_TOKEN: 'test-token' };
-const get = (path: string, e: Record<string, string> = env) => app.request(path, {}, e) as Promise<Res>;
+const env = testEnv();
+const get = (path: string, e: Record<string, unknown> = env) => app.request(path, {}, e) as Promise<Res>;
 const post = (path: string, body: unknown) =>
   app.request(path, { method: 'POST', body: typeof body === 'string' ? body : JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }, env) as Promise<Res>;
 
@@ -276,7 +276,7 @@ describe('store', () => {
       expect(c.category, c.id).toBeTruthy();
       expect(c.variants.length, c.id).toBeGreaterThan(0);
     }
-    expect(new Set(meta.cards.map((c: { category: string }) => c.category))).toEqual(new Set(['overview', 'activity', 'languages', 'repositories', 'achievements', 'art', 'decor', 'utility']));
+    expect(new Set(meta.cards.map((c: { category: string }) => c.category))).toEqual(new Set(['overview', 'activity', 'languages', 'repositories', 'achievements', 'art', 'decor', 'utility', 'integrations', 'designs']));
     expect(meta.cards.find((c: { id: string }) => c.id === 'banner').needsUser).toBe(false);
   });
   it('every variant of every card renders without an error card', async () => {

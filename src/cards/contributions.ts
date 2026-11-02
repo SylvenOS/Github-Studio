@@ -111,10 +111,13 @@ export const contributionsCard = defineCard<Params, CalendarDay[]>({
       const centre = (col: number, dow: number) => `${(col * STEP + CELL / 2).toFixed(1)},${(dow * STEP + CELL / 2).toFixed(1)}`;
       const path: string[] = [];
       for (let col = 0; col < columns; col++) for (let k = 0; k < 7; k++) path.push(centre(col, col % 2 ? 6 - k : k));
+      // CSS motion path (not SMIL) so prefers-reduced-motion can stop it; one shared loop keeps head and cells in sync
       fxStyle =
-        `<style>.eat{animation:eat ${loop.toFixed(1)}s linear infinite;animation-delay:var(--d)}@keyframes eat{0%{opacity:1}1%,88%{opacity:.12}100%{opacity:1}}@media (prefers-reduced-motion:reduce){.eat{animation:none}}</style>`;
-      fxHead =
-        `<circle r="${(CELL * 0.62).toFixed(1)}" class="accent"><animateMotion dur="${(loop * 0.85).toFixed(2)}s" repeatCount="indefinite" path="M${path.join(' L')}"/></circle>`;
+        `<style>.eat{animation:eat ${loop.toFixed(1)}s linear infinite;animation-delay:var(--d)}@keyframes eat{0%{opacity:1}1%,88%{opacity:.12}100%{opacity:1}}` +
+        `.snk{offset-path:path('M${path.join(' L')}');offset-rotate:0deg;animation:snk ${loop.toFixed(1)}s linear infinite}` +
+        `@keyframes snk{0%{offset-distance:0%;opacity:1}85%{offset-distance:100%;opacity:1}86%,100%{offset-distance:100%;opacity:0}}` +
+        `@media (prefers-reduced-motion:reduce){.eat{animation:none}.snk{display:none}}</style>`;
+      fxHead = `<circle r="${(CELL * 0.62).toFixed(1)}" class="accent snk"/>`;
     } else if (effect === 'wave') {
       fxStyle = '<style>.wv{transform-box:fill-box;transform-origin:center;animation:wv 2.4s ease-in-out infinite;animation-delay:var(--d)}@keyframes wv{0%,100%{transform:scale(1)}50%{transform:scale(.55)}}@media (prefers-reduced-motion:reduce){.wv{animation:none}}</style>';
     }

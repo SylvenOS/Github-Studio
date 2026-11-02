@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cards } from '../src/cards';
 import { clearMemoryCache } from '../src/core/cache';
 import app from '../src/index';
-import { assertWellFormedSvg, mockGitHub } from './helpers';
+import { assertWellFormedSvg, mockGitHub, testEnv } from './helpers';
 
-const env = { GITHUB_TOKEN: 'test-token' };
+const env = testEnv();
 type Res = { json(): Promise<any> } & Response;
-const get = (path: string, e: Record<string, string> = env) => app.request(path, {}, e) as Promise<Res>;
+const get = (path: string, e: Record<string, unknown> = env) => app.request(path, {}, e) as Promise<Res>;
 
 beforeEach(() => {
   clearMemoryCache();

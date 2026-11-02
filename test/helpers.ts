@@ -122,6 +122,64 @@ export const CONTRIB_FIXTURE = {
   ext: { issueCount: 42 }
 };
 
+export const COMMIT_TIMES_FIXTURE = {
+  contributionsCollection: {
+    commitContributionsByRepository: [
+      { repository: { isPrivate: false, defaultBranchRef: { target: { history: { nodes: [
+        { authoredDate: '2026-03-03T23:15:00+05:30' }, { authoredDate: '2026-03-03T23:45:00+05:30' }, { authoredDate: '2026-03-04T09:00:00-07:00' }, { authoredDate: '2026-03-05T14:10:00Z' }
+      ] } } } } },
+      { repository: { isPrivate: true, defaultBranchRef: { target: { history: { nodes: [{ authoredDate: '2026-03-06T03:00:00Z' }] } } } } }
+    ]
+  }
+};
+
+export const SPONSORS_FIXTURE = {
+  list: { totalCount: 30, nodes: [
+    { __typename: 'User', login: 'alice', name: 'Alice Doe', avatarUrl: 'https://avatars.githubusercontent.com/u/11' },
+    { __typename: 'Organization', login: 'acme', name: 'Acme <Inc>', avatarUrl: 'https://avatars.githubusercontent.com/u/12' },
+    { __typename: 'User', login: 'bob', name: null, avatarUrl: 'https://avatars.githubusercontent.com/u/13' }
+  ] }
+};
+
+export const repoHealthNode = (nameWithOwner: string) => ({
+  nameWithOwner, description: 'A <great> repo', stargazerCount: nameWithOwner.length * 100, forkCount: 40, watchers: { totalCount: 9 },
+  isArchived: false, createdAt: '2019-01-01T00:00:00Z', pushedAt: new Date(Date.now() - 3 * 86_400_000).toISOString(), licenseInfo: { spdxId: 'MIT' },
+  primaryLanguage: { name: 'TypeScript', color: '#3178c6' }, openIssues: { totalCount: 10 }, closedIssues: { totalCount: 90 },
+  openPRs: { totalCount: 4 }, mergedPRs: { totalCount: 300 },
+  releases: { totalCount: 12, nodes: [{ tagName: 'v2.0.0', publishedAt: new Date(Date.now() - 40 * 86_400_000).toISOString() }] },
+  defaultBranchRef: { target: { history: { totalCount: 25 } } }
+});
+
+export const WAKATIME_FIXTURE = {
+  username: 'octo', human_readable_total: '21 hrs 5 mins', human_readable_daily_average: '3 hrs 1 min', is_up_to_date: true,
+  best_day: { date: '2026-10-30', text: '6 hrs 2 mins' },
+  languages: [{ name: 'TypeScript', percent: 61.2, text: '12 hrs 54 mins' }, { name: 'Rust', percent: 25.1, text: '5 hrs 18 mins' }, { name: 'Markdown <md>', percent: 13.7, text: '2 hrs 53 mins' }],
+  editors: [{ name: 'VS Code', percent: 90, text: '19 hrs' }, { name: 'Neovim', percent: 10, text: '2 hrs' }]
+};
+
+export const SPOTIFY_TRACK = {
+  name: 'Song & <Dance>', duration_ms: 200000, artists: [{ name: 'The Band' }],
+  album: { name: 'Album', images: [{ url: 'https://i.scdn.co/image/abc', width: 64 }] },
+  external_urls: { spotify: 'https://open.spotify.com/track/1' }
+};
+
+/** In-memory stand-in for the VIEWS Durable Object namespace. */
+export function fakeViews() {
+  const counts = new Map<string, number>();
+  return {
+    idFromName: (name: string) => name,
+    get: (id: string) => ({
+      fetch: async (url: string) => {
+        if (String(url).endsWith('/hit')) counts.set(id, (counts.get(id) ?? 0) + 1);
+        return Response.json({ count: counts.get(id) ?? 0 });
+      }
+    })
+  };
+}
+
+/** Worker env for tests: a token, Spotify credentials and a fake view-counter binding. */
+export const testEnv = () => ({ GITHUB_TOKEN: 'test-token', SPOTIFY_CLIENT_ID: 'id', SPOTIFY_CLIENT_SECRET: 'secret', SPOTIFY_REFRESH_TOKEN: 'refresh', VIEWS: fakeViews() });
+
 export interface MockOptions {
   calendarDays?: number;
   gaps?: number[];
@@ -138,6 +196,24 @@ export function mockGitHub(opts: MockOptions = {}) {
         return Response.json({ data: { user: null }, errors: [{ type: 'NOT_FOUND', message: 'nope' }] });
       }
       const { query, variables } = JSON.parse(String(init?.body));
+      if (/user\(login:\$login\)\{ id \}/.test(query)) return Response.json({ data: { user: { id: 'U_1' } } });
+      if (query.includes('authoredDate')) return Response.json({ data: { user: COMMIT_TIMES_FIXTURE } });
+      if (query.includes('list:sponsors') || query.includes('list:sponsoring')) return Response.json({ data: { user: SPONSORS_FIXTURE } });
+      if (query.includes('openPRs:')) {
+        const data: Record<string, unknown> = {};
+        for (const k of Object.keys(variables).filter((k) => /^o\d/.test(k))) data[`r${k.slice(1)}`] = repoHealthNode(`${variables[k]}/${variables[`n${k.slice(1)}`]}`);
+        return Response.json({ data });
+      }
+      const years = [...String(query).matchAll(/y(\d{4}):contributionsCollection/g)].map((m) => m[1]);
+      if (years.length) {
+        const user: Record<string, unknown> = {};
+        years.forEach((y, i) => (user[`y${y}`] = { commitContributionsByRepository: [
+          { repository: { isPrivate: false, primaryLanguage: { name: 'TypeScript', color: '#3178c6' } }, contributions: { totalCount: 50 + i * 20 } },
+          { repository: { isPrivate: false, primaryLanguage: { name: i % 2 ? 'Rust' : 'Go', color: null } }, contributions: { totalCount: 30 } },
+          { repository: { isPrivate: true, primaryLanguage: { name: 'Secret', color: null } }, contributions: { totalCount: 999 } }
+        ] }));
+        return Response.json({ data: { user } });
+      }
       if (query.includes('contributionsCollection(from') && !query.includes('ContributionsByRepository')) {
         const days = makeCalendar(opts.calendarDays ?? 60, opts.gaps);
         const user: Record<string, unknown> = {};
@@ -154,6 +230,18 @@ export function mockGitHub(opts: MockOptions = {}) {
       if (opts.avatarFails) return new Response('nope', { status: 500 });
       return new Response(makeAvatarPng(), { headers: { 'content-type': 'image/png' } });
     }
+    if (url.includes('/stargazers')) {
+      const page = Number(new URL(url).searchParams.get('page') ?? 1);
+      return Response.json(Array.from({ length: page === 50 ? 37 : 100 }, (_, i) => ({ starred_at: new Date(Date.UTC(2020, 0, 1) + (page * 100 + i) * 3_600_000 * 8).toISOString() })));
+    }
+    if (url.startsWith('https://wakatime.com/api/v1/users/')) {
+      if (url.includes('/users/private/')) return new Response('{}', { status: 403 });
+      return Response.json({ data: WAKATIME_FIXTURE });
+    }
+    if (url === 'https://accounts.spotify.com/api/token') return Response.json({ access_token: 'sp-token', expires_in: 3600 });
+    if (url.startsWith('https://api.spotify.com/v1/me/player/currently-playing')) return Response.json({ is_playing: true, progress_ms: 60000, item: SPOTIFY_TRACK });
+    if (url.startsWith('https://api.spotify.com/v1/me/player/recently-played')) return Response.json({ items: [{ track: SPOTIFY_TRACK }] });
+    if (url.startsWith('https://i.scdn.co/')) return new Response(makeAvatarPng(), { headers: { 'content-type': 'image/png' } });
     if (url.includes('/rate_limit')) {
       return Response.json({ resources: { core: { limit: 5000, remaining: 4321, reset: 1900000000 } } });
     }
@@ -173,7 +261,9 @@ export function mockGitHub(opts: MockOptions = {}) {
         size: 100,
         archived: false,
         fork: false,
-        pushed_at: '2024-05-01T00:00:00Z'
+        pushed_at: '2024-05-01T00:00:00Z',
+        created_at: '2020-01-01T00:00:00Z',
+        full_name: 'octo/alpha'
       });
     }
     return new Response('{}', { status: 404 });

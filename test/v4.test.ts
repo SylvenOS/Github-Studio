@@ -165,12 +165,12 @@ describe('visual formats', () => {
     expect(still).not.toContain('<animate');
     const moving = await svgOf('/api/typing?lines=One;Two;Three&animation=true');
     expect(moving.match(/<clipPath id="tc\d"/g)).toHaveLength(3);
-    expect(await svgOf('/api/typing?lines=a;b&mode=stack&animation=true')).toContain('repeatCount="indefinite"');
+    expect(await svgOf('/api/typing?lines=a;b&mode=stack&animation=true')).toContain('@keyframes tw0');
   });
   it('snake and wave effects animate the heatmap only with animation=true', async () => {
     mockGitHub();
-    expect(await svgOf('/api/contributions?username=octo&effect=snake')).not.toContain('animateMotion');
-    expect(await svgOf('/api/contributions?username=octo&effect=snake&animation=true')).toContain('animateMotion');
+    expect(await svgOf('/api/contributions?username=octo&effect=snake')).not.toContain('offset-path');
+    expect(await svgOf('/api/contributions?username=octo&effect=snake&animation=true')).toContain('offset-path');
     expect(await svgOf('/api/contributions?username=octo&effect=wave&animation=true')).toContain('@keyframes wv');
   });
   it('footer and header waves', async () => {

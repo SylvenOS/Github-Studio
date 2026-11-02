@@ -15,6 +15,81 @@ const divider = (style = 'wave'): Block => ({ type: 'divider', style });
 
 /** Starting points for the README builder and `GET /api/readme?preset=`. Add one here to offer it everywhere. */
 export const PRESETS: Preset[] = [
+  // ---- design systems: one visual identity across every image ----
+  {
+    id: 'terminal-os',
+    title: 'Design: Terminal OS',
+    description: 'Your profile as a live terminal: neofetch-style identity, projects and languages, then matching stats, punch card and heatmap.',
+    theme: 'terminal',
+    build: () => [
+      card('design', { design: 'terminal', role: 'Software engineer', now: 'shipping side projects' }),
+      row(card('stats', { show_icons: 'true', rank: 'letter' }), card('punchcard', { shape: 'heat' })),
+      card('contributions', { shape: 'square' }),
+      card('quote', { layout: 'terminal' })
+    ]
+  },
+  {
+    id: 'code-studio',
+    title: 'Design: Code Studio',
+    description: 'An IDE window with your profile as code, an activity terminal and a status bar, followed by language trends and pinned work.',
+    theme: 'vscode',
+    build: () => [
+      card('design', { design: 'ide', role: 'Full-stack developer', now: 'building developer tools' }),
+      row(card('language-trend', { layout: 'bars' }), card('code')),
+      card('pinned')
+    ]
+  },
+  {
+    id: 'editorial',
+    title: 'Design: Editorial',
+    description: 'A magazine-style front page: big serif name, selected work, the numbers that matter and your toolkit. Calm and professional.',
+    theme: 'editorial',
+    build: () => [
+      card('design', { design: 'editorial', role: 'Engineer & writer' }),
+      card('year'),
+      row(card('impact', { count: '3' }), card('patterns'))
+    ]
+  },
+  {
+    id: 'dev-dashboard',
+    title: 'Design: Developer Dashboard',
+    description: 'A Linear-style dashboard: KPI tiles, activity, languages and a project table, then monthly trends and repository health.',
+    theme: 'linear',
+    build: () => [
+      card('design', { design: 'dashboard', role: 'Engineering lead' }),
+      row(card('monthly'), card('punchcard')),
+      card('repo-compare')
+    ]
+  },
+  {
+    id: 'blueprint',
+    title: 'Design: Blueprint',
+    description: 'An engineering drawing: your projects as modules wired to you, a dimensioned contribution line and a title block. For system thinkers.',
+    theme: 'blueprint',
+    build: () => [
+      card('design', { design: 'blueprint', role: 'Systems engineer' }),
+      row(card('stats', { layout: 'compact' }), card('languages', { layout: 'bars' })),
+      card('skyline', { stats: 'true' })
+    ]
+  },
+  {
+    id: 'retro',
+    title: 'Design: Retro Arcade',
+    description: 'Player 1 has entered the game: high score, XP, skills as health bars and projects as quests, plus trophies and a typing header.',
+    theme: 'retro',
+    build: (u) => [
+      card('typing', { lines: `INSERT COIN;PLAYER ${u.toUpperCase()} READY`, align: 'center' }),
+      card('design', { design: 'retro' }),
+      card('achievements'),
+      card('contributions', { shape: 'square' })
+    ]
+  },
+  {
+    id: 'analyst',
+    title: 'Data-driven analyst',
+    description: 'Realistic analytics only: year in review, monthly trend vs last year, commit punch card, language trend and code volume.',
+    build: () => [card('year'), row(card('monthly'), card('punchcard')), row(card('language-trend'), card('code'))]
+  },
   {
     id: 'recruiter',
     title: 'Minimal recruiter',

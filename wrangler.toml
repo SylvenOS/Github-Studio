@@ -15,6 +15,8 @@ head_sampling_rate = 0.2
 #                    token; rate-limited or revoked tokens are benched automatically.
 #   BLOCKLIST      - optional comma-separated usernames to refuse.
 #   ADMIN_TOKEN    - optional bearer token for live quota at /api/rate-limit.
+#   SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REFRESH_TOKEN
+#                  - optional, enables /api/spotify for the deployer's own Spotify account.
 [vars]
 CACHE_SECONDS = "1800"
 
@@ -30,3 +32,13 @@ simple = { limit = 120, period = 60 }
 name = "RL_USER"
 namespace_id = "1002"
 simple = { limit = 60, period = 60 }
+
+# Profile view counter (/api/views). SQLite-backed Durable Objects work on the free plan.
+# Remove these blocks to disable the counter; the card then explains it isn't set up.
+[[durable_objects.bindings]]
+name = "VIEWS"
+class_name = "ViewCounter"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ViewCounter"]

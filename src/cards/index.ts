@@ -21,29 +21,55 @@ import { repoCard } from './repo';
 import { statsCard } from './stats';
 import { streakCard } from './streak';
 import { topReposCard } from './top-repos';
+import { codeCard } from './code';
+import { designCard } from './design';
+import { languageTrendCard } from './language-trend';
+import { monthlyCard } from './monthly';
+import { punchcardCard } from './punchcard';
+import { quoteCard } from './quote';
+import { repoCompareCard } from './repo-compare';
+import { sponsorsCard } from './sponsors';
+import { spotifyCard } from './spotify';
+import { starsCard } from './stars';
+import { viewsCard } from './views';
+import { wakatimeCard } from './wakatime';
+import { yearCard } from './year';
 
 /** Register new cards here — that's the only wiring a card needs. */
 export const cards: CardDefinition[] = [
+  designCard,
   statsCard,
   profileCard,
   impactCard,
   asciiCard,
   languagesCard,
+  languageTrendCard,
+  codeCard,
   techCard,
   streakCard,
   contributionsCard,
   skylineCard,
   patternsCard,
+  punchcardCard,
+  monthlyCard,
+  yearCard,
   repoCard,
   topReposCard,
   pinnedCard,
+  starsCard,
+  repoCompareCard,
   radarCard,
   achievementsCard,
+  sponsorsCard,
   activityCard,
   compareCard,
   badgeCard,
+  viewsCard,
+  wakatimeCard,
+  spotifyCard,
   compositeCard,
   typingCard,
+  quoteCard,
   bannerCard,
   dividerCard
 ];

@@ -35,7 +35,7 @@ export const starsCard = defineCard<Params, StarHistory[]>({
   description: 'How a repository’s stars grew over time, drawn from sampled stargazer timestamps. Compare up to three repositories. Without `repo`, uses the most-starred repo of `username`.',
   cacheSeconds: 6 * 3600,
   params: [
-    { name: 'repo', type: 'list', description: 'Up to 3 repositories, e.g. facebook/react,vuejs/core (default: top repo of username)' },
+    { name: 'repo', type: 'list', description: 'Up to 3 repositories, e.g. facebook/react,vuejs/core; a bare name uses username as owner (default: top repo of username)' },
     { name: 'scale', type: 'enum', options: [...SCALES], default: 'linear', description: 'Y axis scale' },
     { name: 'area', type: 'boolean', default: true, description: 'Fill the area under the line' },
     { name: 'points', type: 'boolean', default: false, description: 'Mark sampled points' },
@@ -44,8 +44,10 @@ export const starsCard = defineCard<Params, StarHistory[]>({
   parse(q, common) {
     const names = list(q.repo).slice(0, MAX_REPOS);
     const repos = names.map((full) => {
-      const [owner, repo] = full.split('/');
-      if (!owner || !repo) throw badRequest('repo must look like owner/name');
+      const [a, b] = full.split('/');
+      // a bare name means a repository of `username`
+      const [owner, repo] = b === undefined ? [common.username, a] : [a, b];
+      if (!owner || !repo) throw badRequest('repo must look like owner/name (or a name together with username)');
       return { owner: owner.trim(), repo: repoName(repo.trim()) };
     });
     if (!repos.length && !common.username) throw badRequest('Pass repo=owner/name (or a username to use their top repository)');

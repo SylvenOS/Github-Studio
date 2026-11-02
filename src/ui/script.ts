@@ -7,7 +7,7 @@ export const SCRIPT = String.raw`
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
-  var ICONS = { stats: '📊', 'profile-card': '👤', ascii: '🎨', languages: '🔤', streak: '🔥', contributions: '🟩', repos: '📌', 'top-repos': '⭐', radar: '🕸️', achievements: '🏆', activity: '📈', badge: '🏷️', compare: '⚔️', banner: '🏞️', divider: '➖', impact: '🌍', patterns: '🗓️', pinned: '📍', tech: '🧰', skyline: '🏙️', typing: '⌨️', composite: '🧩' };
+  var ICONS = { stats: '📊', 'profile-card': '👤', ascii: '🎨', languages: '🔤', streak: '🔥', contributions: '🟩', repos: '📌', 'top-repos': '⭐', radar: '🕸️', achievements: '🏆', activity: '📈', badge: '🏷️', compare: '⚔️', banner: '🏞️', divider: '➖', impact: '🌍', patterns: '🗓️', pinned: '📍', tech: '🧰', skyline: '🏙️', typing: '⌨️', composite: '🧩', design: '🖼️', year: '🎉', monthly: '📅', punchcard: '🕐', stars: '🌟', 'repo-compare': '⚖️', 'language-trend': '🌊', code: '📏', sponsors: '💖', views: '👁️', wakatime: '⏱️', spotify: '🎧', quote: '💬' };
   var GROUPS = [['colors', '🎨 Colours'], ['layout', '📐 Layout & size'], ['typography', '🔤 Text'], ['effects', '✨ Effects'], ['data', '⚙️ Data & output']];
   // UI-only style bundles: they just set ordinary parameters
   var STYLE_PRESETS = {
@@ -18,7 +18,7 @@ export const SCRIPT = String.raw`
     Minimal: { hide_border: 'true', hide_subtitle: 'true', padding: '16' },
     Large: { width: '720', text_scale: '110' }
   };
-  var CATS = { overview: 'Overview', activity: 'Activity', languages: 'Languages', repositories: 'Repositories', achievements: 'Achievements', art: 'Art', decor: 'Decor', utility: 'Utility' };
+  var CATS = { overview: 'Overview', activity: 'Activity', languages: 'Languages', repositories: 'Repositories', achievements: 'Achievements', art: 'Art', decor: 'Decor', utility: 'Utility', integrations: 'Integrations', designs: 'Designs' };
   var SPECIAL = { username: 1, theme: 1, format: 1, cache_seconds: 1 };
   var BLOCK_LABELS = { card: 'Card', row: 'Row of cards', heading: 'Heading', text: 'Text', badges: 'Badges', divider: 'Divider', html: 'HTML' };
   var meta, themes, presets = [], timer, buildTimer, previewMode = 'light', dragFrom = -1;
@@ -170,7 +170,7 @@ export const SCRIPT = String.raw`
     $('appearance-title').textContent = tab === 'builder' ? 'Every card' : 'Appearance';
     renderParams();
     if (tab === 'store') renderStore();
-    if (tab === 'builder') { renderBlocks(); build(); }
+    if (tab === 'builder') { renderBlocks(); renderDesigns(); build(); }
     if (tab === 'play') update();
     saveHash();
   }
@@ -258,6 +258,7 @@ export const SCRIPT = String.raw`
     $('update-block').classList.toggle('hidden', !editing);
     $('add-readme').textContent = editing ? '＋ Add as new block' : '＋ Add to README';
     if (editing) $('editing-label').textContent = 'Editing README block #' + (state.editing + 1);
+    renderDefinitions();
     saveHash();
   }
   function surprise() {
@@ -377,6 +378,7 @@ export const SCRIPT = String.raw`
         builder.md = j.markdown; builder.html = j.html;
         if (!builder.manual) $('md').value = j.markdown;
         $('frame').srcdoc = previewDoc(j.html);
+        checkImages();
       })
       .catch(function () { var err = $('build-err'); err.textContent = 'Could not reach the API.'; err.classList.remove('hidden'); });
   }
@@ -572,9 +574,174 @@ export const SCRIPT = String.raw`
     $('b-download').addEventListener('click', function () { download('README.md', $('md').value); });
     $('b-share').addEventListener('click', function () { copy(location.origin + '/#tab=builder&spec=' + b64u(payload()), 'Share link copied'); });
     $('b-raw').addEventListener('click', function () { window.open('/api/readme?spec=' + b64u(payload()) + (builder.host ? '&base=' + encodeURIComponent(builder.host) : ''), '_blank'); });
+    $('b-zip').addEventListener('click', exportZip);
+    $('b-config').addEventListener('click', function () {
+      var a = el('a', { href: URL.createObjectURL(new Blob([JSON.stringify(payload(), null, 2)], { type: 'application/json' })), download: 'gitpulse.config.json' });
+      document.body.appendChild(a); a.click(); a.remove();
+    });
+    $('b-import').addEventListener('click', function () { $('config-file').click(); });
+    $('config-file').addEventListener('change', function (e) { if (e.target.files && e.target.files[0]) importConfig(e.target.files[0]); e.target.value = ''; });
+    Array.prototype.forEach.call(document.querySelectorAll('.wbtn'), function (b) {
+      b.addEventListener('click', function () {
+        previewWidth = b.dataset.w;
+        $('frame').classList.toggle('mobile', previewWidth === 'mobile');
+        Array.prototype.forEach.call(document.querySelectorAll('.wbtn'), function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      });
+    });
     Array.prototype.forEach.call(document.querySelectorAll('.pvbtn'), function (b) {
       b.addEventListener('click', function () { previewMode = b.dataset.pv; if (builder.html) $('frame').srcdoc = previewDoc(builder.html); });
     });
+  }
+
+
+  // ---- README Studio: designs, validation, export ----------------------------------------------
+  var DESIGN_PRESETS = [['terminal-os', 'terminal', 'Terminal OS'], ['code-studio', 'ide', 'Code Studio'], ['editorial', 'editorial', 'Editorial'], ['dev-dashboard', 'dashboard', 'Dashboard'], ['blueprint', 'blueprint', 'Blueprint'], ['retro', 'retro', 'Retro Arcade']];
+  var definitions = null, checkTimer, previewWidth = 'desktop';
+  function renderDesigns() {
+    var box = $('designs'); if (!box) return; box.innerHTML = '';
+    DESIGN_PRESETS.forEach(function (d) {
+      var img = el('img', { src: '/api/design?' + qs({ username: user(), design: d[1], hide: 'projects,languages,now', width: '420' }), alt: d[2] + ' design preview', loading: 'lazy' });
+      var b = el('button', { class: 'design' + (builder.presetId === d[0] ? ' on' : ''), type: 'button', title: 'Use the ' + d[2] + ' design for the whole README' }, [img, el('span', { text: d[2] })]);
+      b.addEventListener('click', function () {
+        if (builder.spec.blocks.length && !confirm('Replace your current blocks with the ' + d[2] + ' design?')) return;
+        fetchPresets().then(function () { loadPreset(d[0]); renderDesigns(); });
+      });
+      box.appendChild(b);
+    });
+  }
+  // every hosted image in the generated Markdown/HTML: [{raw, url}] (raw = as written, url = fetchable)
+  function imageUrls(md) {
+    var seen = {}, out = [];
+    var re = /https?:\/\/[^\s"'<>)]+\/api\/[a-z0-9-]+\?[^\s"'<>)]+/g, m;
+    while ((m = re.exec(md))) {
+      var raw = m[0];
+      if (seen[raw]) continue;
+      seen[raw] = 1;
+      out.push({ raw: raw, url: raw.replace(/&amp;/g, '&') });
+    }
+    return out;
+  }
+  function checkImages() {
+    var box = $('build-check'); if (!box) return;
+    var list = imageUrls(builder.md || '');
+    box.textContent = list.length ? 'Checking ' + list.length + ' images…' : '';
+    box.className = 'note';
+    clearTimeout(checkTimer);
+    checkTimer = setTimeout(function () {
+      Promise.all(list.map(function (it) {
+        var card = (it.url.match(/\/api\/([a-z0-9-]+)/) || [])[1] || 'image';
+        return fetch(it.url).then(function (r) {
+          var code = r.headers.get('X-Card-Error');
+          return r.ok && !code ? null : card + ': ' + (code || ('HTTP ' + r.status));
+        }, function () { return card + ': unreachable (check the image host)'; });
+      })).then(function (res) {
+        var bad = res.filter(Boolean);
+        box.textContent = bad.length ? '✖ ' + bad.length + ' image(s) show an error card - ' + bad.join(' · ') : (list.length ? '✔ All ' + list.length + ' images render' : '');
+        box.className = 'note ' + (bad.length ? 'bad' : 'good');
+      });
+    }, 600);
+  }
+  // minimal ZIP writer (stored, no compression) with CRC-32
+  var CRC = (function () { var t = []; for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(b) { var c = 0xffffffff; for (var i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
+  function zip(files) {
+    var enc = new TextEncoder(), parts = [], central = [], offset = 0;
+    function u16(v) { return [v & 255, (v >>> 8) & 255]; }
+    function u32(v) { return [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255]; }
+    files.forEach(function (f) {
+      var name = enc.encode(f.name), data = typeof f.data === 'string' ? enc.encode(f.data) : f.data, crc = crc32(data);
+      var head = [].concat(u32(0x04034b50), u16(20), u16(0x0800), u16(0), u16(0), u16(0x21), u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0));
+      parts.push(new Uint8Array(head), name, data);
+      central.push(new Uint8Array([].concat(u32(0x02014b50), u16(20), u16(20), u16(0x0800), u16(0), u16(0), u16(0x21), u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset))), name);
+      offset += head.length + name.length + data.length;
+    });
+    var size = central.reduce(function (a, p) { return a + p.length; }, 0);
+    var end = new Uint8Array([].concat(u32(0x06054b50), u16(0), u16(0), u16(files.length), u16(files.length), u32(size), u32(offset), u16(0)));
+    return new Blob(parts.concat(central, [end]), { type: 'application/zip' });
+  }
+  function workflowYaml(assets) {
+    var lines = [
+      'name: Refresh GitPulse cards',
+      'on:',
+      '  schedule:',
+      "    - cron: '17 */12 * * *'",
+      '  workflow_dispatch:',
+      'permissions:',
+      '  contents: write',
+      'jobs:',
+      '  refresh:',
+      '    runs-on: ubuntu-latest',
+      '    steps:',
+      '      - uses: actions/checkout@v4',
+      '      - name: Download cards (keeps the old file if a card fails)',
+      '        run: |',
+      '          mkdir -p assets',
+      '          get() { if curl -fsSL --max-time 30 -D h.txt "$1" -o t.svg && ! grep -qi "^x-card-error" h.txt; then mv t.svg "$2"; else echo "kept $2"; fi; }'
+    ];
+    assets.forEach(function (a) { lines.push('          get "' + a.url.replace(/"/g, '%22') + '" "' + a.file + '"'); });
+    lines.push('          rm -f h.txt t.svg',
+      '      - name: Commit changes',
+      '        run: |',
+      '          git config user.name "github-actions[bot]"',
+      '          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"',
+      '          git add assets',
+      '          git diff --cached --quiet || (git commit -m "Refresh GitPulse cards" && git push)');
+    return lines.join('\n') + '\n';
+  }
+  function exportZip() {
+    var md = $('md').value;
+    var list = imageUrls(md).filter(function (it) { return !/\/api\/(views|visitors|counter|view-counter|spotify|now-playing|music)\?/.test(it.url); });
+    var count = {};
+    var assets = list.map(function (it) {
+      var card = (it.url.match(/\/api\/([a-z0-9-]+)/) || [])[1] || 'card';
+      var dark = /[?&]theme=/.test(it.url) && md.indexOf('srcset="' + it.raw) >= 0 ? '-dark' : '';
+      count[card] = (count[card] || 0) + 1;
+      return { raw: it.raw, url: it.url, file: 'assets/' + card + (count[card] > 1 ? '-' + count[card] : '') + dark + '.svg' };
+    });
+    toast('Packing ' + assets.length + ' images…');
+    Promise.all(assets.map(function (a) { return fetch(a.url).then(function (r) { return r.text(); }).catch(function () { return ''; }); })).then(function (svgs) {
+      var local = md;
+      assets.forEach(function (a) { local = local.split(a.raw).join('./' + a.file); });
+      var files = [
+        { name: 'README.md', data: local },
+        { name: 'README.live.md', data: md },
+        { name: 'gitpulse.config.json', data: JSON.stringify(payload(), null, 2) + '\n' },
+        { name: '.github/workflows/gitpulse.yml', data: workflowYaml(assets) },
+        { name: 'GITPULSE.txt', data: 'README.md uses the SVGs in ./assets (self-hosted).\nThe workflow in .github/workflows refreshes them twice a day; edit the cron to change that.\nREADME.live.md is the same profile served live from ' + (builder.host || location.origin) + '.\nLive-only cards (views counter, Spotify) always stay live.\nRe-open the design: Import config in the README builder and choose gitpulse.config.json.\n' }
+      ];
+      assets.forEach(function (a, i) { if (svgs[i]) files.push({ name: a.file, data: svgs[i] }); });
+      var link = el('a', { href: URL.createObjectURL(zip(files)), download: user() + '-profile.zip' });
+      document.body.appendChild(link); link.click(); link.remove();
+      toast('ZIP downloaded');
+    });
+  }
+  function importConfig(file) {
+    var r = new FileReader();
+    r.onload = function () {
+      try {
+        var s = JSON.parse(String(r.result));
+        if (!s || !Array.isArray(s.blocks)) throw new Error('no blocks');
+        location.hash = 'tab=builder&spec=' + b64u(s);
+        restoreBuilder(); $('username').value = state.username; renderThemes(); renderBlocks(); renderParams(); build(); toast('Config imported');
+      } catch (e) { toast('That file is not a GitPulse config'); }
+    };
+    r.readAsText(file);
+  }
+  function renderDefinitions() {
+    var box = $('defs'); if (!box) return;
+    var show = function () {
+      box.innerHTML = '';
+      var mine = (definitions || []).filter(function (d) { return d.cards.indexOf(state.card) >= 0; });
+      box.style.display = mine.length ? 'block' : 'none';
+      if (!mine.length) return;
+      box.appendChild(el('summary', { text: 'What these numbers mean (' + mine.length + ')' }));
+      mine.forEach(function (d) {
+        var tags = (d.token ? ' · needs server token' : '') + (d.estimate ? ' · estimate' : '');
+        box.appendChild(el('div', { class: 'def' }, [el('b', { text: d.label }), el('span', { class: 'hint', text: ' ' + d.source + tags }), el('p', { text: d.calculation })]));
+      });
+    };
+    if (definitions) return show();
+    fetch('/api/definitions').then(function (r) { return r.json(); }).then(function (j) { definitions = j.metrics || []; show(); }, function () { definitions = []; });
   }
 
   // ---- boot ----------------------------------------------------------------------------------------
@@ -622,7 +789,7 @@ export const SCRIPT = String.raw`
   // ---- events --------------------------------------------------------------------------------------
   $('username').addEventListener('input', function (e) {
     state.username = e.target.value;
-    if (state.tab === 'play') scheduleUpdate(); else if (state.tab === 'store') { clearTimeout(timer); timer = setTimeout(renderStore, 400); } else scheduleBuild();
+    if (state.tab === 'play') scheduleUpdate(); else if (state.tab === 'store') { clearTimeout(timer); timer = setTimeout(renderStore, 400); } else { scheduleBuild(); clearTimeout(checkTimer); checkTimer = setTimeout(renderDesigns, 700); }
   });
   ['play', 'store', 'builder'].forEach(function (t) { $('tab-' + t).addEventListener('click', function () { setTab(t); }); });
   $('reset').addEventListener('click', resetCurrent);

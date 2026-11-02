@@ -1,7 +1,8 @@
 import { defineCard } from './types';
 import { bool, list, oneOf } from '../core/params';
 import { compact, esc, fmt } from '../core/text';
-import { calculateProfileMetrics, type ProfileMetrics } from '../metrics';
+import { calculateProfileMetrics, loadInsights, type ProfileMetrics } from '../metrics';
+import { calculateGrade, type Grade } from '../metrics/grade';
 import { anim, contentTop, frame, PAD } from '../svg/frame';
 import { icon, type IconName } from '../svg/icons';
 
@@ -28,6 +29,9 @@ export const STATS: Record<string, StatDef> = {
 
 const DEFAULT_ORDER = ['repos', 'stars', 'forks', 'followers', 'contributions', 'prs', 'issues', 'reviews'];
 const LAYOUTS = ['grid', 'compact', 'minimal'] as const;
+const RANKS = ['none', 'letter', 'percentile'] as const;
+
+type Data = ProfileMetrics & { grade?: Grade };
 
 interface Params {
   layout: (typeof LAYOUTS)[number];
@@ -35,9 +39,28 @@ interface Params {
   keys: string[];
   compactNumbers: boolean;
   footer: boolean;
+  rank: (typeof RANKS)[number];
 }
 
-export const statsCard = defineCard<Params, ProfileMetrics>({
+/** Circular activity-score badge (letter or percentile), drawn at (cx, cy). */
+function rankRing(g: Grade, mode: 'letter' | 'percentile', cx: number, cy: number, animate: boolean, r = 40, caption = true): string {
+  const c = 2 * Math.PI * r;
+  const filled = Math.max(0.04, 1 - g.percentile / 100);
+  const label = mode === 'letter' ? g.level : `${g.percentile < 1 ? '<1' : Math.round(g.percentile)}%`;
+  const ring =
+    `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" class="sk-accent" stroke-opacity=".2" stroke-width="${r > 30 ? 7 : 5}"/>` +
+    `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" class="sk-accent${animate ? ' rk' : ''}" stroke-width="${r > 30 ? 7 : 5}" stroke-linecap="round" stroke-dasharray="${(c * filled).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${cx} ${cy})"/>` +
+    (animate ? `<style>@keyframes rk{from{stroke-dasharray:0 ${c.toFixed(1)}}}.rk{animation:rk 1.2s ease-out}@media (prefers-reduced-motion:reduce){.rk{animation:none}}</style>` : '');
+  return (
+    ring +
+    `<text x="${cx}" y="${(cy + (mode === 'letter' ? 9 : 6) * (r / 40)).toFixed(1)}" text-anchor="middle" class="fg" font-size="${Math.round((mode === 'letter' ? 26 : 18) * (r / 40))}" font-weight="800">${esc(label)}</text>` +
+    (caption
+      ? `<text x="${cx}" y="${cy + r + 22}" text-anchor="middle" class="label muted" font-size="10.5">${mode === 'letter' ? `top ${g.percentile < 1 ? '<1' : Math.round(g.percentile)}%` : 'activity score'}</text>`
+      : '')
+  );
+}
+
+export const statsCard = defineCard<Params, Data>({
   id: 'stats',
   category: 'overview',
   tags: ['numbers', 'repos', 'stars', 'followers', 'summary'],
@@ -46,7 +69,8 @@ export const statsCard = defineCard<Params, ProfileMetrics>({
     { label: 'Compact', params: { layout: 'compact' } },
     { label: 'Minimal', params: { layout: 'minimal' } },
     { label: 'With icons', params: { show_icons: 'true' } },
-    { label: 'Extended', params: { show: 'commits,following,gists,age', show_icons: 'true' } }
+    { label: 'Extended', params: { show: 'commits,following,gists,age', show_icons: 'true' } },
+    { label: 'With grade', params: { rank: 'letter', show_icons: 'true' } }
   ],
   title: 'GitHub Stats',
   description: 'Overview of repositories, stars, followers and activity.',
@@ -56,7 +80,8 @@ export const statsCard = defineCard<Params, ProfileMetrics>({
     { name: 'hide', type: 'list', description: `Stats to hide: ${Object.keys(STATS).join(', ')}` },
     { name: 'show', type: 'list', description: 'Extra stats to append, e.g. commits,following,gists,age' },
     { name: 'compact_numbers', type: 'boolean', default: false, description: 'Abbreviate numbers (1.2k)' },
-    { name: 'footer', type: 'boolean', default: true, description: 'Show footer (grid layout)' }
+    { name: 'footer', type: 'boolean', default: true, description: 'Show footer (grid layout)' },
+    { name: 'rank', type: 'enum', options: [...RANKS], default: 'none', description: 'Activity-score ring: letter grade (S, A+ ... C) or top-N% percentile' }
   ],
 
   parse(q) {
@@ -71,13 +96,19 @@ export const statsCard = defineCard<Params, ProfileMetrics>({
       showIcons: bool(q.show_icons, false),
       keys: keys.length ? keys : DEFAULT_ORDER,
       compactNumbers: bool(q.compact_numbers, false),
-      footer: bool(q.footer, true)
+      footer: bool(q.footer, true),
+      rank: oneOf(q.rank, RANKS, 'none')
     };
   },
 
-  load: async (client, _p, common) => calculateProfileMetrics(await client.getUser(common.username)),
+  async load(client, p, common) {
+    if (p.rank === 'none' || p.layout === 'minimal') return calculateProfileMetrics(await client.getUser(common.username));
+    // the grade uses the realistic metrics (merged external PRs, consistency, ...), shared with other cards' caches
+    const { metrics } = await loadInsights(client, common.username);
+    return { ...metrics, grade: calculateGrade(metrics) };
+  },
 
-  toJSON: (m, p) => Object.fromEntries([['username', m.username], ...p.keys.map((k) => [k, STATS[k].value(m)])]),
+  toJSON: (m, p) => Object.fromEntries([['username', m.username], ...p.keys.map((k) => [k, STATS[k].value(m)]), ...(m.grade ? [['grade', m.grade]] : [])]),
 
   render(m, p, { theme, common, title, t }) {
     const num = p.compactNumbers ? compact : fmt;
@@ -119,23 +150,28 @@ export const statsCard = defineCard<Params, ProfileMetrics>({
       })
       .join('');
 
+    const ringOn = p.rank !== 'none' && !!m.grade;
+    const W = ringOn ? 600 : 480;
     if (p.layout === 'compact') {
-      return frame(cells, { width: 480, height: top + rowH, theme, title: header, subtitle: `@${m.username}`, label });
+      const ring = ringOn ? rankRing(m.grade!, p.rank as 'letter' | 'percentile', W - PAD - 50, top + 16, animate, 26, false) : '';
+      return frame(cells + ring, { width: W, height: top + rowH + (ringOn ? 12 : 0), theme, title: header, subtitle: `@${m.username}`, label });
     }
 
     const dividers = Array.from({ length: p.footer ? rows : rows - 1 }, (_, r) => {
       const y = top + (r + 1) * rowH - 10;
-      return `<line x1="${PAD}" y1="${y}" x2="${480 - PAD}" y2="${y}" class="sk-bd" stroke-width="1"/>`;
+      return `<line x1="${PAD}" y1="${y}" x2="${(ringOn ? 465 : 480 - PAD)}" y2="${y}" class="sk-bd" stroke-width="1"/>`;
     }).join('');
     const footerY = top + rows * rowH + 15;
     const footer = p.footer
       ? `<text x="${PAD}" y="${footerY}" class="label muted">${t('misc.updated')} ${new Date().toISOString().slice(0, 10)}</text>` +
-        `<text x="${480 - PAD}" y="${footerY}" class="label muted" text-anchor="end">GitPulse</text>`
+        `<text x="${W - PAD}" y="${footerY}" class="label muted" text-anchor="end">GitPulse</text>`
       : '';
 
-    return frame(cells + dividers + footer, {
-      width: 480,
-      height: top + rows * rowH + (p.footer ? 35 : 10),
+    const bodyH = top + rows * rowH + (p.footer ? 35 : 10);
+    const ring = ringOn ? rankRing(m.grade!, p.rank as 'letter' | 'percentile', W - PAD - 50, Math.max(top + 45, (top + rows * rowH) / 2 + 10), animate) : '';
+    return frame(cells + dividers + footer + ring, {
+      width: W,
+      height: Math.max(bodyH, ringOn ? top + 140 : 0),
       theme,
       title: header,
       subtitle: `@${m.username}`,

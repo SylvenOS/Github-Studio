@@ -7,7 +7,7 @@ export const pageHtml = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GitPulse - stats cards and README builder</title>
+<title>GitPulse - stats cards, profile designs and README studio</title>
 <style>${STYLES}</style>
 </head>
 <body class="t-play">
@@ -16,7 +16,7 @@ export const pageHtml = `<!DOCTYPE html>
   <div class="tabs">
     <button id="tab-play" class="on">Playground</button>
     <button id="tab-store">Store</button>
-    <button id="tab-builder">README Builder</button>
+    <button id="tab-builder">README Studio</button>
   </div>
   <span class="grow"></span>
   <div class="links"><a href="/api/cards">Cards</a><a href="/api/openapi.json">OpenAPI</a><a href="/api/themes">Themes</a><button id="scheme" title="Toggle light/dark">◐</button></div>
@@ -63,6 +63,7 @@ export const pageHtml = `<!DOCTYPE html>
     </div>
     <div class="stage checker" id="stage"><img id="preview" alt="Card preview"></div>
     <div class="desc" id="desc"></div>
+    <details class="defs" id="defs" style="display:none"></details>
     <details class="text" id="text-box" style="display:none">
       <summary>Plain text version (paste into a README code block)</summary>
       <button class="ghost" id="copy-text" style="margin-top:10px">Copy text</button>
@@ -82,6 +83,10 @@ export const pageHtml = `<!DOCTYPE html>
 
   <section class="view-builder">
     <div class="col-blocks">
+      <div class="panel">
+        <h3>Design Studio <span class="hint">- one visual identity for the whole README</span></h3>
+        <div class="designs" id="designs"></div>
+      </div>
       <div class="panel">
         <h3>Start from</h3>
         <div class="btnrow">
@@ -110,11 +115,16 @@ export const pageHtml = `<!DOCTYPE html>
         <button class="ghost" id="b-download">Download README.md</button>
         <button class="ghost" id="b-share">Share link</button>
         <button class="ghost" id="b-raw">Open raw</button>
+        <button class="ghost" id="b-zip" title="README.md + SVG assets + GitHub Actions refresh workflow + config">Export ZIP</button>
+        <button class="ghost" id="b-config" title="Save this design as JSON">Save config</button>
+        <button class="ghost" id="b-import" title="Open a saved gitpulse.config.json">Open config</button>
+        <input type="file" id="config-file" accept="application/json,.json" hidden>
       </div>
       <div class="note hidden" id="build-err" style="color:var(--danger)"></div>
       <div class="note hidden" id="build-warn" style="color:#d29922">⚠</div>
+      <div class="note" id="build-check" role="status" aria-live="polite"></div>
       <div id="pane-preview">
-        <div class="btnrow" style="margin-bottom:8px"><span class="note">Preview on</span><button class="ghost small pvbtn" data-pv="light">Light</button><button class="ghost small pvbtn" data-pv="dark">Dark</button></div>
+        <div class="btnrow" style="margin-bottom:8px"><span class="note">Preview on</span><button class="ghost small pvbtn" data-pv="light">Light</button><button class="ghost small pvbtn" data-pv="dark">Dark</button><span class="note" style="margin-left:10px">Width</span><button class="ghost small wbtn" data-w="desktop" aria-pressed="true">Desktop</button><button class="ghost small wbtn" data-w="mobile" aria-pressed="false">Mobile</button></div>
         <iframe class="preview" id="frame" sandbox="" title="README preview"></iframe>
       </div>
       <div id="pane-md" class="hidden">
