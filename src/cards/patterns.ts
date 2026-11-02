@@ -6,11 +6,15 @@ import { analyzePatterns, type WorkPatterns } from '../metrics/patterns';
 import { anim, cls, contentTop, frame, PAD } from '../svg/frame';
 
 const STARTS = ['sun', 'mon'] as const;
+const CHARTS = ['bars', 'radial', 'none'] as const;
 
 interface Params {
   year: number | null;
   weekStart: (typeof STARTS)[number];
   hide: string[];
+  chart: (typeof CHARTS)[number];
+  values: boolean;
+  icons: boolean;
 }
 
 const STATS: { key: string; label: string; value: (w: WorkPatterns) => string }[] = [
@@ -28,18 +32,24 @@ export const patternsCard = defineCard<Params, WorkPatterns>({
   aliases: ['habits', 'work-patterns'],
   category: 'activity',
   tags: ['habits', 'productivity', 'consistency', 'weekday', 'routine', 'realistic'],
-  variants: [{ label: 'Default' }, { label: 'Monday first', params: { week_start: 'mon' } }, { label: 'Essentials', params: { hide: 'best,break,average' } }],
+  variants: [{ label: 'Default' }, { label: 'Monday first', params: { week_start: 'mon' } }, { label: 'Essentials', params: { hide: 'best,break,average' } }, { label: 'Radial weekdays', params: { chart: 'radial', values: 'true' } }, { label: 'Numbers only', params: { chart: 'none' } }, { label: 'With values', params: { values: 'true' } }],
   title: 'Work Patterns',
   description: 'How you work: active days, weekly consistency (fairer than streaks), average per active day, busiest weekday, weekend share, best day and longest break.',
   params: [
     { name: 'year', type: 'number', min: 2008, description: 'Calendar year (default: last 12 months)' },
     { name: 'week_start', type: 'enum', options: [...STARTS], default: 'sun', description: 'First day of the week in the chart' },
-    { name: 'hide', type: 'list', description: `Stats to hide: ${STATS.map((s) => s.key).join(', ')}` }
+    { name: 'hide', type: 'list', description: `Stats to hide: ${STATS.map((s) => s.key).join(', ')}` },
+    { name: 'chart', type: 'enum', options: [...CHARTS], default: 'bars', description: 'Weekday chart: bars, a radial chart, or none' },
+    { name: 'values', type: 'boolean', default: false, description: 'Print the total above each weekday' },
+    { name: 'icons', type: 'boolean', default: false, description: 'Small icon before each stat' }
   ],
   parse: (q) => ({
     year: q.year ? int(q.year, new Date().getUTCFullYear(), 2008, new Date().getUTCFullYear()) : null,
     weekStart: oneOf(q.week_start, STARTS, 'sun'),
-    hide: list(q.hide)
+    hide: list(q.hide),
+    chart: oneOf(q.chart, CHARTS, 'bars'),
+    values: q.values === 'true',
+    icons: q.icons === 'true'
   }),
   load: async (client, p, common) => analyzePatterns(await client.getCalendar(common.username, [p.year ? calendarYearRange(p.year) : lastYearRange()])),
 
@@ -62,27 +72,41 @@ export const patternsCard = defineCard<Params, WorkPatterns>({
 
     // weekday chart on the right
     const order = p.weekStart === 'mon' ? [1, 2, 3, 4, 5, 6, 0] : [0, 1, 2, 3, 4, 5, 6];
+    const noChart = p.chart === 'none';
+    const W = noChart ? 300 : width;
     const chartX = PAD + 235;
     const chartW = width - PAD - chartX;
     const chartH = Math.max(110, stats.length * 24 - 20);
     const max = Math.max(...w.weekdayTotals, 1);
     const step = chartW / 7;
     const bw = step * 0.62;
-    const bars = order
+    const rcx = chartX + chartW / 2;
+    const rcy = top + chartH / 2;
+    const rR = Math.min(chartW, chartH) / 2 - 12;
+    const radial = (() => {
+      const ang = (i: number) => (i * 2 * Math.PI) / 7 - Math.PI / 2;
+      const pt = (i: number, r: number) => `${(rcx + r * Math.cos(ang(i))).toFixed(1)},${(rcy + r * Math.sin(ang(i))).toFixed(1)}`;
+      const web = [0.5, 1].map((k) => `<polygon points="${order.map((_, i) => pt(i, rR * k)).join(' ')}" fill="none" class="sk-bd"/>`).join('');
+      const shape = `<polygon points="${order.map((dow, i) => pt(i, Math.max(rR * 0.08, (w.weekdayTotals[dow] / max) * rR))).join(' ')}" class="ser" fill-opacity=".35" stroke="var(--s0,var(--accent))" stroke-width="2"/>`;
+      const names = order.map((dow, i) => `<text x="${(rcx + (rR + 11) * Math.cos(ang(i))).toFixed(1)}" y="${(rcy + (rR + 11) * Math.sin(ang(i)) + 3.5).toFixed(1)}" text-anchor="middle" class="label muted" font-size="10">${WEEKDAYS[dow].slice(0, 2)}${p.values ? ` ${fmt(w.weekdayTotals[dow])}` : ''}</text>`).join('');
+      return web + shape + names;
+    })();
+    const bars = noChart ? '' : p.chart === 'radial' ? radial : order
       .map((dow, i) => {
         const h = Math.max(w.weekdayTotals[dow] ? 3 : 0, (w.weekdayTotals[dow] / max) * chartH);
         const x = chartX + i * step + (step - bw) / 2;
         const busiest = dow === w.busiestWeekday && w.total > 0;
         return (
           `<rect x="${x.toFixed(1)}" y="${(top + chartH - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3"${cls('ser', animate, i)}${busiest ? '' : ' fill-opacity=".45"'}/>` +
+          (p.values && w.weekdayTotals[dow] ? `<text x="${(x + bw / 2).toFixed(1)}" y="${(top + chartH - h - 4).toFixed(1)}" text-anchor="middle" class="label fg" font-size="9" font-weight="600">${fmt(w.weekdayTotals[dow])}</text>` : '') +
           `<text x="${(x + bw / 2).toFixed(1)}" y="${top + chartH + 16}" text-anchor="middle" class="label muted" font-size="10">${WEEKDAYS[dow].slice(0, 2)}</text>`
         );
       })
       .join('');
 
     return frame(rows + bars, {
-      width,
-      height: Math.max(top + stats.length * 24 + 12, top + chartH + 30),
+      width: W,
+      height: Math.max(top + stats.length * 24 + 12, noChart ? 0 : top + chartH + 30),
       theme,
       title: header,
       subtitle: `${fmt(w.total)} · @${common.username}`,

@@ -18,7 +18,8 @@ const BYTES_PER_LINE: Record<string, number> = {
 const DEFAULT_BPL = 33;
 /** Repositories measured without a token (each costs one REST call). */
 const SAMPLE = 10;
-const LAYOUTS = ['bars', 'tiles'] as const;
+const LAYOUTS = ['bars', 'tiles', 'stack'] as const;
+const UNITS = ['both', 'lines', 'bytes'] as const;
 
 interface Data {
   languages: LanguageStat[];
@@ -30,6 +31,8 @@ interface Params {
   count: number;
   exclude: string[];
   layout: (typeof LAYOUTS)[number];
+  unit: (typeof UNITS)[number];
+  total: boolean;
 }
 
 const lines = (l: LanguageStat) => l.size / (BYTES_PER_LINE[l.name.toLowerCase()] ?? DEFAULT_BPL);
@@ -49,15 +52,17 @@ export const codeCard = defineCard<Params, Data>({
   aliases: ['loc', 'lines-of-code', 'code-volume'],
   category: 'languages',
   tags: ['lines of code', 'loc', 'bytes', 'size', 'volume', 'languages'],
-  variants: [{ label: 'Bars' }, { label: 'Tiles', params: { layout: 'tiles' } }],
+  variants: [{ label: 'Bars' }, { label: 'Tiles', params: { layout: 'tiles' } }, { label: 'Stacked bar', params: { layout: 'stack', count: '8' } }, { label: 'Lines only', params: { unit: 'lines' } }, { label: 'Bytes only', params: { unit: 'bytes', layout: 'tiles' } }],
   title: 'Code Volume',
   description: 'How much code lives in your public repositories: bytes per language from GitHub, with an estimated line count (bytes ÷ typical bytes per line). Estimates are labelled as such. Without a server token, your 10 most recently pushed repos are measured.',
   params: [
     { name: 'count', type: 'number', default: 6, min: 1, max: 10, description: 'Languages shown' },
     { name: 'exclude', type: 'list', description: 'Languages to leave out, e.g. HTML,Jupyter Notebook' },
-    { name: 'layout', type: 'enum', options: [...LAYOUTS], default: 'bars', description: 'Presentation' }
+    { name: 'layout', type: 'enum', options: [...LAYOUTS], default: 'bars', description: 'Bars, tiles or one stacked bar with a legend' },
+    { name: 'unit', type: 'enum', options: [...UNITS], default: 'both', description: 'Show estimated lines, bytes or both' },
+    { name: 'total', type: 'boolean', default: true, description: 'Show the big total on top' }
   ],
-  parse: (q) => ({ count: int(q.count, 6, 1, 10), exclude: list(q.exclude).map((s) => s.toLowerCase()), layout: oneOf(q.layout, LAYOUTS, 'bars') }),
+  parse: (q) => ({ count: int(q.count, 6, 1, 10), exclude: list(q.exclude).map((s) => s.toLowerCase()), layout: oneOf(q.layout, LAYOUTS, 'bars'), unit: oneOf(q.unit, UNITS, 'both'), total: q.total !== 'false' }),
   async load(client, _p, common) {
     const user = await client.getUser(common.username);
     if (user.source === 'graphql') return { languages: user.languages, sampled: null };
@@ -79,10 +84,11 @@ export const codeCard = defineCard<Params, Data>({
     const totalBytes = langs.reduce((a, l) => a + l.size, 0);
     const totalLines = langs.reduce((a, l) => a + lines(l), 0);
 
-    let body =
+    const val = (l: LanguageStat) => (p.unit === 'bytes' ? bytes(l.size) : p.unit === 'lines' ? `≈ ${compact(lines(l))} lines` : `≈ ${compact(lines(l))} · ${bytes(l.size)}`);
+    let body = !p.total ? '' :
       `<text x="${PAD}" y="${top + 22}" class="accent" font-size="28" font-weight="700">≈ ${esc(compact(totalLines))}</text>` +
       `<text x="${PAD}" y="${top + 42}" class="label muted">estimated lines of code · ${esc(bytes(totalBytes))} in ${fmt(langs.length)} languages</text>`;
-    let y = top + 62;
+    let y = p.total ? top + 62 : top + 8;
 
     if (p.layout === 'tiles') {
       const colW = (W - PAD * 2) / 3;
@@ -93,9 +99,21 @@ export const codeCard = defineCard<Params, Data>({
           `<g${anim(animate, i)}><rect x="${x}" y="${ty}" width="${colW - 8}" height="46" rx="8" class="bd" fill-opacity=".5"/>` +
           `<rect x="${x}" y="${ty}" width="4" height="46" rx="2" fill="${esc(languageColor(l.name, l.color))}"/>` +
           `<text x="${x + 12}" y="${ty + 19}" class="fg" font-size="12.5" font-weight="600">${esc(truncate(l.name, 14))}</text>` +
-          `<text x="${x + 12}" y="${ty + 36}" class="muted" font-size="11">≈ ${esc(compact(lines(l)))} lines · ${esc(bytes(l.size))}</text></g>`;
+          `<text x="${x + 12}" y="${ty + 36}" class="muted" font-size="11">${esc(val(l))}</text></g>`;
       });
       y += Math.ceil(shown.length / 3) * 54;
+    } else if (p.layout === 'stack') {
+      const bw = W - PAD * 2;
+      const sum = shown.reduce((a, l) => a + l.size, 0) || 1;
+      let sx = PAD;
+      body += `<clipPath id="cvb"><rect x="${PAD}" y="${y}" width="${bw}" height="14" rx="7"/></clipPath><g clip-path="url(#cvb)">` +
+        shown.map((l) => { const w = (l.size / sum) * bw; const r = `<rect x="${sx.toFixed(1)}" y="${y}" width="${w.toFixed(1)}" height="14" fill="${esc(languageColor(l.name, l.color))}"/>`; sx += w; return r; }).join('') + '</g>';
+      shown.forEach((l, i) => {
+        const cx = PAD + (i % 2) * (bw / 2);
+        const cy = y + 40 + Math.floor(i / 2) * 22;
+        body += `<g${anim(animate, i)}><circle cx="${cx + 5}" cy="${cy - 4}" r="5" fill="${esc(languageColor(l.name, l.color))}"/><text x="${cx + 16}" y="${cy}" class="fg" font-size="12">${esc(truncate(l.name, 12))} <tspan class="muted">${esc(val(l))}</tspan></text></g>`;
+      });
+      y += 36 + Math.ceil(shown.length / 2) * 22;
     } else {
       const max = Math.max(1, ...shown.map((l) => l.size));
       const nameW = 120;
@@ -106,7 +124,7 @@ export const codeCard = defineCard<Params, Data>({
         body +=
           `<g${anim(animate, i)}><text x="${PAD}" y="${ry}" class="fg" font-size="12.5">${esc(truncate(l.name, 15))}</text>` +
           `<rect x="${PAD + nameW}" y="${ry - 9}" width="${Math.max(3, (l.size / max) * bw).toFixed(1)}" height="10" rx="3" fill="${esc(languageColor(l.name, l.color))}"/>` +
-          `<text x="${W - PAD}" y="${ry}" class="muted" font-size="11.5" text-anchor="end">≈ ${esc(compact(lines(l)))} · ${esc(bytes(l.size))}</text></g>`;
+          `<text x="${W - PAD}" y="${ry}" class="muted" font-size="11.5" text-anchor="end">${esc(val(l))}</text></g>`;
       });
       y += shown.length * 24 + 4;
     }

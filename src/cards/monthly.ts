@@ -11,6 +11,8 @@ interface Params {
   compare: boolean;
   layout: (typeof LAYOUTS)[number];
   values: boolean;
+  goal: number;
+  diff: boolean;
 }
 
 interface Data {
@@ -28,7 +30,7 @@ export const monthlyCard = defineCard<Params, Data>({
   aliases: ['monthly-summary', 'trend', 'period-compare'],
   category: 'activity',
   tags: ['monthly', 'trend', 'comparison', 'year over year', 'growth', 'summary', 'realistic'],
-  variants: [{ label: 'Bars vs last year' }, { label: 'Line', params: { layout: 'line' } }, { label: 'This year only', params: { compare: 'false', values: 'true' } }],
+  variants: [{ label: 'Bars vs last year' }, { label: 'Line', params: { layout: 'line' } }, { label: 'This year only', params: { compare: 'false', values: 'true' } }, { label: 'Up/down colours', params: { diff: 'true' } }, { label: 'With a goal', params: { goal: '100', compare: 'false', values: 'true' } }],
   title: 'Monthly Trend',
   description: 'Contributions per month with last year as a ghost series, plus year-to-date and last-30-days comparisons, so you can see how your activity is changing, not just when it happened.',
   cacheSeconds: 3 * 3600,
@@ -36,11 +38,13 @@ export const monthlyCard = defineCard<Params, Data>({
     { name: 'year', type: 'number', min: 2009, description: 'Year (default: this year)' },
     { name: 'compare', type: 'boolean', default: true, description: 'Overlay the previous year and show deltas' },
     { name: 'layout', type: 'enum', options: [...LAYOUTS], default: 'bars', description: 'Chart type' },
-    { name: 'values', type: 'boolean', default: false, description: 'Print the value above each month' }
+    { name: 'values', type: 'boolean', default: false, description: 'Print the value above each month' },
+    { name: 'goal', type: 'number', default: 0, min: 0, max: 100000, description: 'Monthly goal line (0 = none)' },
+    { name: 'diff', type: 'boolean', default: false, description: 'Colour months green or red against the same month last year' }
   ],
   parse: (q) => {
     const now = new Date().getUTCFullYear();
-    return { year: int(q.year, now, 2009, now), compare: bool(q.compare, true), layout: oneOf(q.layout, LAYOUTS, 'bars'), values: bool(q.values, false) };
+    return { year: int(q.year, now, 2009, now), compare: bool(q.compare, true), layout: oneOf(q.layout, LAYOUTS, 'bars'), values: bool(q.values, false), goal: int(q.goal, 0, 0, 100000), diff: bool(q.diff, false) };
   },
 
   async load(client, p, common) {
@@ -89,6 +93,7 @@ export const monthlyCard = defineCard<Params, Data>({
       body += `<line x1="${chart.x}" y1="${y}" x2="${chart.x + chart.w}" y2="${y}" class="sk-bd" stroke-dasharray="3 4"/>`;
     }
     const yOf = (v: number) => chart.y + chart.h - (v / max) * chart.h;
+    if (p.goal > 0 && p.goal <= max * 1.2) body += `<line x1="${chart.x}" y1="${yOf(p.goal).toFixed(1)}" x2="${chart.x + chart.w}" y2="${yOf(p.goal).toFixed(1)}" class="sk-accent" stroke-dasharray="5 4" stroke-width="1.3"/><text x="${chart.x + chart.w}" y="${(yOf(p.goal) - 5).toFixed(1)}" class="accent" font-size="10" font-weight="600" text-anchor="end">goal ${fmt(p.goal)}</text>`;
 
     if (p.layout === 'line') {
       const path = (vals: number[], upto: number) => vals.slice(0, upto + 1).map((v, i) => `${i ? 'L' : 'M'}${(chart.x + i * step + step / 2).toFixed(1)} ${yOf(v).toFixed(1)}`).join(' ');
@@ -106,7 +111,7 @@ export const monthlyCard = defineCard<Params, Data>({
         if (i > lastMonth) return;
         const h = (v / max) * chart.h;
         const bx = d.previous ? x + bw + 2 : x;
-        body += `<rect x="${bx.toFixed(1)}" y="${(chart.y + chart.h - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2"${cls('ser', animate, i)}><title>${MONTHS[i]} ${d.year}: ${v}</title></rect>`;
+        body += `<rect x="${bx.toFixed(1)}" y="${(chart.y + chart.h - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2"${p.diff && d.previous ? ` class="${animate ? 'fade-in' : ''}" fill="${v >= d.previous[i] ? '#3fb950' : '#f85149'}"${animate ? ` style="--i:${i}"` : ''}` : cls('ser', animate, i)}><title>${MONTHS[i]} ${d.year}: ${v}</title></rect>`;
         if (p.values && v) body += `<text x="${(bx + bw / 2).toFixed(1)}" y="${(chart.y + chart.h - h - 4).toFixed(1)}" class="label muted" font-size="9" text-anchor="middle">${fmt(v)}</text>`;
       });
     }

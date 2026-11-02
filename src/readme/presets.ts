@@ -85,6 +85,27 @@ export const PRESETS: Preset[] = [
     ]
   },
   {
+    id: 'minimal-page',
+    title: 'Design: Minimal',
+    description: 'A calm monochrome page: big light name, four numbers, work and stack as hairline lists. Pairs with any theme.',
+    theme: 'default',
+    build: () => [card('design', { design: 'minimal', role: 'Software engineer' }), card('year')]
+  },
+  {
+    id: 'glass-dashboard',
+    title: 'Design: Glass',
+    description: 'Frosted glass panels floating on soft colour orbs: profile, numbers, activity, stack and projects, then trends.',
+    theme: 'ocean',
+    build: () => [card('design', { design: 'glass', role: 'Product engineer' }), row(card('monthly'), card('streak', { layout: 'ring' }))]
+  },
+  {
+    id: 'poster',
+    title: 'Design: Poster',
+    description: 'Cinematic poster: a huge outlined name, giant numbers, numbered projects and an activity wave.',
+    theme: 'synthwave',
+    build: () => [card('design', { design: 'poster', role: 'Creative developer' }), card('typing', { lines: 'now streaming: side projects', align: 'center' })]
+  },
+  {
     id: 'analyst',
     title: 'Data-driven analyst',
     description: 'Realistic analytics only: year in review, monthly trend vs last year, commit punch card, language trend and code volume.',

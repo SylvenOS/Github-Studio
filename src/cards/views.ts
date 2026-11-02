@@ -1,10 +1,13 @@
 import { defineCard } from './types';
 import { badRequest, upstream } from '../core/errors';
-import { bool, int, oneOf } from '../core/params';
+import { bool, color, int, oneOf } from '../core/params';
 import { compact, esc, fmt } from '../core/text';
 import { frame } from '../svg/frame';
+import { shield, type ShieldStyle } from '../svg/shield';
+import { TECH_ICONS } from '../svg/tech-icons';
+import { resolveIcon } from './tech';
 
-const STYLES = ['badge', 'flat', 'pill', 'digits', 'card'] as const;
+const STYLES = ['badge', 'flat', 'pill', 'plastic', 'for-the-badge', 'social', 'digits', 'card'] as const;
 
 interface Params {
   style: (typeof STYLES)[number];
@@ -13,6 +16,10 @@ interface Params {
   base: number;
   abbreviated: boolean;
   count: boolean;
+  color?: string;
+  labelColor?: string;
+  logo?: string;
+  scale: number;
 }
 
 /** Chars-to-pixels for badge text (Verdana-ish 11px). */
@@ -27,6 +34,9 @@ export const viewsCard = defineCard<Params, { views: number }>({
     { label: 'Badge' },
     { label: 'Pill', params: { style: 'pill' } },
     { label: 'Digits', params: { style: 'digits' } },
+    { label: 'Social', params: { style: 'social', logo: 'github' } },
+    { label: 'Plastic', params: { style: 'plastic', color: '4c1' } },
+    { label: 'For the badge', params: { style: 'for-the-badge', abbreviated: 'true' } },
     { label: 'Card', params: { style: 'card' } }
   ],
   title: 'Profile Views',
@@ -38,7 +48,11 @@ export const viewsCard = defineCard<Params, { views: number }>({
     { name: 'key', type: 'string', description: 'Separate counter name, e.g. a repository (letters, digits, - _ .)' },
     { name: 'base', type: 'number', default: 0, min: 0, max: 1_000_000_000, description: 'Added to the count (to carry over an old counter)' },
     { name: 'abbreviated', type: 'boolean', default: false, description: 'Show 12.3k instead of 12,345' },
-    { name: 'count', type: 'boolean', default: true, description: 'Count this load (false = read only)' }
+    { name: 'count', type: 'boolean', default: true, description: 'Count this load (false = read only)' },
+    { name: 'color', type: 'color', description: 'Number background (hex, no #; default: theme accent)' },
+    { name: 'label_color', type: 'color', description: 'Label background (hex, no #)' },
+    { name: 'logo', type: 'string', description: 'Brand logo in the badge, e.g. github' },
+    { name: 'scale', type: 'number', default: 100, min: 50, max: 300, step: 10, description: 'Badge size in percent' }
   ],
   parse(q) {
     const key = (q.key ?? '').trim();
@@ -49,7 +63,11 @@ export const viewsCard = defineCard<Params, { views: number }>({
       key,
       base: int(q.base, 0, 0, 1_000_000_000),
       abbreviated: bool(q.abbreviated, false),
-      count: bool(q.count, true)
+      count: bool(q.count, true),
+      color: color(q.color),
+      labelColor: color(q.label_color),
+      logo: q.logo?.slice(0, 30),
+      scale: Math.max(50, Math.min(300, Number.parseInt(q.scale ?? '100', 10) || 100))
     };
   },
 
@@ -81,17 +99,16 @@ export const viewsCard = defineCard<Params, { views: number }>({
         `<text x="20" y="64" class="accent" font-size="30" font-weight="700">${esc(value)}</text>`;
       return frame(body, { width: Math.max(180, textW(value) * 2 + 20), height: 86, theme, label });
     }
-    const lw = p.label ? textW(p.label) : 0;
-    const vw = textW(value);
-    const W = lw + vw;
-    const r = p.style === 'pill' ? 10 : p.style === 'flat' ? 0 : 3;
-    const body =
-      `<clipPath id="vc"><rect width="${W}" height="20" rx="${r}"/></clipPath><g clip-path="url(#vc)">` +
-      (lw ? `<rect width="${lw}" height="20" fill="#555"/>` : '') +
-      `<rect x="${lw}" width="${vw}" height="20" class="accent"/></g>` +
-      `<g font-family="Verdana,DejaVu Sans,sans-serif" font-size="11">` +
-      (lw ? `<text x="${lw / 2}" y="14" text-anchor="middle" fill="#fff">${esc(p.label)}</text>` : '') +
-      `<text x="${lw + vw / 2}" y="14" text-anchor="middle" fill="#fff" font-weight="600">${esc(value)}</text></g>`;
-    return frame(body, { width: W, height: 20, theme: { ...theme, hideBorder: true }, transparent: true, label });
+    const map: Record<string, ShieldStyle> = { badge: 'flat', flat: 'flat-square', pill: 'pill', plastic: 'plastic', 'for-the-badge': 'for-the-badge', social: 'social', 'flat-square': 'flat-square' };
+    const slug = p.logo ? resolveIcon(p.logo) : undefined;
+    return shield({
+      label: p.label,
+      value,
+      style: map[p.style] ?? 'flat',
+      labelColor: p.labelColor ?? '#555555',
+      valueColor: p.color ?? theme.accent,
+      logo: slug ? { path: TECH_ICONS[slug].p, color: '#ffffff' } : undefined,
+      scale: p.scale / 100
+    });
   }
 });

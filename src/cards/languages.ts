@@ -8,6 +8,7 @@ import { anim, contentTop, frame, messageCard, PAD } from '../svg/frame';
 
 const LAYOUTS = ['bar', 'donut', 'pie', 'bars', 'chips', 'treemap'] as const;
 const BY = ['size', 'repos'] as const;
+const ORDERS = ['size', 'name'] as const;
 
 interface Params {
   layout: (typeof LAYOUTS)[number];
@@ -17,6 +18,10 @@ interface Params {
   decimals: number;
   percentages: boolean;
   centerLabel: boolean;
+  minPercent: number;
+  other: boolean;
+  order: (typeof ORDERS)[number];
+  legend: boolean;
 }
 
 export interface LanguageShare {
@@ -25,16 +30,30 @@ export interface LanguageShare {
   percent: number;
 }
 
-/** Top-N languages with percentages that add up to 100% of what is shown. */
-export function languageShares(langs: LanguageStat[], p: Pick<Params, 'count' | 'hide' | 'by'>): LanguageShare[] {
+/**
+ * Top-N languages. By default percentages add up to 100% of what is shown; with `other` they are shares of
+ * everything and the remainder becomes an "Other" slice. `minPercent` drops (or groups) tiny slices.
+ */
+export function languageShares(
+  langs: LanguageStat[],
+  p: Pick<Params, 'count' | 'hide' | 'by'> & Partial<Pick<Params, 'minPercent' | 'other' | 'order'>>
+): LanguageShare[] {
   const hidden = new Set(p.hide.map((h) => h.toLowerCase()));
   const weight = (l: LanguageStat) => (p.by === 'repos' || !langs.some((x) => x.size > 0) ? l.repos || l.size : l.size);
-  const top = langs
-    .filter((l) => !hidden.has(l.name.toLowerCase()) && weight(l) > 0)
-    .sort((a, b) => weight(b) - weight(a))
-    .slice(0, p.count);
-  const total = top.reduce((a, l) => a + weight(l), 0);
-  return top.map((l) => ({ name: l.name, color: languageColor(l.name, l.color), percent: (weight(l) / total) * 100 }));
+  const all = langs.filter((l) => !hidden.has(l.name.toLowerCase()) && weight(l) > 0).sort((a, b) => weight(b) - weight(a));
+  const grand = all.reduce((a, l) => a + weight(l), 0);
+  if (!grand) return [];
+  let top = all.slice(0, p.count);
+  if (p.minPercent) {
+    const kept = top.filter((l) => (weight(l) / grand) * 100 >= p.minPercent!);
+    top = kept.length ? kept : top.slice(0, 1);
+  }
+  const shown = top.reduce((a, l) => a + weight(l), 0);
+  const denom = p.other ? grand : shown;
+  const shares: LanguageShare[] = top.map((l) => ({ name: l.name, color: languageColor(l.name, l.color), percent: (weight(l) / denom) * 100 }));
+  if (p.other && grand - shown > 0) shares.push({ name: 'Other', color: '#8b949e', percent: ((grand - shown) / grand) * 100 });
+  if (p.order === 'name') shares.sort((a, b) => (a.name === 'Other' ? 1 : b.name === 'Other' ? -1 : a.name.localeCompare(b.name)));
+  return shares;
 }
 
 export const languagesCard = defineCard<Params, LanguageStat[]>({
@@ -49,7 +68,11 @@ export const languagesCard = defineCard<Params, LanguageStat[]>({
     { label: 'Pie', params: { layout: 'pie' } },
     { label: 'Progress bars', params: { layout: 'bars' } },
     { label: 'Chips', params: { layout: 'chips' } },
-    { label: 'Treemap', params: { layout: 'treemap', langs_count: '8' } }
+    { label: 'Treemap', params: { layout: 'treemap', langs_count: '8' } },
+    { label: 'Top 4 + Other', params: { langs_count: '4', other: 'true' } },
+    { label: 'Bar only', params: { legend: 'false' } },
+    { label: 'Alphabetical', params: { order: 'name', layout: 'bars' } },
+    { label: 'Ignore under 3%', params: { min_percent: '3', layout: 'donut' } }
   ],
   aliases: ['langs', 'top-langs'],
   title: 'Top Languages',
@@ -61,6 +84,10 @@ export const languagesCard = defineCard<Params, LanguageStat[]>({
     { name: 'by', type: 'enum', options: [...BY], default: 'size', description: 'Rank by bytes of code or by repository count' },
     { name: 'decimals', type: 'number', default: 1, min: 0, max: 2, description: 'Decimals in percentages' },
     { name: 'percentages', type: 'boolean', default: true, description: 'Show percentages' },
+    { name: 'min_percent', type: 'number', default: 0, min: 0, max: 25, description: 'Leave out languages below this share (%)' },
+    { name: 'other', type: 'boolean', default: false, description: 'Group everything not shown into an Other slice (percentages then add up over all languages)' },
+    { name: 'order', type: 'enum', options: [...ORDERS], default: 'size', description: 'Sort by share or alphabetically' },
+    { name: 'legend', type: 'boolean', default: true, description: 'Show the legend under the bar (bar layout)' },
     { name: 'center_label', type: 'boolean', default: true, description: 'Top language in the middle of the donut' }
   ],
   parse: (q) => ({
@@ -70,6 +97,10 @@ export const languagesCard = defineCard<Params, LanguageStat[]>({
     by: oneOf(q.by, BY, 'size'),
     decimals: int(q.decimals, 1, 0, 2),
     percentages: bool(q.percentages, true),
+    minPercent: int(q.min_percent, 0, 0, 25),
+    other: bool(q.other, false),
+    order: oneOf(q.order, ORDERS, 'size'),
+    legend: bool(q.legend, true),
     centerLabel: bool(q.center_label, true)
   }),
   load: async (client, _p, common) => (await client.getUser(common.username)).languages,
@@ -222,6 +253,9 @@ export const languagesCard = defineCard<Params, LanguageStat[]>({
       })
       .join('');
     const legendY = barY + 40;
+    if (!p.legend) {
+      return frame(`<g transform="translate(40 ${barY})"><clipPath id="bar"><rect width="${barW}" height="12" rx="6"/></clipPath><g clip-path="url(#bar)">${segments}</g></g>`, { width, height: barY + 38, theme, title: header, subtitle, label });
+    }
     const body =
       `<g transform="translate(40 ${barY})"><clipPath id="bar"><rect width="${barW}" height="12" rx="6"/></clipPath><g clip-path="url(#bar)">${segments}</g></g>` +
       `<g transform="translate(40 ${legendY})">${legend}</g>`;

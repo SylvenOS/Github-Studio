@@ -8,6 +8,8 @@ import type { Env } from '../types';
 
 const LAYOUTS = ['card', 'compact', 'bar'] as const;
 const SHOW = ['auto', 'now', 'recent'] as const;
+const BARS = ['none', 'progress', 'waves'] as const;
+const SIZES = ['small', 'medium', 'large'] as const;
 
 interface Track {
   title: string;
@@ -24,6 +26,9 @@ interface Params {
   show: (typeof SHOW)[number];
   cover: boolean;
   equalizer: boolean;
+  bar: (typeof BARS)[number];
+  backdrop: boolean;
+  size: (typeof SIZES)[number];
 }
 
 // access tokens live for an hour; keep one per isolate (never written to any shared cache)
@@ -68,7 +73,7 @@ export const spotifyCard = defineCard<Params, Track | null>({
   category: 'integrations',
   needsUser: false,
   tags: ['spotify', 'music', 'now playing', 'recently played', 'integration'],
-  variants: [{ label: 'Card' }, { label: 'Compact', params: { layout: 'compact' } }, { label: 'Progress bar', params: { layout: 'bar' } }],
+  variants: [{ label: 'Card' }, { label: 'Compact', params: { layout: 'compact' } }, { label: 'Progress bar', params: { layout: 'bar' } }, { label: 'Waveform', params: { bar: 'waves' } }, { label: 'Blurred backdrop', params: { backdrop: 'true', bar: 'progress', size: 'large' } }, { label: 'Small', params: { size: 'small' } }],
   title: 'Spotify Now Playing',
   description: 'What the server owner is listening to on Spotify right now, or their last played track. Needs SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET and SPOTIFY_REFRESH_TOKEN on the server (one account per deployment).',
   cacheSeconds: 60,
@@ -76,9 +81,20 @@ export const spotifyCard = defineCard<Params, Track | null>({
     { name: 'layout', type: 'enum', options: [...LAYOUTS], default: 'card', description: 'Presentation' },
     { name: 'show', type: 'enum', options: [...SHOW], default: 'auto', description: 'auto = now playing, else last played' },
     { name: 'cover', type: 'boolean', default: true, description: 'Show album art' },
+    { name: 'bar', type: 'enum', options: [...BARS], default: 'none', description: 'Progress line or a waveform that fills as the song plays' },
+    { name: 'backdrop', type: 'boolean', default: false, description: 'Blurred album art behind the card' },
+    { name: 'size', type: 'enum', options: [...SIZES], default: 'medium', description: 'small, medium or large card' },
     { name: 'equalizer', type: 'boolean', default: true, description: 'Animated equalizer while playing (only with animation=true)' }
   ],
-  parse: (q) => ({ layout: oneOf(q.layout, LAYOUTS, 'card'), show: oneOf(q.show, SHOW, 'auto'), cover: bool(q.cover, true), equalizer: bool(q.equalizer, true) }),
+  parse: (q) => ({
+    layout: oneOf(q.layout, LAYOUTS, 'card'),
+    show: oneOf(q.show, SHOW, 'auto'),
+    cover: bool(q.cover, true),
+    equalizer: bool(q.equalizer, true),
+    bar: oneOf(q.bar, BARS, q.layout === 'bar' ? 'progress' : 'none'),
+    backdrop: bool(q.backdrop, false),
+    size: oneOf(q.size, SIZES, 'medium')
+  }),
 
   async load(_client, p, _common, { env }) {
     if (!env.SPOTIFY_CLIENT_ID || !env.SPOTIFY_CLIENT_SECRET || !env.SPOTIFY_REFRESH_TOKEN) {
@@ -126,11 +142,12 @@ export const spotifyCard = defineCard<Params, Track | null>({
       return frame(body, { width: W, height: 40, theme, label });
     }
 
-    const W = 460;
-    const art = 92;
+    const W = p.size === 'large' ? 560 : p.size === 'small' ? 380 : 460;
+    const art = p.size === 'large' ? 120 : p.size === 'small' ? 68 : 92;
     const hasArt = !!t?.cover;
     const x = PAD + (hasArt ? art + 16 : 0);
     let body = '';
+    if (p.backdrop && hasArt) body += `<defs><filter id="spb" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="16"/></filter><clipPath id="spc"><rect width="${W}" height="${art + PAD * 2}" rx="${theme.borderRadius}"/></clipPath></defs><g clip-path="url(#spc)"><image href="${esc(t!.cover)}" x="-30" y="-30" width="${W + 60}" height="${art + PAD * 2 + 60}" filter="url(#spb)" opacity=".38" preserveAspectRatio="xMidYMid slice"/></g>`;
     if (hasArt) body += `<clipPath id="sp"><rect x="${PAD}" y="${PAD}" width="${art}" height="${art}" rx="8"/></clipPath><image href="${esc(t!.cover)}" x="${PAD}" y="${PAD}" width="${art}" height="${art}" clip-path="url(#sp)" preserveAspectRatio="xMidYMid slice"/>`;
     body +=
       logo(x, PAD) +
@@ -139,9 +156,20 @@ export const spotifyCard = defineCard<Params, Track | null>({
       `<text x="${x}" y="${PAD + 42}" class="fg" font-size="17" font-weight="700">${esc(truncate(t?.title ?? 'Nothing right now', hasArt ? 30 : 40))}</text>` +
       `<text x="${x}" y="${PAD + 63}" class="muted" font-size="13">${esc(truncate(t?.artist ?? '', 42))}</text>` +
       `<text x="${x}" y="${PAD + 82}" class="muted" font-size="11.5" opacity=".8">${esc(truncate(t?.album ?? '', 46))}</text>`;
-    if (p.layout === 'bar' && t?.progress !== null && t?.progress !== undefined) {
+    const prog = t?.progress ?? (t ? 0.4 : null);
+    if (p.bar === 'progress' && prog !== null) {
       const bw = W - PAD - x;
-      body += `<rect x="${x}" y="${PAD + art - 6}" width="${bw}" height="4" rx="2" class="bd"/><rect x="${x}" y="${PAD + art - 6}" width="${(bw * t.progress).toFixed(1)}" height="4" rx="2" fill="${green}"/>`;
+      body += `<rect x="${x}" y="${PAD + art - 6}" width="${bw}" height="4" rx="2" class="bd"/><rect x="${x}" y="${PAD + art - 6}" width="${(bw * prog).toFixed(1)}" height="4" rx="2" fill="${green}"/>`;
+    } else if (p.bar === 'waves' && prog !== null) {
+      const bw = W - PAD - x;
+      const n = Math.floor(bw / 6);
+      let seed = (t?.title ?? 'x').length * 7919 + 13;
+      const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+      for (let i = 0; i < n; i++) {
+        const hgt = 4 + rnd() * (p.size === 'small' ? 14 : 22);
+        const played = i / n < prog;
+        body += `<rect x="${(x + i * 6).toFixed(1)}" y="${(PAD + art - 4 - hgt).toFixed(1)}" width="3.5" height="${hgt.toFixed(1)}" rx="1.75" ${played ? `fill="${green}"` : 'class="bd"'}/>`;
+      }
     }
     return frame(body, { width: W, height: art + PAD * 2, theme, label });
   }

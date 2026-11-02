@@ -32,7 +32,7 @@ const QUOTES: { text: string; author: string; topic: 'programming' | 'craft' | '
   { text: 'Weeks of coding can save you hours of planning.', author: 'Unknown', topic: 'programming' }
 ];
 
-const LAYOUTS = ['card', 'minimal', 'terminal', 'bubble'] as const;
+const LAYOUTS = ['card', 'minimal', 'terminal', 'bubble', 'code', 'big', 'note'] as const;
 const TOPICS = ['all', 'programming', 'craft', 'learning'] as const;
 
 interface Params {
@@ -40,6 +40,8 @@ interface Params {
   text: string;
   author: string;
   width: number;
+  size: number;
+  italic: boolean;
 }
 
 export const quoteCard = defineCard<Params, null>({
@@ -48,7 +50,7 @@ export const quoteCard = defineCard<Params, null>({
   category: 'decor',
   needsUser: false,
   tags: ['quote', 'daily', 'motivation', 'inspiration', 'text'],
-  variants: [{ label: 'Card' }, { label: 'Minimal', params: { layout: 'minimal' } }, { label: 'Terminal', params: { layout: 'terminal' } }, { label: 'Speech bubble', params: { layout: 'bubble' } }],
+  variants: [{ label: 'Card' }, { label: 'Minimal', params: { layout: 'minimal' } }, { label: 'Terminal', params: { layout: 'terminal' } }, { label: 'Speech bubble', params: { layout: 'bubble' } }, { label: 'Code comment', params: { layout: 'code' } }, { label: 'Big type', params: { layout: 'big', size: '20' } }, { label: 'Sticky note', params: { layout: 'note' } }],
   title: 'Dev Quote',
   description: 'A programming quote that changes every day (or your own text). Four layouts.',
   params: [
@@ -57,7 +59,9 @@ export const quoteCard = defineCard<Params, null>({
     { name: 'index', type: 'number', min: 0, max: QUOTES.length - 1, description: 'Pick a specific built-in quote instead of the daily one' },
     { name: 'text', type: 'string', description: 'Your own quote (max 220 characters)' },
     { name: 'author', type: 'string', description: 'Author of your own quote' },
-    { name: 'quote_width', type: 'number', default: 520, min: 300, max: 900, step: 10, description: 'Card width' }
+    { name: 'quote_width', type: 'number', default: 520, min: 300, max: 900, step: 10, description: 'Card width' },
+    { name: 'size', type: 'number', default: 15, min: 11, max: 32, description: 'Text size' },
+    { name: 'italic', type: 'boolean', default: false, description: 'Italic text (minimal, big and note layouts are italic by default)' }
   ],
   cacheSeconds: 3600,
   parse(q) {
@@ -70,7 +74,9 @@ export const quoteCard = defineCard<Params, null>({
       layout: oneOf(q.layout, LAYOUTS, 'card'),
       text: q.text ? q.text.trim() : picked.text,
       author: q.text ? (q.author ?? '').trim().slice(0, 60) : picked.author,
-      width: int(q.quote_width, 520, 300, 900)
+      width: int(q.quote_width, 520, 300, 900),
+      size: int(q.size, 15, 11, 32),
+      italic: q.italic === 'true'
     };
   },
   load: async () => null,
@@ -78,14 +84,14 @@ export const quoteCard = defineCard<Params, null>({
 
   render(_d, p, { theme, common, title }) {
     const W = p.width;
-    const chars = Math.floor((W - PAD * 2 - (p.layout === 'card' ? 40 : 0)) / 8.2);
+    const chars = Math.floor((W - PAD * 2 - (p.layout === 'card' ? 40 : 0)) / (p.size * 0.55));
     const lines = wrap(p.text, chars, 5);
     const header = p.layout === 'card' ? title('') : undefined;
     const top = header ? 55 : PAD;
-    const lh = 22;
+    const lh = Math.round(p.size * 1.47);
     const label = `“${p.text}”${p.author ? ` - ${p.author}` : ''}`;
     const textLines = (x: number, y: number, extra = '') =>
-      lines.map((l, i) => `<text x="${x}" y="${y + i * lh}" class="fg" font-size="15"${extra}>${esc(l)}</text>`).join('');
+      lines.map((l, i) => `<text x="${x}" y="${y + i * lh}" class="fg" font-size="${p.size}"${p.italic ? ' font-style="italic"' : ''}${extra}>${esc(l)}</text>`).join('');
     const author = (x: number, y: number, anchor = 'end') => (p.author ? `<text x="${x}" y="${y}" class="muted" font-size="12.5" text-anchor="${anchor}">- ${esc(p.author)}</text>` : '');
     const bodyH = lines.length * lh;
 
@@ -98,6 +104,32 @@ export const quoteCard = defineCard<Params, null>({
         lines.map((l, i) => `<text x="${PAD}" y="${y0 + 24 + i * lh}" class="fg" font-size="14" font-family="Consolas,'Courier New',monospace">${esc(l)}</text>`).join('') +
         (p.author ? `<text x="${PAD}" y="${y0 + 30 + bodyH}" class="muted" font-size="12.5" font-family="Consolas,'Courier New',monospace">    -- ${esc(p.author)}</text>` : '');
       return frame(body, { width: W, height: y0 + bodyH + 54, theme, label });
+    }
+    if (p.layout === 'code') {
+      const mono = "font-family=\"'JetBrains Mono','Fira Code',Consolas,monospace\"";
+      const body =
+        lines.map((l, i) => `<text x="${PAD}" y="${PAD + 18 + i * lh}" class="muted" font-size="${p.size - 1}" ${mono}>// <tspan class="fg">${esc(l)}</tspan></text>`).join('') +
+        (p.author ? `<text x="${PAD}" y="${PAD + 22 + lines.length * lh}" class="accent" font-size="${p.size - 2}" ${mono}>// - ${esc(p.author)}</text>` : '');
+      return frame(body, { width: W, height: PAD * 2 + 10 + (lines.length + (p.author ? 1 : 0)) * lh, theme, label });
+    }
+    if (p.layout === 'big') {
+      const fs2 = Math.round(p.size * 1.7);
+      const c2 = Math.floor((W - PAD * 2) / (fs2 * 0.55));
+      const big = wrap(p.text, c2, 4);
+      const lh2 = Math.round(fs2 * 1.3);
+      const body =
+        `<text x="${PAD}" y="${PAD + 40}" class="accent" font-size="90" font-family="Georgia,serif" opacity=".25">“</text>` +
+        big.map((l, i) => `<text x="${W / 2}" y="${PAD + 38 + i * lh2}" class="fg" font-size="${fs2}" font-weight="700" font-style="italic" text-anchor="middle">${esc(l)}</text>`).join('') +
+        (p.author ? `<text x="${W / 2}" y="${PAD + 38 + big.length * lh2 + 8}" class="accent" font-size="${Math.round(fs2 * 0.55)}" font-weight="600" text-anchor="middle" letter-spacing="2">${esc(p.author.toUpperCase())}</text>` : '');
+      return frame(body, { width: W, height: PAD * 2 + 38 + big.length * lh2 + 24, theme: { ...theme, hideBorder: true }, transparent: true, label });
+    }
+    if (p.layout === 'note') {
+      const h = bodyH + 66;
+      const body =
+        `<g transform="rotate(-1.2 ${W / 2} ${h / 2 + 10})"><rect x="${PAD}" y="12" width="${W - PAD * 2}" height="${h}" rx="3" fill="#fde68a"/><rect x="${PAD}" y="12" width="${W - PAD * 2}" height="18" rx="3" fill="#f5c542" fill-opacity=".7"/>` +
+        lines.map((l, i) => `<text x="${PAD + 16}" y="${58 + i * lh}" font-size="${p.size}" font-style="italic" fill="#3b3320">${esc(l)}</text>`).join('') +
+        (p.author ? `<text x="${W - PAD - 16}" y="${58 + bodyH + 8}" font-size="${p.size - 2}" fill="#6b5b2e" text-anchor="end">- ${esc(p.author)}</text>` : '') + '</g>';
+      return frame(body, { width: W, height: h + 34, theme: { ...theme, hideBorder: true }, transparent: true, label });
     }
     if (p.layout === 'minimal') {
       const body = textLines(W / 2, PAD + 14, ' text-anchor="middle" font-style="italic"') + author(W / 2, PAD + 16 + bodyH, 'middle');

@@ -237,6 +237,7 @@ export function mockGitHub(opts: MockOptions = {}) {
     if (/\/repos\/octo\/[\w.-]+\/languages$/.test(url)) return Response.json({ TypeScript: 30000, CSS: 2000 });
     if (url.includes('wakatime.com/api/v1/users/narrow/stats/')) return Response.json({ error: "Time range not matching user's public stats range." }, { status: 400 });
     if (url === 'https://wakatime.com/api/v1/users/narrow/stats') return Response.json({ data: { ...WAKATIME_FIXTURE, range: 'last_30_days' } });
+    if (url.includes('/search/issues') && url.includes('sort=updated')) return Response.json({ items: [{ title: 'Fix <b>crash</b> on startup', repository_url: 'https://api.github.com/repos/vercel/next.js', html_url: 'https://github.com/vercel/next.js/pull/1', pull_request: { merged_at: '2026-10-01T10:00:00Z' } }, { title: 'Docs: typo', repository_url: 'https://api.github.com/repos/rust-lang/rust', html_url: 'https://github.com/rust-lang/rust/pull/2', closed_at: '2026-09-20T10:00:00Z' }] });
     if (url.includes('/search/commits?q=author')) return Response.json({ items: [{ commit: { author: { date: '2026-03-03T08:00:00+02:00' } } }, { commit: { author: { date: '2026-03-04T21:30:00-05:00' } } }] });
     if (url.includes('/stargazers')) {
       const page = Number(new URL(url).searchParams.get('page') ?? 1);

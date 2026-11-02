@@ -13,6 +13,7 @@ interface Params {
   hide: string[];
   columns: number;
   tiles: boolean;
+  recent: number;
 }
 
 interface Data {
@@ -20,6 +21,7 @@ interface Data {
   contributions: ContributionDetail | null;
   orgs: string[];
   hasToken: boolean;
+  recent: { title: string; repo: string; url: string; mergedAt: string | null }[];
 }
 
 /** KPI tiles. `undefined` values render as "-" (data not available, e.g. no token). */
@@ -38,7 +40,7 @@ export const impactCard = defineCard<Params, Data>({
   aliases: ['realistic', 'open-source'],
   category: 'overview',
   tags: ['realistic', 'impact', 'collaboration', 'merged', 'external', 'open source', 'reviews', 'orgs'],
-  variants: [{ label: 'Full' }, { label: 'Tiles', params: { tiles: 'true' } }, { label: 'One row', params: { columns: '6', count: '0', orgs: 'false' } }, { label: 'Numbers only', params: { count: '0', orgs: 'false' } }, { label: 'Top 5 projects', params: { count: '5' } }],
+  variants: [{ label: 'Full' }, { label: 'With recent merges', params: { recent: '4', count: '2' } }, { label: 'Merges only', params: { recent: '5', count: '0', orgs: 'false', hide: 'repos,reviews,answers,orgs' } }, { label: 'Tiles', params: { tiles: 'true' } }, { label: 'One row', params: { columns: '6', count: '0', orgs: 'false' } }, { label: 'Numbers only', params: { count: '0', orgs: 'false' } }, { label: 'Top 5 projects', params: { count: '5' } }],
   title: 'Open Source Impact',
   description: 'Realistic collaboration stats: pull requests merged into other people’s projects, merge rate, repos contributed to, reviews, accepted answers and your biggest external contributions.',
   params: [
@@ -46,17 +48,19 @@ export const impactCard = defineCard<Params, Data>({
     { name: 'orgs', type: 'boolean', default: true, description: 'Show organization chips' },
     { name: 'hide', type: 'list', description: `Tiles to hide: ${KPIS.map((k) => k.key).join(', ')}` },
     { name: 'columns', type: 'number', default: 3, min: 2, max: 6, description: 'Number tiles per row' },
-    { name: 'tiles', type: 'boolean', default: false, description: 'Draw each number on a rounded tile' }
+    { name: 'tiles', type: 'boolean', default: false, description: 'Draw each number on a rounded tile' },
+    { name: 'recent', type: 'number', default: 0, min: 0, max: 6, description: 'List the most recently merged pull requests in other people’s repos' }
   ],
-  parse: (q) => ({ count: int(q.count, 3, 0, 6), orgs: bool(q.orgs, true), hide: list(q.hide), columns: int(q.columns, 3, 2, 6), tiles: bool(q.tiles, false) }),
+  parse: (q) => ({ count: int(q.count, 3, 0, 6), orgs: bool(q.orgs, true), hide: list(q.hide), columns: int(q.columns, 3, 2, 6), tiles: bool(q.tiles, false), recent: int(q.recent, 0, 0, 6) }),
 
-  async load(client, _p, common) {
+  async load(client, p, common) {
     const { metrics, contributions, extended } = await loadInsights(client, common.username);
     return {
       metrics,
       contributions: contributions ?? null,
       orgs: (extended as UserExtended | undefined)?.organizations.map((o) => o.login) ?? [],
-      hasToken: client.hasToken
+      hasToken: client.hasToken,
+      recent: p.recent ? await client.getRecentMergedPRs(common.username, p.recent).catch(() => []) : []
     };
   },
 
@@ -115,6 +119,27 @@ export const impactCard = defineCard<Params, Data>({
       y += external.length * 26 + 8;
     }
 
+    let recent = '';
+    if (p.recent > 0) {
+      y += 6;
+      recent += `<line x1="${PAD}" y1="${y}" x2="${width - PAD}" y2="${y}" class="sk-bd"/><text x="${PAD}" y="${y + 22}" class="label muted" font-weight="600">RECENTLY MERGED</text>`;
+      y += 30;
+      if (!d.recent.length) {
+        recent += `<text x="${PAD}" y="${y + 16}" class="muted" font-size="12">No merged pull requests in other people’s repositories found.</text>`;
+        y += 28;
+      }
+      d.recent.forEach((r, i) => {
+        const ry = y + 16 + i * 34;
+        const when = r.mergedAt ? r.mergedAt.slice(0, 10) : '';
+        recent +=
+          `<g${anim(animate, i + 9)}><circle cx="${PAD + 5}" cy="${ry - 4}" r="4" fill="#a371f7"/>` +
+          `<text x="${PAD + 16}" y="${ry}" class="fg" font-size="12.5" font-weight="600">${esc(truncate(r.title, 52))}</text>` +
+          `<text x="${PAD + 16}" y="${ry + 15}" class="muted" font-size="11">${esc(truncate(r.repo, 40))}</text>` +
+          `<text x="${width - PAD}" y="${ry}" class="muted" font-size="11" text-anchor="end">${esc(when)}</text></g>`;
+      });
+      y += Math.max(1, d.recent.length) * 34 + 4;
+    }
+
     let chips = '';
     if (p.orgs && d.orgs.length) {
       let x = PAD;
@@ -128,7 +153,7 @@ export const impactCard = defineCard<Params, Data>({
       y += 30;
     }
 
-    return frame(tiles + projects + chips, {
+    return frame(tiles + projects + recent + chips, {
       width,
       height: y + 14,
       theme,

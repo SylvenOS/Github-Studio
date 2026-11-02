@@ -10,15 +10,27 @@ export interface AsciiGrid {
   rgb: string[];
 }
 
-export const CHARSETS = ['classic', 'dense', 'blocks', 'binary', 'hex', 'alnum', 'text'] as const;
+export const CHARSETS = ['classic', 'dense', 'blocks', 'braille', 'minimal', 'dots', 'geometric', 'retro', 'math', 'custom', 'binary', 'hex', 'alnum', 'text'] as const;
 export type Charset = (typeof CHARSETS)[number];
 
 /** Density ramps: index 0 = empty, last = darkest ink. Other charsets use opacity for brightness instead. */
 const RAMPS: Partial<Record<Charset, string>> = {
   classic: ' .:-=+*#%@',
   dense: ' .\'`^",:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$',
-  blocks: ' ░▒▓█'
+  blocks: ' ░▒▓█',
+  braille: ' ⠁⠃⠇⡇⣇⣧⣷⣿',
+  minimal: ' .oO@',
+  dots: ' ·•●',
+  geometric: ' ▫▪◻◼■',
+  retro: ' .:;ox%#@',
+  math: ' .,+-×÷=≈≠∞'
 };
+
+/** User ramp for charset=custom: light to dark, at most 24 distinct characters, always starting with a blank. */
+function customRamp(text: string): string | undefined {
+  const chars = [...new Set(Array.from(text.replace(/s+/g, '')))].slice(0, 24);
+  return chars.length >= 2 ? ` ${chars.join('')}` : undefined;
+}
 
 const POOLS: Partial<Record<Charset, string>> = {
   binary: '01',
@@ -267,6 +279,8 @@ export interface AsciiOptions {
   contrast: number;
   invert: boolean;
   color: boolean;
+  /** -50..50 percentage points added to every cell's brightness. */
+  brightness?: number;
 }
 
 export interface AsciiCell {
@@ -278,7 +292,7 @@ export interface AsciiCell {
 
 /** Turns a grid into characters: brightness picks the glyph (density ramps) or its opacity (digits/letters/text). */
 export function gridToCells(grid: AsciiGrid, o: AsciiOptions): AsciiCell[][] {
-  const ramp = RAMPS[o.charset];
+  const ramp = o.charset === 'custom' ? customRamp(o.text) ?? RAMPS.classic : RAMPS[o.charset];
   const pool = o.charset === 'text' ? (o.text.replace(/\s+/g, '') || 'GITHUB') : POOLS[o.charset] ?? '01';
   const c = o.contrast / 100;
   const rows: AsciiCell[][] = [];
@@ -290,6 +304,7 @@ export function gridToCells(grid: AsciiGrid, o: AsciiOptions): AsciiCell[][] {
       const raw = grid.lum[i];
       let v = raw < 0 ? 0 : Math.min(1, Math.max(0, ((raw / 255 - 0.5) * c + 0.5)));
       if (o.invert && raw >= 0) v = 1 - v;
+      if (o.brightness && raw >= 0) v = Math.min(1, Math.max(0, v + o.brightness / 100));
       const color = o.color ? quantize(grid.rgb[i]) : null;
 
       if (raw < 0 || v < 0.06) {

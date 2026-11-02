@@ -443,6 +443,20 @@ export class GitHubClient {
     }, 3 * 3600);
   }
 
+  /** Most recently merged pull requests the user opened in other people's repositories (search API, works without a token). */
+  getRecentMergedPRs(login: string, count = 5): Promise<{ title: string; repo: string; url: string; mergedAt: string | null }[]> {
+    return this.cache(`recentprs:${login.toLowerCase()}:${count}`, async () => {
+      const q = `author:${login} is:pr is:merged -user:${login}`;
+      const j = await this.rest<{ items?: Record<string, any>[] }>(`/search/issues?q=${encodeURIComponent(q)}&sort=updated&order=desc&per_page=${count}`);
+      return (j.items ?? []).map((i) => ({
+        title: String(i.title ?? '').slice(0, 140),
+        repo: String(i.repository_url ?? '').replace('https://api.github.com/repos/', ''),
+        url: String(i.html_url ?? ''),
+        mergedAt: i.pull_request?.merged_at ?? i.closed_at ?? null
+      }));
+    }, 3 * 3600);
+  }
+
   /** Live quota per token (admin only - costs one call per token). Never returns the tokens themselves. */
   async getRateLimits(): Promise<{ label: string; limit: number; remaining: number; reset: string }[]> {
     const pool = this.tokens.length ? this.tokens : [undefined];

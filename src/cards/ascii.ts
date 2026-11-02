@@ -24,6 +24,7 @@ interface Params {
   anim: (typeof ANIMS)[number];
   invert: (typeof INVERTS)[number];
   contrast: number;
+  brightness: number;
   caption: boolean;
   source: (typeof SOURCES)[number];
   shape: Shape;
@@ -54,6 +55,7 @@ const opts = (p: Params, username: string, invert: boolean) => ({
   charset: p.charset,
   text: p.text || username,
   contrast: p.contrast,
+  brightness: p.brightness,
   invert,
   color: p.mode === 'color'
 });
@@ -110,6 +112,11 @@ export const asciiCard = defineCard<Params, Data>({
   variants: [
     { label: 'Classic' },
     { label: 'Matrix', params: { theme: 'matrix', charset: 'alnum' } },
+    { label: 'Braille', params: { charset: 'braille', cols: '70' } },
+    { label: 'Dots', params: { charset: 'dots' } },
+    { label: 'Geometric', params: { charset: 'geometric', cols: '60' } },
+    { label: 'Retro terminal', params: { charset: 'retro', theme: 'terminal' } },
+    { label: 'Your own ramp', params: { charset: 'custom', text: '.,:;+*#@' } },
     { label: 'Colour portrait', params: { charset: 'dense', mode: 'color' } },
     { label: 'Your text', params: { charset: 'text' } },
     { label: 'Binary', params: { charset: 'binary', theme: 'ocean' } },
@@ -123,8 +130,8 @@ export const asciiCard = defineCard<Params, Data>({
     'Your profile picture drawn with characters (letters, digits, blocks or your own text) - flat and animated, or wrapped on a spinning 3D globe, cylinder or coin. `format=text` returns paste-ready plain text.',
   params: [
     { name: 'shape', type: 'enum', options: [...SHAPES], default: 'flat', description: '3D: spin the avatar on a sphere, cylinder or coin' },
-    { name: 'charset', type: 'enum', options: [...CHARSETS], default: 'classic', description: 'Density ramps (classic, dense, blocks) or digits/letters/text shaded by brightness' },
-    { name: 'text', type: 'string', description: 'Your own text for charset=text (defaults to the username)' },
+    { name: 'charset', type: 'enum', options: [...CHARSETS], default: 'classic', description: 'Density ramps (classic, dense, blocks, braille, minimal, dots, geometric, retro, math), custom (your own ramp via text), or digits/letters/text shaded by brightness' },
+    { name: 'text', type: 'string', description: 'Your own text for charset=text (defaults to the username), or the ramp for charset=custom (light to dark, e.g. .,:;+*#@)' },
     { name: 'mode', type: 'enum', options: [...MODES], default: 'mono', description: 'Theme colour or the avatar’s own colours' },
     { name: 'anim', type: 'enum', options: [...ANIMS], default: 'scan', description: 'Flat: animation style. 3D: anything but `none` spins it' },
     { name: 'speed', type: 'number', default: 8, min: 2, max: 30, description: '3D: seconds per full rotation' },
@@ -133,6 +140,7 @@ export const asciiCard = defineCard<Params, Data>({
     { name: 'cols', type: 'number', default: 80, min: 20, max: 110, description: 'Characters per row (detail). 3D defaults to 64' },
     { name: 'cell', type: 'number', default: 6, min: 4, max: 12, description: 'Pixel width of one character' },
     { name: 'contrast', type: 'number', default: 130, min: 50, max: 250, description: 'Contrast percent' },
+    { name: 'brightness', type: 'number', default: 0, min: -50, max: 50, description: 'Make the picture lighter or darker' },
     { name: 'invert', type: 'enum', options: [...INVERTS], default: 'auto', description: 'Swap light and dark (auto keeps the photo’s background blank)' },
     { name: 'caption', type: 'boolean', default: true, description: 'Show @username under the art' },
     { name: 'source', type: 'enum', options: [...SOURCES], default: 'avatar', description: 'Use the avatar or a generated identicon' }
@@ -152,6 +160,7 @@ export const asciiCard = defineCard<Params, Data>({
       anim: oneOf(q.anim, ANIMS, 'scan'),
       invert: oneOf(q.invert, INVERTS, 'auto'),
       contrast: int(q.contrast, 130, 50, 250),
+      brightness: int(q.brightness, 0, -50, 50),
       caption: bool(q.caption, true),
       source: oneOf(q.source, SOURCES, 'avatar'),
       frames: budgetFrames(shape, cols, Math.min(int(q.frames, 20, 8, 48), mode === 'color' ? 16 : 48)),

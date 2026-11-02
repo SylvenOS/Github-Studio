@@ -1,9 +1,11 @@
 import { defineCard } from './types';
-import { bool, int, oneOf } from '../core/params';
+import { bool, color, int, oneOf } from '../core/params';
 import { esc } from '../core/text';
 import { frame } from '../svg/frame';
 
-const STYLES = ['wave', 'gradient', 'grid', 'terminal'] as const;
+const SHAPES = ['slice', 'shark', 'egg', 'cylinder', 'rect', 'soft'] as const;
+const STYLES = ['wave', 'gradient', 'grid', 'terminal', 'aurora', ...SHAPES] as const;
+const FILLS = ['gradient', 'solid'] as const;
 const ALIGNS = ['center', 'left'] as const;
 const WIDTH = 900;
 
@@ -15,6 +17,22 @@ interface Params {
   size: number;
   align: (typeof ALIGNS)[number];
   border: boolean;
+  fill: (typeof FILLS)[number];
+  reverse: boolean;
+  stroke: number;
+  color?: string;
+}
+
+/** Outline of a shaped header (the text sits on top). */
+function shapePath(style: string, W: number, h: number): string {
+  switch (style) {
+    case 'slice': return `M0 0 H${W} V${h * 0.78} L0 ${h} Z`;
+    case 'shark': return `M0 0 H${W} V${h * 0.72} L${W * 0.62} ${h * 0.72} Q${W * 0.3} ${h * 0.72} 0 ${h} Z`;
+    case 'egg': return `M0 0 H${W} V${h * 0.55} Q${W / 2} ${h * 1.45} 0 ${h * 0.55} Z`;
+    case 'cylinder': return `M${h / 2} 0 H${W - h / 2} A${h / 2} ${h / 2} 0 0 1 ${W - h / 2} ${h} H${h / 2} A${h / 2} ${h / 2} 0 0 1 ${h / 2} 0 Z`;
+    case 'soft': return `M28 0 H${W - 28} Q${W} 0 ${W} 28 V${h - 28} Q${W} ${h} ${W - 28} ${h} H28 Q0 ${h} 0 ${h - 28} V28 Q0 0 28 0 Z`;
+    default: return `M0 0 H${W} V${h} H0 Z`;
+  }
 }
 
 /** Sine wave path across `width`, repeated so it can scroll by exactly one period without a gap. */
@@ -37,7 +55,13 @@ export const bannerCard = defineCard<Params, null>({
     { label: 'Waves', params: { style: 'wave' } },
     { label: 'Gradient', params: { style: 'gradient', bg: '135,7f5af0,2cb67d' } },
     { label: 'Grid', params: { style: 'grid' } },
-    { label: 'Terminal', params: { style: 'terminal', theme: 'matrix' } }
+    { label: 'Terminal', params: { style: 'terminal', theme: 'matrix' } },
+    { label: 'Aurora', params: { style: 'aurora', theme: 'dark' } },
+    { label: 'Slice', params: { style: 'slice' } },
+    { label: 'Shark fin', params: { style: 'shark', fill: 'solid' } },
+    { label: 'Egg', params: { style: 'egg', accent2: 'ff7edb' } },
+    { label: 'Pill', params: { style: 'cylinder', height: '120' } },
+    { label: 'Footer (flipped)', params: { style: 'slice', reverse: 'true', text: 'Thanks for visiting' } }
   ],
   title: 'Banner',
   description: 'A header banner for your README with your own text. No GitHub data needed.',
@@ -48,7 +72,11 @@ export const bannerCard = defineCard<Params, null>({
     { name: 'height', type: 'number', default: 200, min: 100, max: 320, description: 'Height in pixels' },
     { name: 'size', type: 'number', default: 44, min: 20, max: 90, description: 'Font size of the main text' },
     { name: 'align', type: 'enum', options: [...ALIGNS], default: 'center', description: 'Text alignment' },
-    { name: 'border', type: 'boolean', default: false, description: 'Draw a border around the banner' }
+    { name: 'border', type: 'boolean', default: false, description: 'Draw a border around the banner' },
+    { name: 'fill', type: 'enum', options: [...FILLS], default: 'gradient', description: 'Shaped styles: accent→accent2 gradient or one solid accent colour' },
+    { name: 'reverse', type: 'boolean', default: false, description: 'Flip the shape upside down (for footers)' },
+    { name: 'stroke', type: 'number', default: 0, min: 0, max: 6, description: 'Dark outline around the text (shaped styles)' },
+    { name: 'color', type: 'color', description: 'Text colour (shaped styles; default white)' }
   ],
   parse: (q) => ({
     text: (q.text ?? '').slice(0, 80),
@@ -57,7 +85,11 @@ export const bannerCard = defineCard<Params, null>({
     height: int(q.height, 200, 100, 320),
     size: int(q.size, 44, 20, 90),
     align: oneOf(q.align, ALIGNS, 'center'),
-    border: bool(q.border, false)
+    border: bool(q.border, false),
+    fill: oneOf(q.fill, FILLS, 'gradient'),
+    reverse: bool(q.reverse, false),
+    stroke: int(q.stroke, 0, 0, 6),
+    color: color(q.color)
   }),
   load: async () => null,
   toJSON: (_d, p) => p,
@@ -101,6 +133,23 @@ export const bannerCard = defineCard<Params, null>({
         `<text x="${x}" y="${h * 0.5}" text-anchor="${anchor}" font-size="${size}" font-weight="800" class="fg">${esc(text)}</text>` +
         `<rect x="${left ? 60 : WIDTH / 2 - 40}" y="${h * 0.5 + 14}" width="80" height="5" rx="2.5" class="accent"/>`;
       if (p.subtitle) body += `<text x="${x}" y="${h * 0.5 + 46}" text-anchor="${anchor}" font-size="${Math.round(size * 0.4)}" class="muted">${esc(p.subtitle)}</text>`;
+    } else if (p.style === 'aurora') {
+      const a2 = theme.style?.accent2 ?? '#a371f7';
+      body +=
+        `<defs><filter id="au" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="38"/></filter><clipPath id="auc"><rect width="${WIDTH}" height="${h}" rx="${theme.borderRadius}"/></clipPath></defs>` +
+        `<g clip-path="url(#auc)"><g filter="url(#au)" opacity=".85"><circle cx="${WIDTH * 0.18}" cy="${h * 0.4}" r="${h * 0.55}" class="accent"/><circle cx="${WIDTH * 0.55}" cy="${h * 0.85}" r="${h * 0.6}" fill="${a2}"/><circle cx="${WIDTH * 0.85}" cy="${h * 0.3}" r="${h * 0.5}" fill="#22d3ee"/></g></g>` +
+        `<text x="${x}" y="${h * 0.5}" text-anchor="${anchor}" font-size="${size}" font-weight="800" ${p.color ? `fill="${p.color}"` : 'class="fg"'}>${esc(text)}</text>`;
+      if (p.subtitle) body += `<text x="${x}" y="${h * 0.5 + size * 0.75}" text-anchor="${anchor}" font-size="${Math.round(size * 0.4)}" class="muted">${esc(p.subtitle)}</text>`;
+    } else if ((SHAPES as readonly string[]).includes(p.style)) {
+      const a2 = theme.style?.accent2 ?? '#a371f7';
+      const ink = p.color ? `fill="${p.color}"` : 'fill="#fff"';
+      const outline = p.stroke ? ` stroke="#000" stroke-opacity=".4" stroke-width="${p.stroke}" paint-order="stroke" stroke-linejoin="round"` : '';
+      const ty = p.style === 'egg' ? h * 0.38 : p.style === 'slice' || p.style === 'shark' ? h * 0.42 : h * 0.5;
+      body +=
+        `<defs><linearGradient id="bs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--accent)"/><stop offset="1" stop-color="${a2}"/></linearGradient></defs>` +
+        `<g${p.reverse ? ` transform="translate(0 ${h}) scale(1 -1)"` : ''}><path d="${shapePath(p.style, WIDTH, h)}" ${p.fill === 'solid' ? 'class="accent"' : 'fill="url(#bs)"'}/></g>` +
+        `<text x="${x}" y="${ty}" text-anchor="${anchor}" font-size="${size}" font-weight="800" ${ink}${outline}>${esc(text)}</text>`;
+      if (p.subtitle) body += `<text x="${x}" y="${ty + size * 0.75}" text-anchor="${anchor}" font-size="${Math.round(size * 0.4)}" ${ink} fill-opacity=".88"${outline}>${esc(p.subtitle)}</text>`;
     } else {
       // terminal window with a typed line and a blinking cursor
       const t = fit(text, Math.min(p.size, 36), WIDTH - 60);

@@ -28,6 +28,8 @@ export interface ProfileModel {
   weeks: number[];
   /** Up to 4 recent contribution levels per day for the last 12 weeks (heat strip). */
   recentDays: number[];
+  /** `data:` URI of the profile picture when the design asked for it. */
+  avatar?: string | null;
 }
 
 export interface ModelInput {

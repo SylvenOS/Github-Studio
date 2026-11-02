@@ -1,12 +1,12 @@
 import { compact, esc, fmt, truncate, wrap } from '../core/text';
 import { initials, luminance, type ProfileModel } from './model';
 
-export const DESIGNS = ['terminal', 'ide', 'editorial', 'dashboard', 'blueprint', 'retro'] as const;
+export const DESIGNS = ['terminal', 'ide', 'editorial', 'dashboard', 'blueprint', 'retro', 'minimal', 'glass', 'poster'] as const;
 export type DesignId = (typeof DESIGNS)[number];
 
 /** The palette each design looks best in when no `theme` is given. */
 export const SIGNATURE_THEME: Record<DesignId, string> = {
-  terminal: 'terminal', ide: 'vscode', editorial: 'editorial', dashboard: 'linear', blueprint: 'blueprint', retro: 'retro'
+  terminal: 'terminal', ide: 'vscode', editorial: 'editorial', dashboard: 'linear', blueprint: 'blueprint', retro: 'retro', minimal: 'default', glass: 'ocean', poster: 'synthwave'
 };
 
 export interface DesignOptions {
@@ -15,6 +15,11 @@ export interface DesignOptions {
   hide: Set<string>;
   background: string;
   prompt: string;
+  chrome: 'mac' | 'windows' | 'linux' | 'none';
+  avatar: string | null;
+  avatarShape?: 'circle' | 'rounded' | 'square';
+  /** Replaces the language names in the stack line. */
+  skills: string[];
 }
 
 export interface DesignOutput {
@@ -26,6 +31,37 @@ export interface DesignOutput {
 const MONO = "'JetBrains Mono','Fira Code',Consolas,'Courier New',monospace";
 const t = (x: number, y: number, s: string, attrs = '') => `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}"${attrs ? ' ' + attrs : ''}>${esc(s)}</text>`;
 const show = (o: DesignOptions, part: string) => !o.hide.has(part);
+
+/** Profile picture (already a data: URI) clipped to a shape, with a thin accent ring. */
+function photo(o: DesignOptions, x: number, y: number, size: number, def: 'circle' | 'rounded' | 'square', id: string): string {
+  if (!o.avatar) return '';
+  const shape = o.avatarShape ?? def;
+  const r = shape === 'circle' ? size / 2 : shape === 'rounded' ? size / 6 : 0;
+  return (
+    `<clipPath id="${id}"><rect x="${x}" y="${y}" width="${size}" height="${size}" rx="${r}"/></clipPath>` +
+    `<image href="${esc(o.avatar)}" x="${x}" y="${y}" width="${size}" height="${size}" clip-path="url(#${id})" preserveAspectRatio="xMidYMid slice"/>` +
+    `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="${r}" fill="none" class="sk-accent" stroke-opacity=".6" stroke-width="1.5"/>`
+  );
+}
+
+/** Window title bar in the style of macOS, Windows or Linux (GNOME); `none` leaves just the title. */
+function chromeBar(kind: DesignOptions['chrome'], W: number, title: string, h: number, font = ''): string {
+  const cy = h / 2;
+  const label = (x: number, anchor: string) => t(x, cy + 4.5, title, `class="muted" font-size="12.5" text-anchor="${anchor}" ${font}`);
+  if (kind === 'none') return label(W / 2, 'middle');
+  const bar = `<rect x="0" y="0" width="${W}" height="${h}" class="bd" fill-opacity=".6"/>`;
+  if (kind === 'windows') {
+    const x = W - 138;
+    return bar + label(16, 'start') +
+      `<path d="M${x + 18} ${cy} h12" class="sk-fg" stroke-width="1.2"/><rect x="${x + 62}" y="${cy - 5}" width="10" height="10" fill="none" class="sk-fg" stroke-width="1.2"/>` +
+      `<path d="M${x + 108} ${cy - 5} l10 10 M${x + 118} ${cy - 5} l-10 10" class="sk-fg" stroke-width="1.2"/>`;
+  }
+  if (kind === 'linux') {
+    return bar + label(W / 2, 'middle') +
+      `<circle cx="${W - 62}" cy="${cy}" r="7" fill="#8b949e" fill-opacity=".5"/><circle cx="${W - 38}" cy="${cy}" r="7" fill="#8b949e" fill-opacity=".5"/><circle cx="${W - 14}" cy="${cy}" r="7" fill="#e95420"/>`;
+  }
+  return bar + `<circle cx="22" cy="${cy}" r="6" fill="#ff5f56"/><circle cx="42" cy="${cy}" r="6" fill="#ffbd2e"/><circle cx="62" cy="${cy}" r="6" fill="#27c93f"/>` + label(W / 2, 'middle');
+}
 
 function sparkline(weeks: number[], x: number, y: number, w: number, h: number, cls = 'sk-ser', fill = true): string {
   if (!weeks.length) return '';
@@ -64,16 +100,14 @@ const STAT_LIST = (m: ProfileModel): [string, string][] => [
 function terminal(m: ProfileModel, o: DesignOptions): DesignOutput {
   const W = 840;
   const font = `font-family="${MONO}"`;
-  let b = `<rect x="0" y="0" width="${W}" height="38" class="bd" fill-opacity=".6"/>` +
-    `<circle cx="22" cy="19" r="6" fill="#ff5f56"/><circle cx="42" cy="19" r="6" fill="#ffbd2e"/><circle cx="62" cy="19" r="6" fill="#27c93f"/>` +
-    t(W / 2, 24, `${m.login}@github: ~`, `class="muted" font-size="12.5" text-anchor="middle" ${font}`);
+  let b = chromeBar(o.chrome, W, `${m.login}@github: ~`, 38, font);
   const P = (y: number, cmd: string) => `<text x="28" y="${y}" font-size="14" ${font}><tspan class="accent">${esc(o.prompt)}</tspan><tspan class="muted">:~$ </tspan><tspan class="fg">${esc(cmd)}</tspan></text>`;
   let y = 70;
   b += P(y, 'neofetch');
   y += 18;
   // monogram block
   const box = 150;
-  b += `<rect x="28" y="${y}" width="${box}" height="${box}" rx="12" class="accent" fill-opacity=".12"/>` +
+  b += o.avatar ? photo(o, 28, y, box, 'rounded', 'tav') : `<rect x="28" y="${y}" width="${box}" height="${box}" rx="12" class="accent" fill-opacity=".12"/>` +
     `<rect x="28.5" y="${y + 0.5}" width="${box - 1}" height="${box - 1}" rx="12" fill="none" class="sk-accent" stroke-opacity=".5"/>` +
     t(28 + box / 2, y + box / 2 + 22, initials(m.name), `class="accent" font-size="62" font-weight="700" text-anchor="middle" ${font}`);
   const info: [string, string][] = [
@@ -86,7 +120,7 @@ function terminal(m: ProfileModel, o: DesignOptions): DesignOutput {
       ['stars', `${fmt(m.stats.stars)} · followers ${fmt(m.stats.followers)}`] as [string, string],
       ['commits', `${fmt(m.stats.contributions)} contributions (1y) · streak ${m.streak.current}d`] as [string, string]
     ] : []),
-    ...(show(o, 'languages') && m.languages.length ? [['stack', m.languages.slice(0, 4).map((l) => l.name).join(', ')] as [string, string]] : [])
+    ...(show(o, 'languages') && m.languages.length ? [['stack', (o.skills.length ? o.skills : m.languages.map((l) => l.name)).slice(0, 5).join(', ')] as [string, string]] : [])
   ].slice(0, 8);
   info.forEach(([k, v], i) => {
     const iy = y + 16 + i * 19;
@@ -146,6 +180,7 @@ function ide(m: ProfileModel, o: DesignOptions): DesignOutput {
   // code lines: array of [indent, tokens]
   type Tok = [string, string];
   const lines: Tok[][] = [];
+  const stackNames = (o.skills.length ? o.skills : m.languages.map((l) => l.name)).slice(0, 4);
   const s = (v: string): Tok => [c.str, JSON.stringify(v)];
   const k = (v: string): Tok => [c.key, v];
   const p = (v: string): Tok => ['', v];
@@ -156,7 +191,7 @@ function ide(m: ProfileModel, o: DesignOptions): DesignOutput {
   lines.push([p('  '), k('name'), p(': '), s(m.name), p(',')]);
   if (m.role) lines.push([p('  '), k('role'), p(': '), s(m.role), p(',')]);
   if (m.location) lines.push([p('  '), k('location'), p(': '), s(m.location), p(',')]);
-  if (show(o, 'languages') && m.languages.length) lines.push([p('  '), k('stack'), p(': ['), ...m.languages.slice(0, 4).flatMap((l, i): Tok[] => [s(l.name), p(i < Math.min(4, m.languages.length) - 1 ? ', ' : '')]), p('],')]);
+  if (show(o, 'languages') && stackNames.length) lines.push([p('  '), k('stack'), p(': ['), ...stackNames.flatMap((n, i): Tok[] => [s(n), p(i < stackNames.length - 1 ? ', ' : '')]), p('],')]);
   if (show(o, 'now') && m.now) lines.push([p('  '), k('currentlyBuilding'), p(': '), s(truncate(m.now, 46)), p(',')]);
   if (show(o, 'stats')) {
     lines.push([p('  '), k('stats'), p(': {')]);
@@ -171,9 +206,7 @@ function ide(m: ProfileModel, o: DesignOptions): DesignOutput {
   const top = 36 + 34; // title bar + tabs
   const lh = 20;
   const codeX = act + side + 52;
-  let b = `<rect x="0" y="0" width="${W}" height="36" class="bd" fill-opacity=".8"/>` +
-    `<circle cx="20" cy="18" r="6" fill="#ff5f56"/><circle cx="40" cy="18" r="6" fill="#ffbd2e"/><circle cx="60" cy="18" r="6" fill="#27c93f"/>` +
-    t(W / 2, 23, `${m.login} — Code Studio`, 'class="muted" font-size="12" text-anchor="middle"');
+  let b = chromeBar(o.chrome, W, `${m.login} — Code Studio`, 36);
   // activity bar + explorer
   b += `<rect x="0" y="36" width="${act}" height="9999" class="bd" fill-opacity=".45"/>`;
   [0, 1, 2, 3].forEach((i) => (b += `<rect x="13" y="${54 + i * 40}" width="18" height="18" rx="4" class="${i === 0 ? 'accent' : 'muted'}" fill-opacity="${i === 0 ? 0.9 : 0.35}"/>`));
@@ -226,6 +259,7 @@ function editorial(m: ProfileModel, o: DesignOptions): DesignOutput {
   const serif = 'font-family="Georgia,\'Times New Roman\',serif"';
   let b = t(P, 52, `${(m.role ?? 'DEVELOPER').toUpperCase()}${m.location ? ` · ${m.location.toUpperCase()}` : ''}`, 'class="accent" font-size="12" letter-spacing="3" font-weight="700"') +
     t(W - P, 52, `VOL. ${new Date().getUTCFullYear()} — GITHUB.COM/${m.login.toUpperCase()}`, 'class="muted" font-size="11" letter-spacing="2" text-anchor="end"') +
+    photo(o, W - P - 84, 84, 84, 'rounded', 'eav') +
     `<line x1="${P}" y1="66" x2="${W - P}" y2="66" class="sk-fg" stroke-width="2"/>` +
     t(P, 136, truncate(m.name, 26), `class="fg" font-size="68" font-weight="700" ${serif} letter-spacing="-1.5"`);
   let y = 172;
@@ -286,7 +320,7 @@ function dashboard(m: ProfileModel, o: DesignOptions): DesignOutput {
     `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="12" class="bd" fill-opacity=".38"/><rect x="${x + 0.5}" y="${y + 0.5}" width="${w - 1}" height="${h - 1}" rx="12" fill="none" class="sk-bd"/>` +
     (title ? t(x + 16, y + 24, title.toUpperCase(), 'class="muted" font-size="10.5" letter-spacing="1.4" font-weight="600"') : '');
   // header
-  let b = `<circle cx="${P + 24}" cy="${P + 26}" r="24" class="accent" fill-opacity=".18"/>` + t(P + 24, P + 33, initials(m.name), 'class="accent" font-size="18" font-weight="700" text-anchor="middle"') +
+  let b = (o.avatar ? photo(o, P, P + 2, 48, 'circle', 'dav') : `<circle cx="${P + 24}" cy="${P + 26}" r="24" class="accent" fill-opacity=".18"/>` + t(P + 24, P + 33, initials(m.name), 'class="accent" font-size="18" font-weight="700" text-anchor="middle"')) +
     t(P + 60, P + 22, m.name, 'class="fg" font-size="20" font-weight="700"') +
     t(P + 60, P + 42, [m.role, m.location, `@${m.login}`].filter(Boolean).join(' · '), 'class="muted" font-size="12.5"');
   const pill = m.status ? truncate(m.status, 34) : 'Open source';
@@ -471,4 +505,153 @@ function retro(m: ProfileModel, o: DesignOptions): DesignOutput {
   return { body: b.replace('height="9999"', `height="${y - 20}"`).replace('height="9998"', `height="${y - 36}"`), width: W, height: y };
 }
 
-export const RENDERERS: Record<DesignId, (m: ProfileModel, o: DesignOptions) => DesignOutput> = { terminal, ide, editorial, dashboard, blueprint, retro };
+
+// ---- Minimal ------------------------------------------------------------------------------------
+
+function minimal(m: ProfileModel, o: DesignOptions): DesignOutput {
+  const W = 720;
+  const P = 48;
+  let b = t(P, 54, [m.role, m.location].filter(Boolean).join('  /  ').toUpperCase() || `@${m.login}`.toUpperCase(), 'class="muted" font-size="11" letter-spacing="3"');
+  if (o.avatar) b += photo(o, W - P - 56, 30, 56, 'circle', 'mav');
+  b += t(P, 112, truncate(m.name, 24), 'class="fg" font-size="48" font-weight="300" letter-spacing="-1.5"');
+  let y = 148;
+  if (m.intro) {
+    const ls = wrap(m.intro, 74, 2);
+    ls.forEach((l, i) => (b += t(P, y + i * 26, l, 'class="muted" font-size="17"')));
+    y += ls.length * 26 + 6;
+  }
+  b += `<line x1="${P}" y1="${y + 10}" x2="${W - P}" y2="${y + 10}" class="sk-bd"/>`;
+  y += 54;
+  if (show(o, 'stats')) {
+    const kpis = STAT_LIST(m).slice(0, 4);
+    const cw = (W - P * 2) / kpis.length;
+    kpis.forEach(([k, v], i) => (b += t(P + i * cw, y, v, 'class="fg" font-size="30" font-weight="600"') + t(P + i * cw, y + 20, k.toLowerCase(), 'class="muted" font-size="11.5"')));
+    y += 62;
+  }
+  const colTop = y;
+  let h = 0;
+  if (show(o, 'projects') && m.projects.length) {
+    b += t(P, colTop, 'WORK', 'class="muted" font-size="10.5" letter-spacing="2.5"');
+    m.projects.slice(0, 5).forEach((p, i) => {
+      const py = colTop + 28 + i * 30;
+      b += `<line x1="${P}" y1="${py - 19}" x2="${P + 360}" y2="${py - 19}" class="sk-bd" stroke-opacity=".6"/>` + t(P, py, truncate(p.name, 26), 'class="fg" font-size="14" font-weight="500"') + t(P + 360, py, `★ ${compact(p.stars)}`, 'class="muted" font-size="12" text-anchor="end"');
+    });
+    h = 28 + Math.min(5, m.projects.length) * 30;
+  }
+  if (show(o, 'languages') && m.languages.length) {
+    const lx = P + 420;
+    b += t(lx, colTop, 'STACK', 'class="muted" font-size="10.5" letter-spacing="2.5"');
+    const names = o.skills.length ? o.skills.slice(0, 5).map((n) => [n, 0] as const) : m.languages.map((l) => [l.name, l.pct] as const);
+    names.forEach(([n, pct], i) => {
+      const ly = colTop + 28 + i * 30;
+      b += `<line x1="${lx}" y1="${ly - 19}" x2="${W - P}" y2="${ly - 19}" class="sk-bd" stroke-opacity=".6"/>` + t(lx, ly, n, 'class="fg" font-size="14" font-weight="500"') + (pct ? t(W - P, ly, `${Math.round(pct)}%`, 'class="muted" font-size="12" text-anchor="end"') : '');
+    });
+    h = Math.max(h, 28 + names.length * 30);
+  }
+  y = colTop + h + 26;
+  if (show(o, 'now') && m.now) {
+    b += t(P, y, 'Now', 'class="accent" font-size="12" font-weight="700"') + t(P + 44, y, truncate(m.now, 80), 'class="fg" font-size="13"');
+    y += 28;
+  }
+  if (show(o, 'links') && m.links.length) b += t(P, y + 4, m.links.join('   ·   '), 'class="muted" font-size="12"');
+  return { body: b, width: W, height: y + 40 };
+}
+
+// ---- Glass --------------------------------------------------------------------------------------
+
+function glass(m: ProfileModel, o: DesignOptions): DesignOutput {
+  const W = 820;
+  const P = 28;
+  const panel = (x: number, y: number, w: number, h: number, label?: string) =>
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="18" fill="#fff" fill-opacity=".08"/><rect x="${x + 0.5}" y="${y + 0.5}" width="${w - 1}" height="${h - 1}" rx="18" fill="none" stroke="#fff" stroke-opacity=".2"/>` +
+    (label ? t(x + 20, y + 28, label.toUpperCase(), 'class="muted" font-size="10" letter-spacing="2" font-weight="600"') : '');
+  let b = '';
+  // header panel
+  b += panel(P, P, W - P * 2, 104);
+  b += o.avatar
+    ? photo(o, P + 22, P + 20, 64, 'circle', 'gav')
+    : `<circle cx="${P + 54}" cy="${P + 52}" r="32" class="accent" fill-opacity=".25"/>` + t(P + 54, P + 62, initials(m.name), 'class="fg" font-size="24" font-weight="700" text-anchor="middle"');
+  b += t(P + 108, P + 48, truncate(m.name, 26), 'class="fg" font-size="26" font-weight="700"') + t(P + 108, P + 72, [m.role, m.location, `@${m.login}`].filter(Boolean).join(' · '), 'class="muted" font-size="13"');
+  const chip = m.status ?? m.now ?? 'Open source';
+  const cw = Math.min(280, Array.from(chip).length * 7.4 + 34);
+  b += `<rect x="${W - P - 20 - cw}" y="${P + 34}" width="${cw}" height="30" rx="15" fill="#fff" fill-opacity=".12"/><circle cx="${W - P - 20 - cw + 16}" cy="${P + 49}" r="4" fill="#3fb950"/>` + t(W - P - 20 - cw + 28, P + 54, truncate(chip, 34), 'class="fg" font-size="12.5"');
+  let y = P + 104 + 16;
+  if (show(o, 'stats')) {
+    const kp = STAT_LIST(m).slice(0, 4);
+    const kw = (W - P * 2 - 14 * 3) / 4;
+    kp.forEach(([k, v], i) => {
+      const x = P + i * (kw + 14);
+      b += panel(x, y, kw, 78) + t(x + 20, y + 30, k.toUpperCase(), 'class="muted" font-size="9.5" letter-spacing="1.5" font-weight="600"') + t(x + 20, y + 60, v, 'class="fg" font-size="26" font-weight="700"');
+    });
+    y += 78 + 16;
+  }
+  const lw = show(o, 'languages') ? 280 : 0;
+  const aw = W - P * 2 - (lw ? lw + 14 : 0);
+  if (show(o, 'activity') || lw) {
+    if (show(o, 'activity')) b += panel(P, y, aw, 150, 'Activity · 26 weeks') + sparkline(m.weeks, P + 20, y + 48, aw - 40, 84);
+    if (lw) {
+      const lx = show(o, 'activity') ? P + aw + 14 : P;
+      b += panel(lx, y, show(o, 'activity') ? lw : W - P * 2, 150, 'Stack') + langBar(m, lx + 20, y + 42, (show(o, 'activity') ? lw : W - P * 2) - 40, 8);
+      m.languages.slice(0, 4).forEach((l, i) => {
+        const ly = y + 78 + i * 18;
+        b += `<circle cx="${lx + 25}" cy="${ly - 4}" r="4" fill="${esc(l.color)}"/>` + t(lx + 36, ly, truncate(l.name, 14), 'class="fg" font-size="12"') + t(lx + (show(o, 'activity') ? lw : W - P * 2) - 20, ly, `${Math.round(l.pct)}%`, 'class="muted" font-size="12" text-anchor="end"');
+      });
+    }
+    y += 150 + 16;
+  }
+  if (show(o, 'projects') && m.projects.length) {
+    const ps = m.projects.slice(0, 3);
+    const pw = (W - P * 2 - 14 * (ps.length - 1)) / ps.length;
+    ps.forEach((p, i) => {
+      const x = P + i * (pw + 14);
+      b += panel(x, y, pw, 94) + `<circle cx="${x + 24}" cy="${y + 28}" r="5" fill="${esc(p.color)}"/>` + t(x + 38, y + 32, truncate(p.name, Math.floor(pw / 9)), 'class="fg" font-size="14" font-weight="700"') +
+        t(x + 20, y + 56, truncate(p.description ?? p.language ?? '', Math.floor(pw / 7.2)), 'class="muted" font-size="11.5"') + t(x + 20, y + 78, `★ ${compact(p.stars)}`, 'class="muted" font-size="11.5"');
+    });
+    y += 94 + 16;
+  }
+  const H = y + P - 16;
+  const orbs =
+    `<defs><filter id="orb" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="46"/></filter><clipPath id="orbclip"><rect width="${W}" height="${H}" rx="6"/></clipPath></defs>` +
+    `<g clip-path="url(#orbclip)" filter="url(#orb)" opacity=".75"><circle cx="${W * 0.12}" cy="${H * 0.18}" r="120" class="accent"/><circle cx="${W * 0.88}" cy="${H * 0.42}" r="130" fill="#a371f7"/><circle cx="${W * 0.4}" cy="${H * 0.95}" r="140" fill="#22d3ee"/></g>`;
+  return { body: orbs + b, width: W, height: H };
+}
+
+// ---- Poster -------------------------------------------------------------------------------------
+
+function poster(m: ProfileModel, o: DesignOptions): DesignOutput {
+  const W = 840;
+  const H = 540;
+  const P = 44;
+  const words = m.name.toUpperCase().split(/\s+/).filter(Boolean);
+  const first = truncate(words[0] ?? m.login.toUpperCase(), 11);
+  const rest = truncate(words.slice(1).join(' '), 13);
+  let b = `<polygon points="${W * 0.58},0 ${W},0 ${W},${H} ${W * 0.4},${H}" class="accent" fill-opacity=".1"/>` +
+    `<rect x="0" y="0" width="14" height="${H}" class="accent"/>`;
+  if (o.avatar) b += photo(o, W - P - 96, P, 96, 'rounded', 'pav');
+  b += t(P + 6, 62, (m.role ?? 'developer').toUpperCase(), 'class="accent" font-size="13" font-weight="700" letter-spacing="7"');
+  b += t(P + 2, 150, first, 'class="fg" font-size="96" font-weight="900" letter-spacing="-3"');
+  if (rest) b += t(P + 2, 232, rest, 'fill="none" class="sk-fg" font-size="96" font-weight="900" letter-spacing="-3" stroke-width="2"');
+  let y = rest ? 270 : 188;
+  if (m.intro) wrap(m.intro, 62, 2).forEach((l, i) => (b += t(P + 6, y + i * 22, l, 'class="muted" font-size="15"')));
+  y = 318;
+  if (show(o, 'stats')) {
+    ([[compact(m.stats.stars), 'stars'], [compact(m.stats.followers), 'followers'], [fmt(m.stats.contributions), 'contributions']] as [string, string][]).forEach(([v, k], i) => {
+      const x = P + 6 + i * 170;
+      b += t(x, y + 40, v, 'class="fg" font-size="48" font-weight="800" letter-spacing="-1"') + t(x, y + 62, k.toUpperCase(), 'class="muted" font-size="10.5" letter-spacing="2.5"');
+    });
+  }
+  if (show(o, 'projects') && m.projects.length) {
+    const rx = W - 300;
+    m.projects.slice(0, 4).forEach((p, i) => {
+      const py = y - 8 + i * 42;
+      b += t(rx, py + 28, String(i + 1).padStart(2, '0'), 'fill="none" class="sk-fg" font-size="30" font-weight="800" stroke-width="1.2"') + t(rx + 56, py + 18, truncate(p.name, 20), 'class="fg" font-size="14" font-weight="700"') + t(rx + 56, py + 34, truncate(p.language ?? `★ ${compact(p.stars)}`, 24), 'class="muted" font-size="11"');
+    });
+  }
+  if (show(o, 'activity') && m.weeks.length) b += sparkline(m.weeks, P + 6, H - 76, W - P * 2 - 6, 36, 'sk-ser', true);
+  const foot = (show(o, 'now') && m.now ? `NOW: ${m.now.toUpperCase()}` : m.links.join('   ·   ')).slice(0, 90);
+  b += t(P + 6, H - 24, foot, 'class="muted" font-size="11" letter-spacing="3"');
+  if (show(o, 'languages') && m.languages.length) b += langBar(m, W - P - 200, H - 30, 200, 6, 3);
+  return { body: b, width: W, height: H };
+}
+
+export const RENDERERS: Record<DesignId, (m: ProfileModel, o: DesignOptions) => DesignOutput> = { terminal, ide, editorial, dashboard, blueprint, retro, minimal, glass, poster };

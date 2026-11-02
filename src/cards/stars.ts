@@ -6,6 +6,7 @@ import type { StarHistory } from '../github/client';
 import { contentTop, frame, messageCard, PAD } from '../svg/frame';
 
 const SCALES = ['linear', 'log'] as const;
+const PERIODS = ['all', '1y', '2y', '5y'] as const;
 const MAX_REPOS = 3;
 /** Subrequest budget: each repo costs 1 + samples calls. */
 const SAMPLE_BUDGET = 24;
@@ -16,6 +17,8 @@ interface Params {
   area: boolean;
   points: boolean;
   legend: boolean;
+  period: (typeof PERIODS)[number];
+  milestones: boolean;
 }
 
 const owners = (repos: string[]) => repos.map((r) => r.split('/')[0]);
@@ -29,7 +32,9 @@ export const starsCard = defineCard<Params, StarHistory[]>({
   variants: [
     { label: 'Area chart' },
     { label: 'Lines with points', params: { area: 'false', points: 'true' } },
-    { label: 'Log scale', params: { scale: 'log' } }
+    { label: 'Log scale', params: { scale: 'log' } },
+    { label: 'Last year', params: { period: '1y' } },
+    { label: 'Milestones', params: { milestones: 'true', points: 'false' } }
   ],
   title: 'Star History',
   description: 'How a repository’s stars grew over time, drawn from sampled stargazer timestamps. Compare up to three repositories. Without `repo`, uses the most-starred repo of `username`.',
@@ -39,7 +44,9 @@ export const starsCard = defineCard<Params, StarHistory[]>({
     { name: 'scale', type: 'enum', options: [...SCALES], default: 'linear', description: 'Y axis scale' },
     { name: 'area', type: 'boolean', default: true, description: 'Fill the area under the line' },
     { name: 'points', type: 'boolean', default: false, description: 'Mark sampled points' },
-    { name: 'legend', type: 'boolean', default: true, description: 'Repository legend with totals' }
+    { name: 'legend', type: 'boolean', default: true, description: 'Repository legend with totals' },
+    { name: 'period', type: 'enum', options: [...PERIODS], default: 'all', description: 'Whole history or only the last 1, 2 or 5 years' },
+    { name: 'milestones', type: 'boolean', default: false, description: 'Mark when the first repository reached 100, 1k, 10k... stars' }
   ],
   parse(q, common) {
     const names = list(q.repo).slice(0, MAX_REPOS);
@@ -51,7 +58,7 @@ export const starsCard = defineCard<Params, StarHistory[]>({
       return { owner: owner.trim(), repo: repoName(repo.trim()) };
     });
     if (!repos.length && !common.username) throw badRequest('Pass repo=owner/name (or a username to use their top repository)');
-    return { repos, scale: oneOf(q.scale, SCALES, 'linear'), area: bool(q.area, true), points: bool(q.points, false), legend: bool(q.legend, true) };
+    return { repos, scale: oneOf(q.scale, SCALES, 'linear'), area: bool(q.area, true), points: bool(q.points, false), legend: bool(q.legend, true), period: oneOf(q.period, PERIODS, 'all'), milestones: bool(q.milestones, false) };
   },
   users: (p) => owners(p.repos.map((r) => `${r.owner}/${r.repo}`)),
 
@@ -77,8 +84,27 @@ export const starsCard = defineCard<Params, StarHistory[]>({
     const W = 560;
     const legendH = p.legend ? 24 : 0;
     const chart = { x: PAD + 44, y: top + 10 + legendH, w: W - PAD * 2 - 52, h: 190 };
-    const t0 = Math.min(...series.map((s) => Date.parse(s.points[0]?.date ?? s.createdAt)));
     const t1 = Date.now();
+    const spanMs = p.period === 'all' ? Infinity : Number.parseInt(p.period, 10) * 365.25 * 86_400_000;
+    /** Stars at time t, interpolated along the sampled curve. */
+    const countAt = (pts: { date: string; count: number }[], t: number) => {
+      let prev = pts[0];
+      for (const pt of pts) {
+        const pt0 = Date.parse(pt.date);
+        if (pt0 >= t) {
+          const a = Date.parse(prev.date);
+          return pt0 === a ? pt.count : Math.round(prev.count + ((pt.count - prev.count) * (t - a)) / (pt0 - a));
+        }
+        prev = pt;
+      }
+      return prev.count;
+    };
+    const view = series.map((sr) => {
+      const start = Math.max(Date.parse(sr.points[0]?.date ?? sr.createdAt), t1 - spanMs);
+      const inside = sr.points.filter((pt) => Date.parse(pt.date) > start);
+      return { ...sr, points: [{ date: new Date(start).toISOString(), count: countAt(sr.points, start) }, ...inside] };
+    });
+    const t0 = Math.min(...view.map((sr) => Date.parse(sr.points[0].date)));
     const maxStars = Math.max(1, ...series.map((s) => s.total));
     const xs = (d: string) => chart.x + ((Date.parse(d) - t0) / Math.max(1, t1 - t0)) * chart.w;
     const ys = (n: number) => {
@@ -105,7 +131,7 @@ export const starsCard = defineCard<Params, StarHistory[]>({
     const seriesCls = ['ser', 'ser2', 'ser3'];
     const strokeVar = ['var(--s0,var(--accent))', 'var(--s1,#a371f7)', 'var(--s2,#3fb950)'];
     body += `<style>.ser3{fill:var(--s2,#3fb950)}</style>`;
-    series.forEach((s, i) => {
+    view.forEach((s, i) => {
       const pts = s.points.map((pt) => [xs(pt.date), ys(pt.count)] as const);
       const line = pts.map(([x, y], j) => `${j ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
       if (p.area && pts.length) {
@@ -114,6 +140,23 @@ export const starsCard = defineCard<Params, StarHistory[]>({
       body += `<path d="${line}" fill="none" stroke="${strokeVar[i]}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`;
       if (p.points) body += pts.map(([x, y]) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" class="${seriesCls[i]}"/>`).join('');
     });
+    if (p.milestones && view[0]) {
+      const pts = view[0].points;
+      const marks = [10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000].filter((m) => m <= pts[pts.length - 1].count && m > pts[0].count);
+      for (const m of marks) {
+        for (let k = 1; k < pts.length; k++) {
+          if (pts[k].count >= m && pts[k - 1].count < m) {
+            const a = Date.parse(pts[k - 1].date);
+            const b = Date.parse(pts[k].date);
+            const tm = a + ((b - a) * (m - pts[k - 1].count)) / Math.max(1, pts[k].count - pts[k - 1].count);
+            const mx = chart.x + ((tm - t0) / Math.max(1, t1 - t0)) * chart.w;
+            const my = ys(m);
+            body += `<circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="4.5" class="bg sk-ser" stroke-width="2"/><text x="${mx.toFixed(1)}" y="${(my - 10).toFixed(1)}" class="fg" font-size="10.5" font-weight="700" text-anchor="middle">${compact(m)}</text>`;
+            break;
+          }
+        }
+      }
+    }
 
     if (p.legend) {
       let lx = PAD;

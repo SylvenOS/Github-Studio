@@ -1,17 +1,23 @@
 import { defineCard } from './types';
-import { int, list, oneOf } from '../core/params';
+import { bool, int, list, oneOf } from '../core/params';
 import { esc, truncate } from '../core/text';
 import type { YearLanguages } from '../github/client';
 import { languageColor } from '../svg/colors';
 import { anim, contentTop, frame, PAD } from '../svg/frame';
 
 const LAYOUTS = ['stream', 'bars', 'lines'] as const;
+const MODES = ['share', 'absolute'] as const;
 
 interface Params {
   years: number;
   count: number;
   layout: (typeof LAYOUTS)[number];
   exclude: string[];
+  mode: (typeof MODES)[number];
+  smooth: boolean;
+  height: number;
+  legend: boolean;
+  values: boolean;
 }
 
 interface Data {
@@ -25,7 +31,7 @@ export const languageTrendCard = defineCard<Params, Data>({
   aliases: ['lang-trend', 'languages-over-time'],
   category: 'languages',
   tags: ['languages', 'trend', 'history', 'evolution', 'years', 'stack', 'chart'],
-  variants: [{ label: 'Stream' }, { label: 'Stacked bars', params: { layout: 'bars' } }, { label: 'Lines', params: { layout: 'lines' } }],
+  variants: [{ label: 'Stream' }, { label: 'Stacked bars', params: { layout: 'bars' } }, { label: 'Lines', params: { layout: 'lines' } }, { label: 'Absolute volume', params: { mode: 'absolute' } }, { label: 'Angular stream', params: { smooth: 'false' } }, { label: 'Bars with values', params: { layout: 'bars', values: 'true' } }, { label: 'Tall, no legend', params: { height: '260', legend: 'false' } }],
   title: 'Language Trend',
   description: 'How your languages changed year by year: share of commit contributions by the repository’s primary language. Without a server token it uses the languages of the repositories you created each year (labelled on the card).',
   cacheSeconds: 12 * 3600,
@@ -33,9 +39,14 @@ export const languageTrendCard = defineCard<Params, Data>({
     { name: 'years', type: 'number', default: 5, min: 2, max: 10, description: 'How many recent years' },
     { name: 'count', type: 'number', default: 6, min: 2, max: 8, description: 'Languages shown (the rest become Other)' },
     { name: 'layout', type: 'enum', options: [...LAYOUTS], default: 'stream', description: 'Chart type' },
-    { name: 'exclude', type: 'list', description: 'Languages to leave out, e.g. HTML,CSS' }
+    { name: 'exclude', type: 'list', description: 'Languages to leave out, e.g. HTML,CSS' },
+    { name: 'mode', type: 'enum', options: [...MODES], default: 'share', description: 'share = each year fills the chart; absolute = taller when you committed more' },
+    { name: 'smooth', type: 'boolean', default: true, description: 'Curved edges in the stream layout' },
+    { name: 'height', type: 'number', default: 170, min: 90, max: 320, step: 10, description: 'Chart height' },
+    { name: 'legend', type: 'boolean', default: true, description: 'Show the language legend' },
+    { name: 'values', type: 'boolean', default: false, description: 'Print the share inside the bars (bars layout)' }
   ],
-  parse: (q) => ({ years: int(q.years, 5, 2, 10), count: int(q.count, 6, 2, 8), layout: oneOf(q.layout, LAYOUTS, 'stream'), exclude: list(q.exclude).map((s) => s.toLowerCase()) }),
+  parse: (q) => ({ years: int(q.years, 5, 2, 10), count: int(q.count, 6, 2, 8), layout: oneOf(q.layout, LAYOUTS, 'stream'), exclude: list(q.exclude).map((s) => s.toLowerCase()), mode: oneOf(q.mode, MODES, 'share'), smooth: bool(q.smooth, true), height: int(q.height, 170, 90, 320), legend: bool(q.legend, true), values: bool(q.values, false) }),
 
   async load(client, p, common) {
     if (!client.hasToken) {
@@ -90,17 +101,18 @@ export const languageTrendCard = defineCard<Params, Data>({
     const hasOther = [...totals.values()].length > top_.length;
     const keys = [...top_.map((l) => l.name), ...(hasOther ? ['Other'] : [])];
     const color = (k: string) => (k === 'Other' ? '#8b949e' : languageColor(k, totals.get(k)?.color));
+    const maxSum = Math.max(1, ...years.map((y) => y.languages.reduce((a, l) => a + l.count, 0)));
     const share = years.map((y) => {
       const sum = y.languages.reduce((a, l) => a + l.count, 0);
       const row: Record<string, number> = {};
       for (const k of keys) row[k] = 0;
       for (const l of y.languages) row[keys.includes(l.name) ? l.name : 'Other'] += l.count;
-      for (const k of keys) row[k] = sum ? row[k] / sum : 0;
+      for (const k of keys) row[k] = sum ? row[k] / (p.mode === 'absolute' ? maxSum : sum) : 0;
       return { year: y.year, sum, row };
     });
 
     const legendRows = Math.ceil(keys.length / 4);
-    const chart = { x: PAD, y: top + 8, w: W - PAD * 2, h: 170 };
+    const chart = { x: PAD, y: top + 8, w: W - PAD * 2, h: p.height };
     const n = share.length;
     const xAt = (i: number) => (n === 1 ? chart.x + chart.w / 2 : chart.x + (i / (n - 1)) * chart.w);
     let body = '';
@@ -120,7 +132,7 @@ export const languageTrendCard = defineCard<Params, Data>({
           const h = s.row[k] * chart.h;
           if (h <= 0) return;
           y -= h;
-          body += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${esc(color(k))}"${anim(animate, i)}><title>${esc(`${k} ${Math.round(s.row[k] * 100)}% (${s.year})`)}</title></rect>`;
+          body += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${esc(color(k))}"${anim(animate, i)}><title>${esc(`${k} ${Math.round(s.row[k] * 100)}% (${s.year})`)}</title></rect>${p.values && h > 16 ? `<text x="${(x + bw / 2).toFixed(1)}" y="${(y + h / 2 + 4).toFixed(1)}" font-size="10" font-weight="600" text-anchor="middle" fill="#fff" fill-opacity=".92">${Math.round(s.row[k] * 100)}</text>` : ''}`;
         });
         body += `<text x="${(x + bw / 2).toFixed(1)}" y="${chart.y + chart.h + 16}" class="label muted" font-size="11" text-anchor="middle">${s.year}</text>`;
       });
@@ -152,7 +164,7 @@ export const languageTrendCard = defineCard<Params, Data>({
               if (j === 0) return `${rev ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
               const pi = idx[j - 1];
               const mx = (xAt(pi) + x) / 2;
-              return `C${mx.toFixed(1)} ${yOf(vals[pi]).toFixed(1)} ${mx.toFixed(1)} ${y.toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)}`;
+              return p.smooth ? `C${mx.toFixed(1)} ${yOf(vals[pi]).toFixed(1)} ${mx.toFixed(1)} ${y.toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)}` : `L${x.toFixed(1)} ${y.toFixed(1)}`;
             })
             .join(' ');
         };
@@ -163,6 +175,9 @@ export const languageTrendCard = defineCard<Params, Data>({
 
     // legend
     const ly = chart.y + chart.h + 38;
+    if (!p.legend) {
+      return frame(body, { width: W, height: chart.y + chart.h + 32, theme, title: header, subtitle: `${d.basis === 'repos' ? 'repos created · ' : ''}${share[0].year}-${share[share.length - 1].year}`, label: `Language trend of ${common.username}` });
+    }
     const colW = (W - PAD * 2) / 4;
     keys.forEach((k, i) => {
       const x = PAD + (i % 4) * colW;

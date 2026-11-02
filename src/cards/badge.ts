@@ -4,10 +4,12 @@ import { badRequest } from '../core/errors';
 import { compact, esc, fmt } from '../core/text';
 import { calculateGrade } from '../metrics/grade';
 import { calculateProfileMetrics, loadInsights } from '../metrics';
+import { SHIELD_STYLES, shield } from '../svg/shield';
+import { TECH_ICONS } from '../svg/tech-icons';
+import { resolveIcon } from './tech';
 
 const REALISTIC = new Set(['rank', 'external_prs', 'collaborations', 'consistency', 'merge_rate']);
 
-const STYLES = ['flat', 'pill', 'for-the-badge'] as const;
 
 /** stat name -> [default label, value]. Add an entry to offer another badge. */
 const VALUES: Record<string, (d: Data) => [string, string]> = {
@@ -39,12 +41,13 @@ interface Data {
 interface Params {
   stat: string;
   label?: string;
-  style: (typeof STYLES)[number];
+  style: (typeof SHIELD_STYLES)[number];
   color?: string;
   labelColor?: string;
+  logo?: string;
+  logoColor?: string;
+  scale: number;
 }
-
-const textWidth = (s: string, size: number) => Math.ceil(Array.from(s).length * size * 0.62);
 
 export const badgeCard = defineCard<Params, Data>({
   id: 'badge',
@@ -55,7 +58,11 @@ export const badgeCard = defineCard<Params, Data>({
     { label: 'Followers', params: { stat: 'followers' } },
     { label: 'Repositories', params: { stat: 'repos' } },
     { label: 'Rank (big)', params: { stat: 'rank', style: 'for-the-badge' } },
-    { label: 'Top language', params: { stat: 'top_language', style: 'pill' } }
+    { label: 'Top language', params: { stat: 'top_language', style: 'pill' } },
+    { label: 'Social style', params: { stat: 'followers', style: 'social', logo: 'github' } },
+    { label: 'Plastic with logo', params: { stat: 'stars', style: 'plastic', logo: 'github', color: 'dfb317' } },
+    { label: 'Flat square, big', params: { stat: 'repos', style: 'flat-square', scale: '160' } },
+    { label: 'For the badge + logo', params: { stat: 'contributions', style: 'for-the-badge', logo: 'github' } }
   ],
   aliases: ['shield'],
   title: 'Badge',
@@ -63,9 +70,12 @@ export const badgeCard = defineCard<Params, Data>({
   params: [
     { name: 'stat', type: 'enum', options: Object.keys(VALUES), default: 'stars', description: 'Which number to show' },
     { name: 'label', type: 'string', description: 'Custom left-hand label' },
-    { name: 'style', type: 'enum', options: [...STYLES], default: 'flat', description: 'Badge shape' },
+    { name: 'style', type: 'enum', options: [...SHIELD_STYLES], default: 'flat', description: 'flat, flat-square, plastic, pill, for-the-badge or social' },
     { name: 'color', type: 'color', description: 'Value background (hex, no #); defaults to the theme accent' },
-    { name: 'label_color', type: 'color', description: 'Label background (hex, no #)' }
+    { name: 'label_color', type: 'color', description: 'Label background (hex, no #)' },
+    { name: 'logo', type: 'string', description: 'Brand logo before the label, e.g. github, typescript, rust (any bundled tech icon)' },
+    { name: 'logo_color', type: 'color', description: 'Logo colour (default white)' },
+    { name: 'scale', type: 'number', default: 100, min: 50, max: 300, step: 10, description: 'Badge size in percent' }
   ],
   parse: (q) => {
     const stat = q.stat ?? 'stars';
@@ -73,7 +83,10 @@ export const badgeCard = defineCard<Params, Data>({
     return {
       stat,
       label: q.label?.slice(0, 30),
-      style: oneOf(q.style, STYLES, 'flat'),
+      style: oneOf(q.style, SHIELD_STYLES, 'flat'),
+      logo: q.logo?.slice(0, 30),
+      logoColor: color(q.logo_color),
+      scale: Math.max(50, Math.min(300, Number.parseInt(q.scale ?? '100', 10) || 100)),
       color: color(q.color),
       labelColor: color(q.label_color)
     };
@@ -89,31 +102,16 @@ export const badgeCard = defineCard<Params, Data>({
   },
 
   render(d, p, { theme }) {
-    const [defaultLabel, rawValue] = VALUES[p.stat](d);
-    const upper = p.style === 'for-the-badge';
-    const label = upper ? (p.label ?? defaultLabel).toUpperCase() : (p.label ?? defaultLabel);
-    const value = upper ? rawValue.toUpperCase() : rawValue;
-    const h = upper ? 28 : 20;
-    const size = upper ? 11 : 11;
-    const pad = upper ? 14 : 8;
-    const lw = textWidth(label, size) + pad * 2;
-    const vw = textWidth(value, size) + pad * 2;
-    const w = lw + vw;
-    const r = p.style === 'pill' ? h / 2 : upper ? 0 : 3;
-    const valueBg = p.color ?? theme.accent;
-    const labelBg = p.labelColor ?? '#555555';
-    const letter = upper ? 'letter-spacing="1"' : '';
-    const ty = h / 2 + 4;
-
-    return (
-      `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" role="img" aria-label="${esc(label)}: ${esc(value)}">` +
-      `<clipPath id="r"><rect width="${w}" height="${h}" rx="${r}"/></clipPath>` +
-      `<g clip-path="url(#r)"><rect width="${lw}" height="${h}" fill="${labelBg}"/><rect x="${lw}" width="${vw}" height="${h}" fill="${valueBg}"/>` +
-      (p.style === 'pill' || upper ? '' : `<rect width="${w}" height="${h}" fill="url(#s)"/>`) +
-      `</g>` +
-      (p.style === 'pill' || upper ? '' : `<linearGradient id="s" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".12"/><stop offset="1" stop-opacity=".12"/></linearGradient>`) +
-      `<g fill="#fff" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="${size}" text-anchor="middle" font-weight="${upper ? 700 : 400}" ${letter}>` +
-      `<text x="${lw / 2}" y="${ty}">${esc(label)}</text><text x="${lw + vw / 2}" y="${ty}" font-weight="700">${esc(value)}</text></g></svg>`
-    );
+    const [defaultLabel, value] = VALUES[p.stat](d);
+    const slug = p.logo ? resolveIcon(p.logo) : undefined;
+    return shield({
+      label: p.label ?? defaultLabel,
+      value,
+      style: p.style,
+      labelColor: p.labelColor ?? '#555555',
+      valueColor: p.color ?? theme.accent,
+      logo: slug ? { path: TECH_ICONS[slug].p, color: p.logoColor ?? '#ffffff' } : undefined,
+      scale: p.scale / 100
+    });
   }
 });

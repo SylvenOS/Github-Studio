@@ -11,6 +11,9 @@ interface Params {
   tz: number | null;
   shape: (typeof SHAPES)[number];
   weekStart: (typeof STARTS)[number];
+  hour24: boolean;
+  highlight: boolean;
+  legend: boolean;
 }
 
 interface Data {
@@ -48,14 +51,17 @@ export const punchcardCard = defineCard<Params, Data>({
   aliases: ['punch-card', 'commit-hours', 'rhythm'],
   category: 'activity',
   tags: ['punch card', 'hours', 'time of day', 'night owl', 'early bird', 'rhythm', 'commits', 'realistic'],
-  variants: [{ label: 'Classic dots' }, { label: 'Heat grid', params: { shape: 'heat' } }, { label: 'Monday first', params: { week_start: 'mon' } }],
+  variants: [{ label: 'Classic dots' }, { label: 'Heat grid', params: { shape: 'heat' } }, { label: 'Monday first', params: { week_start: 'mon' } }, { label: '24h, peak ringed', params: { hours: '24h', highlight: 'true' } }, { label: 'Squares, no summary', params: { shape: 'square', legend: 'false' } }],
   title: 'Commit Punch Card',
   description: 'When you commit, by weekday and hour, from up to 1,000 recent commits on the default branches you contributed to most. Uses each commit’s own timezone unless `tz` is set. Needs a token on the server.',
   cacheSeconds: 6 * 3600,
   params: [
     { name: 'tz', type: 'number', min: -12, max: 14, step: 0.25, description: 'Show times at this UTC offset in hours (default: each commit’s own local time)' },
     { name: 'shape', type: 'enum', options: [...SHAPES], default: 'circle', description: 'Dot style' },
-    { name: 'week_start', type: 'enum', options: [...STARTS], default: 'sun', description: 'First row' }
+    { name: 'week_start', type: 'enum', options: [...STARTS], default: 'sun', description: 'First row' },
+    { name: 'hours', type: 'enum', options: ['12h', '24h'], default: '12h', description: 'Hour labels' },
+    { name: 'highlight', type: 'boolean', default: false, description: 'Ring around your busiest weekday and hour' },
+    { name: 'legend', type: 'boolean', default: true, description: 'Summary line under the chart' }
   ],
   parse(q) {
     let tz: number | null = null;
@@ -64,7 +70,7 @@ export const punchcardCard = defineCard<Params, Data>({
       if (!Number.isFinite(n) || n < -12 || n > 14) throw badRequest('tz must be a UTC offset in hours between -12 and 14');
       tz = Math.round(n * 4) / 4;
     }
-    return { tz, shape: oneOf(q.shape, SHAPES, 'circle'), weekStart: oneOf(q.week_start, STARTS, 'sun') };
+    return { tz, shape: oneOf(q.shape, SHAPES, 'circle'), weekStart: oneOf(q.week_start, STARTS, 'sun'), hour24: q.hours === '24h', highlight: q.highlight === 'true', legend: q.legend !== 'false' };
   },
 
   async load(client, p, common) {
@@ -116,18 +122,23 @@ export const punchcardCard = defineCard<Params, Data>({
       }
     });
     const axisY = top + 14 + 7 * cell + 4;
-    for (let h = 0; h < 24; h += 3) body += `<text x="${(left + h * cell + cell / 2).toFixed(1)}" y="${axisY}" class="label muted" font-size="10" text-anchor="middle">${h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`}</text>`;
+    for (let h = 0; h < 24; h += 3) body += `<text x="${(left + h * cell + cell / 2).toFixed(1)}" y="${axisY}" class="label muted" font-size="10" text-anchor="middle">${p.hour24 ? String(h).padStart(2, '0') : h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`}</text>`;
 
-    const sy = axisY + 24;
+    if (p.highlight && d.total) {
+      let best = [0, 0];
+      for (let r = 0; r < 7; r++) for (let h = 0; h < 24; h++) if (d.grid[order[r]][h] > d.grid[order[best[0]]][best[1]]) best = [r, h];
+      body += `<rect x="${(left + best[1] * cell + 1).toFixed(1)}" y="${(top + 14 + best[0] * cell - cell / 2 + 1).toFixed(1)}" width="${cell - 2}" height="${cell - 2}" rx="5" fill="none" class="sk-accent" stroke-width="1.8" stroke-dasharray="3 2"/>`;
+    }
+    const sy = axisY + (p.legend ? 24 : 4);
     const summary = d.total
       ? `${persona(byHour)} · busiest ${WEEKDAYS[peakDay]} around ${String(peakHour).padStart(2, '0')}:00 · ${fmt(d.total)} commits`
       : 'No recent public commits found on default branches.';
-    body += `<text x="${PAD}" y="${sy}" class="fg" font-size="12.5" font-weight="600">${esc(summary)}</text>`;
+    if (p.legend) body += `<text x="${PAD}" y="${sy}" class="fg" font-size="12.5" font-weight="600">${esc(summary)}</text>`;
     const zone = p.tz === null ? 'local time of each commit' : `UTC${p.tz >= 0 ? '+' : '−'}${Math.abs(p.tz)}`;
 
     return frame(body, {
       width: W,
-      height: sy + 16,
+      height: sy + (p.legend ? 16 : 8),
       theme,
       title: header,
       subtitle: zone,

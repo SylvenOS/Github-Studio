@@ -599,7 +599,7 @@ export const SCRIPT = String.raw`
 
 
   // ---- README Studio: designs, validation, export ----------------------------------------------
-  var DESIGN_PRESETS = [['terminal-os', 'terminal', 'Terminal OS'], ['code-studio', 'ide', 'Code Studio'], ['editorial', 'editorial', 'Editorial'], ['dev-dashboard', 'dashboard', 'Dashboard'], ['blueprint', 'blueprint', 'Blueprint'], ['retro', 'retro', 'Retro Arcade']];
+  var DESIGN_PRESETS = [['terminal-os', 'terminal', 'Terminal OS'], ['code-studio', 'ide', 'Code Studio'], ['editorial', 'editorial', 'Editorial'], ['dev-dashboard', 'dashboard', 'Dashboard'], ['blueprint', 'blueprint', 'Blueprint'], ['retro', 'retro', 'Retro Arcade'], ['minimal-page', 'minimal', 'Minimal'], ['glass-dashboard', 'glass', 'Glass'], ['poster', 'poster', 'Poster']];
   var definitions = null, checkTimer, previewWidth = 'desktop';
   function renderDesigns() {
     var box = $('designs'); if (!box) return; box.innerHTML = '';

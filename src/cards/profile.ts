@@ -8,7 +8,7 @@ import { icon, type IconName } from '../svg/icons';
 import { languageShares } from './languages';
 import type { LanguageShare } from './languages';
 
-const LAYOUTS = ['default', 'centered', 'banner'] as const;
+const LAYOUTS = ['default', 'centered', 'banner', 'cover'] as const;
 const SHAPES = ['circle', 'rounded', 'square'] as const;
 
 /** Numbers the card can show, in the user's order. */
@@ -36,6 +36,7 @@ interface Params {
   shape: (typeof SHAPES)[number];
   bioLines: number;
   links: boolean;
+  chips: boolean;
 }
 
 interface Data {
@@ -50,6 +51,7 @@ interface Data {
   details: string[];
   status: string | null;
   links: string[];
+  hireable: boolean;
 }
 
 export const profileCard = defineCard<Params, Data>({
@@ -60,6 +62,8 @@ export const profileCard = defineCard<Params, Data>({
     { label: 'Default' },
     { label: 'Centered', params: { layout: 'centered' } },
     { label: 'Wide banner', params: { layout: 'banner' } },
+    { label: 'Cover', params: { layout: 'cover' } },
+    { label: 'Cover, rounded photo', params: { layout: 'cover', shape: 'rounded', accent2: 'ff7edb' } },
     { label: 'No languages', params: { languages: 'false' } },
     { label: 'Contributor numbers', params: { stats: 'contributions,prs,reviews,stars' } }
   ],
@@ -75,6 +79,7 @@ export const profileCard = defineCard<Params, Data>({
     { name: 'languages', type: 'boolean', default: true, description: 'Show the language bar' },
     { name: 'details', type: 'boolean', default: true, description: 'Show company, location, pronouns and status' },
     { name: 'links', type: 'boolean', default: true, description: 'Show website and X/Twitter handle' },
+    { name: 'chips', type: 'boolean', default: true, description: 'Show an Open to work chip (cover layout)' },
     { name: 'grade', type: 'boolean', default: true, description: 'Show the activity score ring' }
   ],
   parse: (q) => {
@@ -88,7 +93,8 @@ export const profileCard = defineCard<Params, Data>({
       stats: stats.length ? stats : DEFAULT_STATS,
       shape: oneOf(q.shape, SHAPES, 'circle'),
       bioLines: int(q.bio_lines, 2, 0, 4),
-      links: bool(q.links, true)
+      links: bool(q.links, true),
+      chips: bool(q.chips, true)
     };
   },
 
@@ -112,6 +118,7 @@ export const profileCard = defineCard<Params, Data>({
       avatar,
       details: [user.company, user.location, extended?.pronouns].filter((x): x is string => !!x).map((x) => x.replace(/^@/, '')),
       status: extended?.status?.message ? `${extended.status.emoji && /^:\w+:$/.test(extended.status.emoji) ? '' : extended.status.emoji ?? ''} ${extended.status.message}`.trim() : null,
+      hireable: !!extended?.hireable,
       links: [user.website?.replace(/^https?:\/\//, '').replace(/\/$/, ''), user.twitter ? `@${user.twitter}` : null].filter((x): x is string => !!x)
     };
   },
@@ -234,8 +241,39 @@ export const profileCard = defineCard<Params, Data>({
         body += langBar(PAD, h + 16, W - PAD * 2, 5);
         h += 58;
       }
-      if (p.grade) body += ringAt(W - PAD - 30, PAD + 32, 24).replace(/<text[^>]*>top[^<]*<\/text>/, '');
+      if (p.grade) body += ringAt(W - PAD - 30, PAD + 32, 24).replace(/<text[^>]*>top[^<]*<\/text>/i, '');
       return frame(body, { width: W, height: h + PAD - 8, theme, label });
+    }
+
+    // ---- cover: gradient strip with an overlapping photo
+    if (p.layout === 'cover') {
+      const W = 480;
+      const coverH = 76;
+      const r = Math.min(theme.borderRadius, 24);
+      const accent2 = theme.style?.accent2 ?? '#a371f7';
+      let body =
+        `<defs><linearGradient id="cvg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--accent)"/><stop offset="1" stop-color="${accent2}"/></linearGradient>` +
+        `<clipPath id="cvc"><path d="M0 ${coverH} V${r} Q0 0 ${r} 0 H${W - r} Q${W} 0 ${W} ${r} V${coverH} Z"/></clipPath></defs>` +
+        `<rect x="0" y="0" width="${W}" height="${coverH}" fill="url(#cvg)" fill-opacity=".85" clip-path="url(#cvc)"/>`;
+      const size = 76;
+      const ax = PAD;
+      const ay = coverH - 34;
+      body += p.avatar ? `<circle cx="${ax + size / 2}" cy="${ay + size / 2}" r="${size / 2 + 4}" class="bg"/>` + avatarAt(ax, ay, size) : '';
+      const tx = p.avatar ? ax + size + 16 : PAD;
+      body += `<text x="${tx}" y="${coverH + 24}" class="fg" font-size="20" font-weight="800">${esc(truncate(m.name, 24))}</text>`;
+      body += `<text x="${tx}" y="${coverH + 44}" class="muted" font-size="12.5">@${esc(m.username)}${joined ? ` · ${esc(joined)}` : ''}</text>`;
+      if (p.chips && d.hireable) body += `<rect x="${W - PAD - 108}" y="${coverH + 10}" width="108" height="24" rx="12" fill="#3fb950" fill-opacity=".16"/><circle cx="${W - PAD - 94}" cy="${coverH + 22}" r="4" fill="#3fb950"/><text x="${W - PAD - 84}" y="${coverH + 26.5}" font-size="11.5" font-weight="600" fill="#3fb950">Open to work</text>`;
+      let y = coverH + 70;
+      if (detailLine) body += `<text x="${PAD}" y="${y}" class="muted" font-size="12">${esc(truncate(detailLine, 66))}</text>`;
+      if (detailLine) y += 20;
+      for (const l of d.bio && p.bioLines ? wrap(d.bio, 62, p.bioLines) : []) { body += `<text x="${PAD}" y="${y}" class="fg" font-size="12.5">${esc(l)}</text>`; y += 18; }
+      if (linkLine) { body += `<text x="${PAD}" y="${y}" class="accent" font-size="12">${esc(truncate(linkLine, 66))}</text>`; y += 18; }
+      y += 22;
+      body += statsRow(PAD, y, W - PAD * 2 - (p.grade ? 60 : 0));
+      if (p.grade) body += ringAt(W - PAD - 28, y - 6, 22).replace(/<text[^>]*>top[^<]*<\/text>/i, '');
+      y += 14;
+      if (p.languages && languages.length) { body += langBar(PAD, y + 20, W - PAD * 2); y += 70; } else y += 24;
+      return frame(body, { width: W, height: y, theme, label });
     }
 
     // ---- default
