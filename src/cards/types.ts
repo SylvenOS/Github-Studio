@@ -2,8 +2,15 @@ import type { CommonParams, ParamDoc, Query } from '../core/params';
 import type { Translate } from '../core/i18n';
 import type { GitHubClient } from '../github/client';
 import type { ResolvedTheme } from '../themes';
+import type { Env } from '../types';
 
-export type CardCategory = 'overview' | 'activity' | 'languages' | 'repositories' | 'achievements' | 'art' | 'decor' | 'utility';
+/** Request context available while loading (secrets, bindings, background work). */
+export interface LoadContext {
+  env: Env;
+  waitUntil?: (p: Promise<unknown>) => void;
+}
+
+export type CardCategory = 'overview' | 'activity' | 'languages' | 'repositories' | 'achievements' | 'art' | 'decor' | 'utility' | 'integrations' | 'designs';
 
 /** A ready-made style of a card: what the store shows and what the README builder inserts. */
 export interface CardVariant {
@@ -47,10 +54,10 @@ export interface CardDefinition<P = any, D = any> {
   users?(params: P): string[];
   /** Accepts parameters beyond `params` (e.g. composite's `stats.layout`) - they become part of the cache key. */
   extraParam?(name: string): boolean;
-  /** Overrides the response cache lifetime (seconds), e.g. for expensive, slow-changing cards. */
+  /** Overrides the response cache lifetime (seconds), e.g. for expensive, slow-changing cards. 0 = never cached (counters). */
   cacheSeconds?: number;
   /** Fetch everything the card needs. Results must be JSON-serialisable. */
-  load(client: GitHubClient, params: P, common: CommonParams): Promise<D>;
+  load(client: GitHubClient, params: P, common: CommonParams, ctx: LoadContext): Promise<D>;
   render(data: D, params: P, ctx: RenderContext): string;
   /** Shape returned for `format=json`. Defaults to the loaded data. */
   toJSON?(data: D, params: P): unknown;

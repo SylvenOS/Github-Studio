@@ -76,13 +76,14 @@ export const compositeCard = defineCard<Params, Part[]>({
       const def = findCard(id);
       if (!def) throw badRequest(`Unknown card "${id}" in cards=`);
       if (def.id === 'composite') throw badRequest('A composite card cannot contain itself');
+      if (def.cacheSeconds === 0) throw badRequest(`The live "${def.id}" card cannot be part of a composite`);
     }
     return { ids, columns: int(q.columns, 2, 1, 4), gap: int(q.gap, 12, 0, 48), align: q.valign === 'center' ? 'center' : 'top', query: q };
   },
   users: (p) => p.ids.flatMap((id) => (findCard(id)?.id === 'compare' && p.query['compare.vs'] ? [p.query['compare.vs']] : [])),
 
   // sub-cards load in parallel through the shared client, so one GitHub query serves all of them
-  async load(client, p) {
+  async load(client, p, _common, ctx) {
     return Promise.all(
       p.ids.map(async (id): Promise<Part> => {
         const def = findCard(id) as CardDefinition;
@@ -90,7 +91,7 @@ export const compositeCard = defineCard<Params, Part[]>({
         try {
           const common = parseCommon(q, def.needsUser !== false);
           const params = def.parse(q, common);
-          return { id: def.id, query: q, data: await def.load(client, params, common) };
+          return { id: def.id, query: q, data: await def.load(client, params, common, ctx) };
         } catch (e) {
           return { id: def.id, query: q, error: toApiError(e).message };
         }

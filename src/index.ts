@@ -30,9 +30,10 @@ const SVG_HEADERS = {
   'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox"
 };
 const APP_CSP =
-  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src * data: blob:; connect-src 'self'; frame-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src * data: blob:; connect-src 'self' https:; frame-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 /** Rendered SVGs larger than this are refused (GitHub's image proxy stops at ~5 MB anyway). */
 const MAX_SVG_BYTES = 2_500_000;
+const NO_STORE = 'no-cache, no-store, must-revalidate, max-age=0';
 /** How long an error card may be cached, by cause. Bad input never fixes itself; outages do. */
 const ERROR_CACHE: Record<ErrorCode, number> = { bad_request: 86_400, not_found: 3600, rate_limited: 60, upstream: 120, internal: 60 };
 
@@ -52,14 +53,16 @@ function tokensOf(c: Ctx): string[] {
   return [env.GITHUB_TOKEN, ...(env.GITHUB_TOKENS?.split(',') ?? [])].map((t) => t?.trim()).filter(Boolean) as string[];
 }
 
-function createClient(c: Ctx): GitHubClient {
-  let waitUntil: ((p: Promise<unknown>) => void) | undefined;
+function waitUntilOf(c: Ctx): ((p: Promise<unknown>) => void) | undefined {
   try {
-    waitUntil = c.executionCtx.waitUntil.bind(c.executionCtx);
+    return c.executionCtx.waitUntil.bind(c.executionCtx);
   } catch {
-    /* not running in a worker (tests, Node) */
+    return undefined; // not running in a worker (tests, Node)
   }
-  return new GitHubClient({ tokens: tokensOf(c), waitUntil, ttl: cacheSeconds(c) });
+}
+
+function createClient(c: Ctx): GitHubClient {
+  return new GitHubClient({ tokens: tokensOf(c), waitUntil: waitUntilOf(c), ttl: cacheSeconds(c) });
 }
 
 const allowedCache = new Map<string, Map<string, ParamDoc>>();
@@ -115,8 +118,9 @@ async function renderCard(c: Ctx, card: CardDefinition, query: Query, client: Gi
     if (common.username) assertAllowed(c, common.username);
     const params = card.parse(query, common);
     for (const u of card.users?.(params) ?? []) assertAllowed(c, u);
-    const data = await card.load(client, params, common);
-    const cache = cacheHeader(card.cacheSeconds ?? cacheSeconds(c, common.cacheSeconds));
+    const data = await card.load(client, params, common, { env: c.env ?? {}, waitUntil: waitUntilOf(c) });
+    // cacheSeconds 0 = live (counters): never stored by us, camo or browsers
+    const cache = card.cacheSeconds === 0 ? NO_STORE : cacheHeader(card.cacheSeconds ?? cacheSeconds(c, common.cacheSeconds));
 
     if (common.format === 'text') {
       if (!card.toText) throw badRequest(`The ${card.id} card has no text format`);

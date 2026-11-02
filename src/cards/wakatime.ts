@@ -1,0 +1,156 @@
+import { defineCard } from './types';
+import { cached } from '../core/cache';
+import { badRequest, notFound, upstream } from '../core/errors';
+import { bool, int, oneOf } from '../core/params';
+import { esc, truncate } from '../core/text';
+import { safeJson } from '../providers/fetch';
+import { languageColor } from '../svg/colors';
+import { anim, contentTop, frame, PAD } from '../svg/frame';
+
+const RANGES = ['last_7_days', 'last_30_days', 'last_6_months', 'last_year', 'all_time'] as const;
+const SECTIONS = ['languages', 'editors', 'operating_systems', 'categories', 'projects'] as const;
+const LAYOUTS = ['bars', 'compact', 'totals'] as const;
+const RANGE_LABEL: Record<(typeof RANGES)[number], string> = {
+  last_7_days: 'last 7 days', last_30_days: 'last 30 days', last_6_months: 'last 6 months', last_year: 'last year', all_time: 'all time'
+};
+const PALETTE = ['#58a6ff', '#a371f7', '#3fb950', '#f78166', '#d29922', '#db61a2', '#39c5cf', '#8b949e'];
+
+interface Item { name: string; percent: number; text: string }
+interface Data {
+  username: string;
+  total: string | null;
+  dailyAverage: string | null;
+  bestDay: { date: string; text: string } | null;
+  items: Item[];
+  pending: boolean;
+}
+
+interface Params {
+  range: (typeof RANGES)[number];
+  section: (typeof SECTIONS)[number];
+  layout: (typeof LAYOUTS)[number];
+  count: number;
+  percent: boolean;
+}
+
+export const wakatimeCard = defineCard<Params, Data>({
+  id: 'wakatime',
+  aliases: ['coding-time', 'waka'],
+  category: 'integrations',
+  tags: ['wakatime', 'coding time', 'hours', 'editor', 'ide', 'languages', 'productivity', 'integration'],
+  variants: [
+    { label: 'Languages' },
+    { label: 'Editors', params: { section: 'editors' } },
+    { label: 'Compact bar', params: { layout: 'compact' } },
+    { label: 'Totals only', params: { layout: 'totals' } }
+  ],
+  title: 'WakaTime Coding Time',
+  description: 'Coding time from WakaTime: total, daily average, best day and a breakdown by language, editor, OS, category or project. `username` is your WakaTime username; your stats must be public on wakatime.com.',
+  cacheSeconds: 3600,
+  params: [
+    { name: 'range', type: 'enum', options: [...RANGES], default: 'last_7_days', description: 'Time range' },
+    { name: 'section', type: 'enum', options: [...SECTIONS], default: 'languages', description: 'Breakdown to show' },
+    { name: 'layout', type: 'enum', options: [...LAYOUTS], default: 'bars', description: 'Presentation' },
+    { name: 'count', type: 'number', default: 6, min: 1, max: 10, description: 'Rows in the breakdown' },
+    { name: 'percent', type: 'boolean', default: false, description: 'Show percentages instead of hours' }
+  ],
+  parse: (q) => ({
+    range: oneOf(q.range, RANGES, 'last_7_days'),
+    section: oneOf(q.section, SECTIONS, 'languages'),
+    layout: oneOf(q.layout, LAYOUTS, 'bars'),
+    count: int(q.count, 6, 1, 10),
+    percent: bool(q.percent, false)
+  }),
+
+  async load(_client, p, common, { waitUntil }) {
+    const user = common.username;
+    const raw = await cached(`waka:${user.toLowerCase()}:${p.range}`, { ttl: 3600, waitUntil }, async () => {
+      const { status, data } = await safeJson<{ data?: any; error?: string }>(
+        `https://wakatime.com/api/v1/users/${encodeURIComponent(user)}/stats/${p.range}`,
+        { hosts: ['wakatime.com'], name: 'WakaTime', maxBytes: 1_000_000 }
+      ).catch((e) => {
+        if (e?.code === 'not_found') throw notFound('WakaTime user not found (or their stats are private)');
+        throw e;
+      });
+      if (status === 403 || status === 401) throw badRequest('This WakaTime profile is private. Make your stats public on wakatime.com');
+      if (status >= 400 || !data.data) throw upstream(`WakaTime responded with ${status}`);
+      return data.data;
+    });
+    const list = (raw[p.section] ?? []) as any[];
+    return {
+      username: raw.username ?? user,
+      total: raw.human_readable_total_including_other_language ?? raw.human_readable_total ?? null,
+      dailyAverage: raw.human_readable_daily_average_including_other_language ?? raw.human_readable_daily_average ?? null,
+      bestDay: raw.best_day?.date ? { date: raw.best_day.date, text: raw.best_day.text ?? '' } : null,
+      items: list.filter((x) => x && x.name).map((x) => ({ name: String(x.name), percent: Number(x.percent) || 0, text: String(x.text ?? '') })),
+      pending: raw.is_up_to_date === false || raw.status === 'pending_update'
+    };
+  },
+
+  render(d, p, { theme, common, title }) {
+    const header = title('Coding Time');
+    const top = contentTop(!!header);
+    const W = 480;
+    const animate = common.animation;
+    const items = d.items.slice(0, p.count);
+    const color = (it: Item, i: number) => (p.section === 'languages' ? languageColor(it.name) : PALETTE[i % PALETTE.length]);
+    const sub = `WakaTime · ${RANGE_LABEL[p.range]}`;
+
+    // totals strip
+    const totals = [
+      ['Total', d.total ?? '-'],
+      ['Daily average', d.dailyAverage ?? '-'],
+      ['Best day', d.bestDay ? d.bestDay.text : '-']
+    ];
+    const colW = (W - PAD * 2) / 3;
+    let body = totals
+      .map(([k, v], i) => `<g${anim(animate, i)}><text x="${PAD + i * colW}" y="${top + 16}" class="value fg">${esc(truncate(v, 18))}</text><text x="${PAD + i * colW}" y="${top + 34}" class="label muted">${esc(k)}</text></g>`)
+      .join('');
+    let y = top + 52;
+    if (d.pending) {
+      body += `<text x="${PAD}" y="${y + 10}" class="label muted" font-size="11">WakaTime is still calculating these stats; numbers may change.</text>`;
+      y += 22;
+    }
+
+    if (p.layout !== 'totals') {
+      if (!items.length) {
+        body += `<text x="${PAD}" y="${y + 18}" class="label muted" font-size="12">No public ${p.section.replace('_', ' ')} data for this range.</text>`;
+        y += 30;
+      } else if (p.layout === 'compact') {
+        let x = PAD;
+        const bw = W - PAD * 2;
+        const sum = items.reduce((a, it) => a + it.percent, 0) || 1;
+        body += `<clipPath id="wk"><rect x="${PAD}" y="${y}" width="${bw}" height="10" rx="5"/></clipPath><g clip-path="url(#wk)">`;
+        items.forEach((it, i) => {
+          const w = (it.percent / sum) * bw;
+          body += `<rect x="${x.toFixed(1)}" y="${y}" width="${w.toFixed(1)}" height="10" fill="${esc(color(it, i))}"/>`;
+          x += w;
+        });
+        body += '</g>';
+        y += 30;
+        items.forEach((it, i) => {
+          const cx = PAD + (i % 2) * ((W - PAD * 2) / 2);
+          const cy = y + Math.floor(i / 2) * 22;
+          body += `<g${anim(animate, i + 3)}><circle cx="${cx + 5}" cy="${cy - 4}" r="5" fill="${esc(color(it, i))}"/><text x="${cx + 16}" y="${cy}" class="fg" font-size="12">${esc(truncate(it.name, 16))} <tspan class="muted">${esc(p.percent ? `${it.percent.toFixed(1)}%` : it.text)}</tspan></text></g>`;
+        });
+        y += Math.ceil(items.length / 2) * 22;
+      } else {
+        const nameW = 120;
+        const valW = 100;
+        const bw = W - PAD * 2 - nameW - valW;
+        const max = Math.max(...items.map((it) => it.percent), 1);
+        items.forEach((it, i) => {
+          const ry = y + 14 + i * 26;
+          body +=
+            `<g${anim(animate, i + 3)}><text x="${PAD}" y="${ry}" class="fg" font-size="12.5">${esc(truncate(it.name, 16))}</text>` +
+            `<rect x="${PAD + nameW}" y="${ry - 9}" width="${bw}" height="10" rx="5" class="bd"/>` +
+            `<rect x="${PAD + nameW}" y="${ry - 9}" width="${Math.max(4, (it.percent / max) * bw).toFixed(1)}" height="10" rx="5" fill="${esc(color(it, i))}"/>` +
+            `<text x="${W - PAD}" y="${ry}" class="muted" font-size="12" text-anchor="end">${esc(p.percent ? `${it.percent.toFixed(1)}%` : truncate(it.text, 14))}</text></g>`;
+        });
+        y += items.length * 26 + 6;
+      }
+    }
+
+    return frame(body, { width: W, height: y + 12, theme, title: header, subtitle: sub, label: `WakaTime coding time for ${d.username}: ${d.total ?? 'unknown'} (${RANGE_LABEL[p.range]})` });
+  }
+});

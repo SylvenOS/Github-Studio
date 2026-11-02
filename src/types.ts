@@ -12,6 +12,12 @@ export interface Env {
   /** Optional Workers Rate Limiting bindings (see wrangler.toml). Checked only on cache misses. */
   RL_IP?: RateLimit;
   RL_USER?: RateLimit;
+  /** Durable Object namespace for the profile view counter (`/api/views`). Optional. */
+  VIEWS?: DurableObjectNamespace;
+  /** Spotify card (single-account, the deployer's own): app credentials + a long-lived refresh token. */
+  SPOTIFY_CLIENT_ID?: string;
+  SPOTIFY_CLIENT_SECRET?: string;
+  SPOTIFY_REFRESH_TOKEN?: string;
 }
 
 export type AppEnv = { Bindings: Env };

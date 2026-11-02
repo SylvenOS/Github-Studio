@@ -107,6 +107,8 @@ export interface ContributionDetail {
   externalMergedPullRequests: number;
   /** Repositories outside the user's account they opened PRs in during the window, most-starred first. */
   externalRepos: { nameWithOwner: string; owner: string; stars: number; language: string | null; languageColor: string | null; pullRequests: number; commits: number }[];
+  /** Every public repository contributed to in the window (own included), most contributions first. Absent in old cache entries. */
+  repos?: { nameWithOwner: string; stars: number; language: string | null; languageColor: string | null; contributions: number }[];
 }
 
 export interface CalendarDay {
@@ -139,4 +141,56 @@ export interface RepoDetail {
   archived: boolean;
   isFork: boolean;
   updatedAt: string;
+}
+
+/** A point on a repository's star curve: `count` stars had been given by `date`. */
+export interface StarPoint {
+  date: string;
+  count: number;
+}
+
+export interface StarHistory {
+  repo: string;
+  total: number;
+  createdAt: string;
+  points: StarPoint[];
+  /** True when the repo has more stars than GitHub lets us page through (40k), so the tail is interpolated. */
+  truncated: boolean;
+}
+
+export interface YearLanguages {
+  year: number;
+  /** Commit contributions grouped by the repository's primary language, largest first. */
+  languages: { name: string; color: string | null; count: number }[];
+  total: number;
+}
+
+export interface Supporter {
+  login: string;
+  name: string | null;
+  avatarUrl: string;
+  kind: 'user' | 'org';
+}
+
+export interface RepoHealth {
+  nameWithOwner: string;
+  description: string | null;
+  stars: number;
+  forks: number;
+  watchers: number;
+  language: string | null;
+  languageColor: string | null;
+  license: string | null;
+  archived: boolean;
+  createdAt: string | null;
+  pushedAt: string | null;
+  /** Fields below are null without a token (REST fallback can't count them cheaply). */
+  openIssues: number | null;
+  closedIssues: number | null;
+  openPullRequests: number | null;
+  mergedPullRequests: number | null;
+  releases: number | null;
+  latestRelease: { tag: string; date: string | null } | null;
+  /** Commits on the default branch in the last 30 days. */
+  commits30d: number | null;
 }

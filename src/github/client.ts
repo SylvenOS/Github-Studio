@@ -1,5 +1,5 @@
 import { cached } from '../core/cache';
-import { ApiError, notFound, rateLimited, upstream } from '../core/errors';
+import { ApiError, badRequest, notFound, rateLimited, upstream } from '../core/errors';
 import {
   aggregateRepos,
   levelFromEnum,
@@ -8,7 +8,7 @@ import {
   type GqlRepoNode
 } from './parse';
 import { benchUntilReset, observe, pick, poolFor, poolStatus, type TokenState } from './tokens';
-import type { CalendarDay, ContributionDetail, DateRange, PinnedRepo, RepoDetail, RepoSummary, UserData, UserExtended, LanguageStat } from './types';
+import type { CalendarDay, ContributionDetail, DateRange, PinnedRepo, RepoDetail, RepoHealth, RepoSummary, StarHistory, StarPoint, Supporter, UserData, UserExtended, LanguageStat, YearLanguages } from './types';
 
 export * from './types';
 
@@ -196,6 +196,14 @@ export class GitHubClient {
           external.set(r.nameWithOwner, cur);
         }
       };
+      const all = new Map<string, NonNullable<ContributionDetail['repos']>[number]>();
+      for (const e of [...(cc.pullRequestContributionsByRepository ?? []), ...(cc.commitContributionsByRepository ?? [])]) {
+        const r = e.repository;
+        if (!r || r.isPrivate) continue;
+        const cur = all.get(r.nameWithOwner) ?? { nameWithOwner: r.nameWithOwner, stars: r.stargazerCount, language: r.primaryLanguage?.name ?? null, languageColor: r.primaryLanguage?.color ?? null, contributions: 0 };
+        cur.contributions += e.contributions.totalCount;
+        all.set(r.nameWithOwner, cur);
+      }
       add(cc.pullRequestContributionsByRepository, 'pullRequests');
       add(cc.commitContributionsByRepository, 'commits');
       return {
@@ -211,7 +219,8 @@ export class GitHubClient {
         reposWithIssues: cc.totalRepositoriesWithContributedIssues,
         reposWithReviews: cc.totalRepositoriesWithContributedPullRequestReviews,
         externalMergedPullRequests: data.ext?.issueCount ?? 0,
-        externalRepos: [...external.values()].sort((a, b) => b.stars - a.stars).slice(0, 20)
+        externalRepos: [...external.values()].sort((a, b) => b.stars - a.stars).slice(0, 20),
+        repos: [...all.values()].sort((a, b) => b.contributions - a.contributions).slice(0, 20)
       };
     }, 6 * 3600);
   }
@@ -254,6 +263,161 @@ export class GitHubClient {
       for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
       return { mime: res.headers.get('content-type')?.split(';')[0] ?? 'image/png', base64: btoa(bin) };
     }, 86_400);
+  }
+
+  /**
+   * Star history by sampling: stargazers are listed oldest-first with timestamps, so the first entry of
+   * page N says when star #(N-1)*100+1 arrived. A handful of evenly spaced pages draws the whole curve
+   * (the technique star-history.com uses). GitHub only pages through the first 40k stargazers.
+   */
+  getStarHistory(owner: string, repo: string, samples = 8): Promise<StarHistory> {
+    return this.cache(`stars:${owner.toLowerCase()}/${repo.toLowerCase()}:${samples}`, async () => {
+      const base = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+      const info = await this.rest<Record<string, any>>(base);
+      const total: number = info.stargazers_count ?? 0;
+      const createdAt: string = info.created_at ?? new Date().toISOString();
+      const pages = Math.min(400, Math.ceil(total / 100));
+      const picks = new Set<number>();
+      if (pages <= samples) for (let p = 1; p <= pages; p++) picks.add(p);
+      else for (let i = 0; i < samples; i++) picks.add(Math.max(1, Math.round(1 + (i * (pages - 1)) / (samples - 1))));
+      const results = await Promise.all(
+        [...picks].map(async (page) => {
+          const list = await this.rest<{ starred_at: string }[]>(`${base}/stargazers?per_page=100&page=${page}`, { Accept: 'application/vnd.github.star+json' }).catch(() => [] as { starred_at: string }[]);
+          const out: StarPoint[] = [];
+          if (!Array.isArray(list)) return out;
+          if (list[0]?.starred_at) out.push({ date: list[0].starred_at, count: (page - 1) * 100 + 1 });
+          if (page === pages && list.length > 1 && list[list.length - 1]?.starred_at) out.push({ date: list[list.length - 1].starred_at, count: (page - 1) * 100 + list.length });
+          return out;
+        })
+      );
+      const points = [{ date: createdAt, count: 0 }, ...results.flat(), { date: new Date().toISOString(), count: total }]
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .filter((p, i, all) => i === 0 || p.count >= all[i - 1].count);
+      return { repo: `${info.owner?.login ?? owner}/${info.name ?? repo}`, total, createdAt, points, truncated: total > 40_000 };
+    }, 12 * 3600);
+  }
+
+  /** Commit contributions per year grouped by repository language (one GraphQL call for all years). Needs a token. */
+  getLanguageTrend(login: string, years: number[]): Promise<YearLanguages[]> {
+    if (!this.hasToken) return Promise.reject(badRequest('Language trends need a GitHub token on the server'));
+    const ys = [...new Set(years)].filter((y) => Number.isInteger(y) && y >= 2008 && y <= 2100).sort();
+    return this.cache(`langtrend:${login.toLowerCase()}:${ys.join(',')}`, async () => {
+      const now = new Date();
+      const body = ys
+        .map((y) => {
+          const r = calendarYearRange(y, now);
+          return `y${y}:contributionsCollection(from:"${r.from}T00:00:00Z", to:"${r.to}T23:59:59Z"){ commitContributionsByRepository(maxRepositories:25){ repository{ isPrivate primaryLanguage{name color} } contributions{totalCount} } }`;
+        })
+        .join('\n');
+      const { user } = await this.graphql<{ user: any }>(`query($login:String!){ user(login:$login){ ${body} } }`, { login });
+      if (!user) throw notFound('GitHub user not found');
+      return ys.map((year) => {
+        const byLang = new Map<string, { name: string; color: string | null; count: number }>();
+        for (const e of user[`y${year}`]?.commitContributionsByRepository ?? []) {
+          const lang = e.repository?.primaryLanguage;
+          if (!lang || e.repository.isPrivate) continue;
+          const cur = byLang.get(lang.name) ?? { name: lang.name, color: lang.color ?? null, count: 0 };
+          cur.count += e.contributions.totalCount;
+          byLang.set(lang.name, cur);
+        }
+        const languages = [...byLang.values()].sort((a, b) => b.count - a.count);
+        return { year, languages, total: languages.reduce((a, l) => a + l.count, 0) };
+      });
+    }, 12 * 3600);
+  }
+
+  /** Public sponsors of the user (or accounts they sponsor). Needs a token. */
+  getSupporters(login: string, mode: 'sponsors' | 'sponsoring', first = 60): Promise<{ total: number; people: Supporter[] }> {
+    if (!this.hasToken) return Promise.reject(badRequest('The sponsors wall needs a GitHub token on the server'));
+    return this.cache(`supporters:${login.toLowerCase()}:${mode}:${first}`, async () => {
+      const field = mode === 'sponsoring' ? 'sponsoring' : 'sponsors';
+      const { user } = await this.graphql<{ user: any }>(
+        `query($login:String!,$n:Int!){ user(login:$login){ list:${field}(first:$n){ totalCount nodes{ __typename ... on User{ login name avatarUrl } ... on Organization{ login name avatarUrl } } } } }`,
+        { login, n: first }
+      );
+      if (!user) throw notFound('GitHub user not found');
+      const people: Supporter[] = (user.list?.nodes ?? [])
+        .filter((n: any) => n?.login)
+        .map((n: any) => ({ login: n.login, name: n.name ?? null, avatarUrl: n.avatarUrl, kind: n.__typename === 'Organization' ? 'org' : 'user' }));
+      return { total: user.list?.totalCount ?? people.length, people };
+    }, 6 * 3600);
+  }
+
+  /**
+   * Author timestamps of the user's recent commits (default branches of the repos they committed to most
+   * in the last year, up to 100 each). Git timestamps keep the author's own UTC offset, so the hour is
+   * the author's local time. Needs a token.
+   */
+  getCommitTimes(login: string): Promise<string[]> {
+    if (!this.hasToken) return Promise.reject(badRequest('The punch card needs a GitHub token on the server'));
+    return this.cache(`committimes:${login.toLowerCase()}`, async () => {
+      const id = await this.cache(`uid:${login.toLowerCase()}`, async () => {
+        const { user } = await this.graphql<{ user: { id: string } | null }>('query($login:String!){ user(login:$login){ id } }', { login });
+        if (!user) throw notFound('GitHub user not found');
+        return user.id;
+      }, PAST_YEAR_TTL);
+      const since = new Date(Date.now() - 365 * 86_400_000).toISOString();
+      const { user } = await this.graphql<{ user: any }>(
+        'query($login:String!,$id:ID!,$since:GitTimestamp!){ user(login:$login){ contributionsCollection{ commitContributionsByRepository(maxRepositories:10){ repository{ isPrivate defaultBranchRef{ target{ ... on Commit{ history(first:100, author:{id:$id}, since:$since){ nodes{ authoredDate } } } } } } } } } }',
+        { login, id, since }
+      );
+      const times: string[] = [];
+      for (const e of user?.contributionsCollection?.commitContributionsByRepository ?? []) {
+        if (e.repository?.isPrivate) continue;
+        for (const n of e.repository?.defaultBranchRef?.target?.history?.nodes ?? []) if (typeof n.authoredDate === 'string') times.push(n.authoredDate);
+      }
+      return times;
+    }, 6 * 3600);
+  }
+
+  /** Side-by-side repository facts and health signals. Full detail with a token; basic REST fields without. */
+  getRepoHealth(list: { owner: string; repo: string }[]): Promise<RepoHealth[]> {
+    const id = list.map((r) => `${r.owner}/${r.repo}`.toLowerCase()).join(',');
+    return this.cache(`repohealth:${id}:${this.hasToken ? 'g' : 'r'}`, async () => {
+      if (!this.hasToken) {
+        return Promise.all(
+          list.map(async ({ owner, repo }): Promise<RepoHealth> => {
+            const r = await this.rest<Record<string, any>>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`);
+            return {
+              nameWithOwner: r.full_name ?? `${owner}/${repo}`, description: r.description ?? null, stars: r.stargazers_count ?? 0,
+              forks: r.forks_count ?? 0, watchers: r.subscribers_count ?? 0, language: r.language ?? null, languageColor: null,
+              license: r.license?.spdx_id && r.license.spdx_id !== 'NOASSERTION' ? r.license.spdx_id : null, archived: !!r.archived,
+              createdAt: r.created_at ?? null, pushedAt: r.pushed_at ?? null, openIssues: null, closedIssues: null,
+              openPullRequests: null, mergedPullRequests: null, releases: null, latestRelease: null, commits30d: null
+            };
+          })
+        );
+      }
+      const vars: Record<string, string> = { since: new Date(Date.now() - 30 * 86_400_000).toISOString() };
+      const decl = list.map((_, i) => `$o${i}:String!,$n${i}:String!`).join(',');
+      const body = list
+        .map(({ owner, repo }, i) => {
+          vars[`o${i}`] = owner;
+          vars[`n${i}`] = repo;
+          return `r${i}:repository(owner:$o${i}, name:$n${i}){ nameWithOwner description stargazerCount forkCount watchers{totalCount}
+            isArchived createdAt pushedAt licenseInfo{spdxId} primaryLanguage{name color}
+            openIssues:issues(states:OPEN){totalCount} closedIssues:issues(states:CLOSED){totalCount}
+            openPRs:pullRequests(states:OPEN){totalCount} mergedPRs:pullRequests(states:MERGED){totalCount}
+            releases(first:1, orderBy:{field:CREATED_AT, direction:DESC}){ totalCount nodes{ tagName publishedAt } }
+            defaultBranchRef{ target{ ... on Commit{ history(since:$since){ totalCount } } } } }`;
+        })
+        .join('\n');
+      const data = await this.graphql<Record<string, any>>(`query($since:GitTimestamp!,${decl}){ ${body} }`, vars);
+      return list.map((_, i): RepoHealth => {
+        const r = data[`r${i}`];
+        if (!r) throw notFound(`Repository ${list[i].owner}/${list[i].repo} not found`);
+        const rel = r.releases?.nodes?.[0];
+        return {
+          nameWithOwner: r.nameWithOwner, description: r.description ?? null, stars: r.stargazerCount, forks: r.forkCount,
+          watchers: r.watchers?.totalCount ?? 0, language: r.primaryLanguage?.name ?? null, languageColor: r.primaryLanguage?.color ?? null,
+          license: r.licenseInfo?.spdxId && r.licenseInfo.spdxId !== 'NOASSERTION' ? r.licenseInfo.spdxId : null, archived: !!r.isArchived,
+          createdAt: r.createdAt ?? null, pushedAt: r.pushedAt ?? null, openIssues: r.openIssues?.totalCount ?? 0,
+          closedIssues: r.closedIssues?.totalCount ?? 0, openPullRequests: r.openPRs?.totalCount ?? 0, mergedPullRequests: r.mergedPRs?.totalCount ?? 0,
+          releases: r.releases?.totalCount ?? 0, latestRelease: rel ? { tag: rel.tagName, date: rel.publishedAt ?? null } : null,
+          commits30d: r.defaultBranchRef?.target?.history?.totalCount ?? 0
+        };
+      });
+    }, 3 * 3600);
   }
 
   /** Live quota per token (admin only - costs one call per token). Never returns the tokens themselves. */
@@ -494,8 +658,8 @@ export class GitHubClient {
 
   // ---- plumbing -----------------------------------------------------------------------------
 
-  private async rest<T>(path: string): Promise<T> {
-    const res = await this.request(`${API}${path}`);
+  private async rest<T>(path: string, headers?: Record<string, string>): Promise<T> {
+    const res = await this.request(`${API}${path}`, headers ? { headers } : {});
     await this.assertOk(res);
     return (await res.json()) as T;
   }
@@ -530,7 +694,7 @@ export class GitHubClient {
 
       const headers = new Headers(rest.headers);
       headers.set('User-Agent', 'github-stats-api');
-      if (url.startsWith(API)) headers.set('Accept', 'application/vnd.github+json');
+      if (url.startsWith(API) && !headers.has('Accept')) headers.set('Accept', 'application/vnd.github+json');
       let token: TokenState | undefined;
       if (useTokens) {
         // prefer an untried token; for 5xx/timeouts a healthy token may be retried
