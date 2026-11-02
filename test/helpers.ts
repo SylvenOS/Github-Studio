@@ -122,6 +122,9 @@ export const CONTRIB_FIXTURE = {
   ext: { issueCount: 42 }
 };
 
+/** Two pinned repos as GitHub renders them on a profile page (trimmed). */
+export const PROFILE_HTML = '<ol><li class="pinned-item-list-item"><div class="pinned-item-list-item-content"><a href="/octo/alpha" class="Link text-bold"><span class="repo">alpha</span></a><p class="pinned-item-desc color-fg-muted">Fast :zap: things &amp; more</p><span class="repo-language-color" style="background-color: #3178c6"></span><span itemprop="programmingLanguage">TypeScript</span><a href="/octo/alpha/stargazers" class="pinned-item-meta"> 1.2k </a><a href="/octo/alpha/forks" class="pinned-item-meta"> 34 </a></div></li><li class="pinned-item-list-item"><div class="pinned-item-list-item-content"><a href="/acme/tool" class="Link text-bold"><span class="repo">tool</span></a><p class="pinned-item-desc"></p></div></li></ol>';
+
 export const COMMIT_TIMES_FIXTURE = {
   contributionsCollection: {
     commitContributionsByRepository: [
@@ -230,6 +233,11 @@ export function mockGitHub(opts: MockOptions = {}) {
       if (opts.avatarFails) return new Response('nope', { status: 500 });
       return new Response(makeAvatarPng(), { headers: { 'content-type': 'image/png' } });
     }
+    if (url === 'https://github.com/octo') return new Response(PROFILE_HTML, { headers: { 'content-type': 'text/html' } });
+    if (/\/repos\/octo\/[\w.-]+\/languages$/.test(url)) return Response.json({ TypeScript: 30000, CSS: 2000 });
+    if (url.includes('wakatime.com/api/v1/users/narrow/stats/')) return Response.json({ error: "Time range not matching user's public stats range." }, { status: 400 });
+    if (url === 'https://wakatime.com/api/v1/users/narrow/stats') return Response.json({ data: { ...WAKATIME_FIXTURE, range: 'last_30_days' } });
+    if (url.includes('/search/commits?q=author')) return Response.json({ items: [{ commit: { author: { date: '2026-03-03T08:00:00+02:00' } } }, { commit: { author: { date: '2026-03-04T21:30:00-05:00' } } }] });
     if (url.includes('/stargazers')) {
       const page = Number(new URL(url).searchParams.get('page') ?? 1);
       return Response.json(Array.from({ length: page === 50 ? 37 : 100 }, (_, i) => ({ starred_at: new Date(Date.UTC(2020, 0, 1) + (page * 100 + i) * 3_600_000 * 8).toISOString() })));

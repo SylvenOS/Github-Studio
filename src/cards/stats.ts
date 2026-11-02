@@ -1,5 +1,5 @@
 import { defineCard } from './types';
-import { bool, list, oneOf } from '../core/params';
+import { bool, int, list, oneOf } from '../core/params';
 import { compact, esc, fmt } from '../core/text';
 import { calculateProfileMetrics, loadInsights, type ProfileMetrics } from '../metrics';
 import { calculateGrade, type Grade } from '../metrics/grade';
@@ -28,7 +28,7 @@ export const STATS: Record<string, StatDef> = {
 };
 
 const DEFAULT_ORDER = ['repos', 'stars', 'forks', 'followers', 'contributions', 'prs', 'issues', 'reviews'];
-const LAYOUTS = ['grid', 'compact', 'minimal'] as const;
+const LAYOUTS = ['grid', 'classic', 'tiles', 'compact', 'minimal'] as const;
 const RANKS = ['none', 'letter', 'percentile'] as const;
 
 type Data = ProfileMetrics & { grade?: Grade };
@@ -40,6 +40,7 @@ interface Params {
   compactNumbers: boolean;
   footer: boolean;
   rank: (typeof RANKS)[number];
+  columns: number;
 }
 
 /** Circular activity-score badge (letter or percentile), drawn at (cx, cy). */
@@ -70,12 +71,16 @@ export const statsCard = defineCard<Params, Data>({
     { label: 'Minimal', params: { layout: 'minimal' } },
     { label: 'With icons', params: { show_icons: 'true' } },
     { label: 'Extended', params: { show: 'commits,following,gists,age', show_icons: 'true' } },
-    { label: 'With grade', params: { rank: 'letter', show_icons: 'true' } }
+    { label: 'With grade', params: { rank: 'letter', show_icons: 'true' } },
+    { label: 'Classic list', params: { layout: 'classic', rank: 'letter' } },
+    { label: 'Tiles', params: { layout: 'tiles' } },
+    { label: 'Tiles, 3 columns', params: { layout: 'tiles', columns: '3', show: 'commits' } }
   ],
   title: 'GitHub Stats',
   description: 'Overview of repositories, stars, followers and activity.',
   params: [
-    { name: 'layout', type: 'enum', options: [...LAYOUTS], default: 'grid', description: 'Card layout' },
+    { name: 'layout', type: 'enum', options: [...LAYOUTS], default: 'grid', description: 'grid, classic (list with icons), tiles, compact or minimal' },
+    { name: 'columns', type: 'number', default: 4, min: 1, max: 6, description: 'Columns (grid and tiles; classic uses 1-2)' },
     { name: 'show_icons', type: 'boolean', default: false, description: 'Show icons next to values' },
     { name: 'hide', type: 'list', description: `Stats to hide: ${Object.keys(STATS).join(', ')}` },
     { name: 'show', type: 'list', description: 'Extra stats to append, e.g. commits,following,gists,age' },
@@ -97,7 +102,8 @@ export const statsCard = defineCard<Params, Data>({
       keys: keys.length ? keys : DEFAULT_ORDER,
       compactNumbers: bool(q.compact_numbers, false),
       footer: bool(q.footer, true),
-      rank: oneOf(q.rank, RANKS, 'none')
+      rank: oneOf(q.rank, RANKS, 'none'),
+      columns: int(q.columns, 4, 1, 6)
     };
   },
 
@@ -130,8 +136,59 @@ export const statsCard = defineCard<Params, Data>({
       return frame(body, { width: 480, height: 80, theme, label });
     }
 
-    const perRow = 4;
-    const colW = 110;
+    const ringOn = p.rank !== 'none' && !!m.grade;
+    const ringW = ringOn ? 120 : 0;
+
+    // ---- classic: list rows (icon, label, value), one or two columns
+    if (p.layout === 'classic') {
+      const cols = Math.min(2, p.columns === 4 ? 1 : p.columns);
+      const W = 480 + ringW + (cols === 2 ? 120 : 0);
+      const colW = (W - PAD * 2 - ringW) / cols;
+      const per = Math.ceil(items.length / cols);
+      const rows = items
+        .map((s, i) => {
+          const x = PAD + Math.floor(i / per) * colW;
+          const y = top + 18 + (i % per) * 26;
+          return (
+            `<g${anim(animate, i)}>` +
+            icon(s.icon, x, y - 12, 'accent', 0.9) +
+            `<text x="${x + 24}" y="${y}" class="fg" font-size="13.5">${esc(t(`stat.${s.key}` as 'stat.repos'))}:</text>` +
+            `<text x="${x + colW - 16}" y="${y}" class="fg value" text-anchor="end" font-weight="700">${num(s.value(m))}</text></g>`
+          );
+        })
+        .join('');
+      const h = top + 18 + per * 26;
+      const ring = ringOn ? rankRing(m.grade!, p.rank as 'letter' | 'percentile', W - PAD - 52, Math.max(top + 46, (top + h) / 2 - 6), animate) : '';
+      return frame(rows + ring, { width: W, height: Math.max(h, ringOn ? top + 130 : 0) + 4, theme, title: header, subtitle: `@${m.username}`, label });
+    }
+
+    // ---- tiles: rounded tiles with an icon bubble
+    if (p.layout === 'tiles') {
+      const cols = Math.max(1, Math.min(p.columns, items.length));
+      const gap = 10;
+      const tileW = cols >= 4 ? 118 : 150;
+      const W = PAD * 2 + cols * tileW + (cols - 1) * gap + ringW;
+      const tiles = items
+        .map((s, i) => {
+          const x = PAD + (i % cols) * (tileW + gap);
+          const y = top + Math.floor(i / cols) * (74 + gap);
+          return (
+            `<g${anim(animate, i)}><rect x="${x}" y="${y}" width="${tileW}" height="74" rx="12" class="bd" fill-opacity=".45"/>` +
+            `<circle cx="${x + 24}" cy="${y + 24}" r="13" class="accent" fill-opacity=".14"/>` +
+            icon(s.icon, x + 16, y + 16, 'accent', 1) +
+            `<text x="${x + 14}" y="${y + 60}" class="muted" font-size="11">${esc(t(`stat.${s.key}.short`))}</text>` +
+            `<text x="${x + tileW - 14}" y="${y + 31}" class="fg value" text-anchor="end" style="font-size:20px" font-weight="800">${num(s.value(m))}</text></g>`
+          );
+        })
+        .join('');
+      const rowsN = Math.ceil(items.length / cols);
+      const h = top + rowsN * (74 + gap) - gap;
+      const ring = ringOn ? rankRing(m.grade!, p.rank as 'letter' | 'percentile', W - PAD - 50, Math.max(top + 46, (top + h) / 2 - 6), animate) : '';
+      return frame(tiles + ring, { width: W, height: Math.max(h, ringOn ? top + 130 : 0) + PAD, theme, title: header, subtitle: `@${m.username}`, label });
+    }
+
+    const perRow = Math.max(1, Math.min(p.columns, 6));
+    const colW = perRow === 4 ? 110 : Math.round(440 / perRow);
     const rowH = 65;
     const visible = p.layout === 'compact' ? items.slice(0, perRow) : items;
     const rows = Math.ceil(visible.length / perRow);
@@ -150,8 +207,7 @@ export const statsCard = defineCard<Params, Data>({
       })
       .join('');
 
-    const ringOn = p.rank !== 'none' && !!m.grade;
-    const W = ringOn ? 600 : 480;
+    const W = (perRow === 4 ? 480 : PAD * 2 + perRow * colW) + (ringOn ? 120 : 0);
     if (p.layout === 'compact') {
       const ring = ringOn ? rankRing(m.grade!, p.rank as 'letter' | 'percentile', W - PAD - 50, top + 16, animate, 26, false) : '';
       return frame(cells + ring, { width: W, height: top + rowH + (ringOn ? 12 : 0), theme, title: header, subtitle: `@${m.username}`, label });
@@ -159,7 +215,7 @@ export const statsCard = defineCard<Params, Data>({
 
     const dividers = Array.from({ length: p.footer ? rows : rows - 1 }, (_, r) => {
       const y = top + (r + 1) * rowH - 10;
-      return `<line x1="${PAD}" y1="${y}" x2="${(ringOn ? 465 : 480 - PAD)}" y2="${y}" class="sk-bd" stroke-width="1"/>`;
+      return `<line x1="${PAD}" y1="${y}" x2="${W - PAD - (ringOn ? 115 : 0)}" y2="${y}" class="sk-bd" stroke-width="1"/>`;
     }).join('');
     const footerY = top + rows * rowH + 15;
     const footer = p.footer

@@ -43,7 +43,7 @@ Locally, put secrets in `.env` (gitignored; copy `.env.example`). In production 
 | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN` | No | Enables `/api/spotify` for **your own** Spotify account (see *Spotify setup*). |
 | `VIEWS` binding | No | Durable Object for the views counter, already declared in `wrangler.toml`. |
 
-Without a token the API still works through a REST and HTML fallback, but it is slower and less accurate, and it hits GitHub's 60 requests/hour unauthenticated limit quickly. `GET /api/health` reports whether a token is configured.
+Without a token the API still works through REST, search and the public profile page: pinned repos, the punch card, code volume (your 10 latest repos), language trend (by repository creation year), merge rate, public orgs and yearly commit/PR/issue/review counts all have token-less paths, labelled on the card where the basis differs. Only the sponsors wall strictly needs a token. Token-less mode is slower and hits GitHub's 60 requests/hour unauthenticated limit quickly, so a token is still recommended. `GET /api/health` reports whether a token is configured.
 
 ---
 
@@ -125,6 +125,17 @@ Every card also supports `format=json` to get the underlying data instead of an 
 | `format` | `svg` | `svg`, `json`, or `text` (ascii card only). |
 | `cache_seconds` | `1800` | Browser and CDN cache lifetime, 1800 to 86400. |
 
+### Card styles (every card)
+
+| Option | Values |
+|--------|--------|
+| `card_style` | `default`, `glass` (translucent with sheen), `elevated` (soft shadow), `outline`, `neon` (glowing accent border), `gradient` (accent → `accent2` border), `soft` (tinted, borderless) |
+| `bg_pattern` | `none`, `dots`, `grid`, `diagonal`, `topo` |
+| `title_gradient`, `accent2` | Gradient title from `accent` to `accent2` |
+| `title_transform`, `title_divider` | Upper/lower-case titles; a line under the header |
+
+They combine with themes, gradients (`bg=135,c1,c2`), every colour override, width, padding, radius and text scale.
+
 ### Card parameters
 
 | Card | Parameters |
@@ -139,27 +150,27 @@ Every card also supports `format=json` to get the underlying data instead of an 
 | code | `count`, `exclude`, `layout` (`bars`, `tiles`) |
 | sponsors | `mode` (`sponsors`, `sponsoring`), `count` (1–60), `size`, `per_line`, `names`, `shape` (`circle rounded square`) |
 | views | `style` (`badge flat pill digits card`), `label`, `key` (separate counter, e.g. a repo), `base`, `abbreviated`, `count` (`false` = read only) |
-| wakatime | `range` (`last_7_days last_30_days last_6_months last_year all_time`), `section` (`languages editors operating_systems categories projects`), `layout` (`bars compact totals`), `count`, `percent` |
+| wakatime | `range` (`auto` = your public range, `last_7_days last_30_days last_6_months last_year all_time`; falls back to your public range if another isn't shared), `section` (`languages editors operating_systems categories projects`), `layout` (`bars compact totals`), `count`, `percent` |
 | spotify | `layout` (`card compact bar`), `show` (`auto now recent`), `cover`, `equalizer` |
 | quote | `layout` (`card minimal terminal bubble`), `topic`, `index`, `text`, `author`, `quote_width` |
-| stats | `layout` (`grid`, `compact`, `minimal`), `show_icons`, `hide`, `show`, `compact_numbers`, `footer`, `rank` (`none`, `letter`, `percentile`; readme-stats `hide_rank=false` maps here). Stat keys: `repos stars forks followers following gists commits contributions prs issues reviews age`. |
-| languages | `layout` (`bar`, `donut`, `pie`, `bars`, `chips`), `langs_count` (1–10), `hide`, `by` (`size`, `repos`), `decimals` (0–2) |
-| radar | `data` (`languages`, `activity` = commits/PRs/reviews/issues split), `langs_count` (3–8), `hide` |
-| streak | `years` (1–15) |
+| stats | `layout` (`grid`, `classic` list, `tiles`, `compact`, `minimal`), `columns` (1–6), `show_icons`, `hide`, `show`, `compact_numbers`, `footer`, `rank` (`none`, `letter`, `percentile`; readme-stats `hide_rank=false` maps here). Stat keys: `repos stars forks followers following gists commits contributions prs issues reviews age`. |
+| languages | `layout` (`bar`, `donut`, `pie`, `bars`, `chips`, `treemap`), `langs_count` (1–10), `hide`, `by` (`size`, `repos`), `decimals` (0–2), `percentages`, `center_label` |
+| radar | `data` (`languages`, `activity`), `langs_count` (3–8), `hide`, `levels` (2–8), `fill` (0–100), `values`, `grid` (`polygon`, `circle`), `scale` (`sqrt`, `linear`) |
+| streak | `layout` (`classic`, `ring`, `cards`, `compact`, `week`), `mode` (`daily`, `weekly`), `exclude_days` (e.g. `sat,sun` never break a streak), `hide` (`total current longest`), `dates`, `years` (1–15) |
 | contributions | `year`, `shape` (`square`, `round`, `circle`), `cell` (6–18), `gap` (1–6), `week_start` (`sun`, `mon`), `months`, `weekdays`, `legend`, `effect` (`none`, `snake`, `wave`; with `animation=true`) |
 | skyline | `year`, `height` (20–140), `cell` (6–16), `stats` |
 | patterns | `year`, `week_start`, `hide` (`active consistency average busiest weekend best break`) |
-| impact | `count` (0–6 external projects), `orgs`, `hide` (`external merge_rate repos reviews answers orgs`) |
-| pinned | `layout` (`grid`, `list`), `count` (1–6), `descriptions`, `owner` |
+| impact | `count` (0–6 external projects), `orgs`, `hide` (`external merge_rate repos reviews answers orgs`), `columns` (2–6), `tiles` |
+| pinned | `layout` (`grid`, `list`), `count` (1–6), `columns` (1–3), `descriptions`, `owner`, `fallback` (show top repos when nothing is pinned) |
 | tech | `icons` (e.g. `ts,react,docker`; empty = your languages), `style` (`tile`, `plain`, `mono`, `outline`), `size`, `per_line`, `gap`, `labels` |
 | typing | `lines` (separated by `;`), `mode` (`cycle`, `stack`), `size`, `speed`, `pause`, `align`, `width`, `cursor` |
 | composite | `cards` (up to 4 ids), `columns`, `gap`, `valign`; per-card options with a prefix, e.g. `stats.layout=compact` |
-| top-repos | `limit` (1–10), `sort` (`stars`, `forks`, `updated`), `exclude`, `skip_archived` |
-| repos | `repo` (name, or `auto` = your most-starred repository, the default), `show_owner` |
+| top-repos | `layout` (`list`, `grid`, `table`, `ranked`), `limit` (1–10), `sort` (`stars`, `forks`, `updated`), `language`, `min_stars`, `exclude`, `skip_archived`, `descriptions`, `updated` |
+| repos | `repo` (name, `owner/name`, or `auto` = your most-starred), `layout` (`default`, `detailed`, `compact`), `show_owner`, `topics`, `description_lines` |
 | achievements | `style` (`trophy`, `badge`), `columns` (1–6), `sort` (`default`, `rank`), `min_rank` (`E`..`SSS+`), `progress`, `hide` (`commits prs contributions repos stars followers issues reviews years external collaborations consistency answers orgs sponsors`) |
 | ascii | `shape` (`flat`, `sphere`, `cylinder`, `coin`), `charset` (`classic dense blocks binary hex alnum text`), `text`, `mode` (`mono`, `color`), `anim` (`scan reveal type wave flicker pulse none`), `speed`, `frames`, `cutout`, `cols` (20–110), `cell`, `contrast`, `invert`, `caption`, `source` (`avatar`, `identicon`) |
-| profile-card | `avatar`, `languages`, `details` (company, location, pronouns, status), `grade` |
-| compare | `vs` (required), `metrics` (`repos stars forks followers following gists commits contributions prs issues reviews age`) |
+| profile-card | `layout` (`default`, `centered`, `banner`), `stats` (up to 5 of `followers following repos stars forks prs issues contributions commits reviews`), `avatar`, `shape` (`circle rounded square`), `bio_lines`, `languages`, `details`, `links`, `grade` |
+| compare | `vs` (default `octocat`), `layout` (`bars`, `table`), `avatars`, `metrics` (`repos stars forks followers following gists commits contributions prs issues reviews age`) |
 | banner | `text`, `subtitle`, `style` (`wave gradient grid terminal`), `height`, `size`, `align`, `border` |
 | divider | `style` (`wave dots line gradient dashed stars footer header`), `height` |
 | activity | `by` (`month`, `week`, `weekday`), `style` (`bar`, `area`, `line`), `year`, `bar_radius`, `line_width`, `grid` |
@@ -373,6 +384,7 @@ Access tokens stay in memory only. The card is cached for 60 seconds.
 
 Built to sit in thousands of READMEs behind GitHub's image proxy:
 
+- **Versioned cache** - cached cards are keyed by app version, so a deploy never serves a stale error card from the previous release.
 - **Canonical cache keys** - only parameters a card understands are part of the key, defaults and order are ignored, usernames are lower-cased. Random junk parameters can't bust the cache or force re-renders.
 - **Stale-while-revalidate + stale-if-error** - GitHub data has a soft TTL (fresh) and a 7-day hard TTL. Stale data is served instantly while refreshing in the background, and if GitHub is down or rate-limiting, the last good data keeps being served. Unknown users are cached negatively.
 - **Token pool health** - requests go to the token with the most remaining quota; revoked (401) or rate-limited (403/429, secondary limits) tokens are benched until reset and the request is retried on another token, with jittered backoff and a 9 s overall deadline.

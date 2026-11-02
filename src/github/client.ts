@@ -4,6 +4,7 @@ import {
   aggregateRepos,
   levelFromEnum,
   mergeCalendars,
+  parsePinnedHtml,
   parseContributionHtml,
   type GqlRepoNode
 } from './parse';
@@ -48,7 +49,7 @@ export function calendarYearRange(year: number, now = new Date()): DateRange {
 // ---- GraphQL documents ----------------------------------------------------------------------
 
 const REPO_ARGS = 'ownerAffiliations:OWNER, privacy:PUBLIC, isFork:false, first:100, orderBy:{field:STARGAZERS, direction:DESC}';
-const REPO_NODES = `nodes{ name description url stargazerCount forkCount isArchived pushedAt
+const REPO_NODES = `nodes{ name description url stargazerCount forkCount isArchived pushedAt createdAt
   primaryLanguage{name color}
   languages(first:10, orderBy:{field:SIZE, direction:DESC}){ edges{ size node{name color} } } }
   pageInfo{ hasNextPage endCursor }`;
@@ -140,9 +141,13 @@ export class GitHubClient {
     );
   }
 
-  /** Extra profile data (pinned repos, orgs, merged PRs, sponsors, ...). Token-less mode returns empty values. */
+  /**
+   * Extra profile data (pinned repos, orgs, merged PRs, sponsors, ...). Without a token the public parts are
+   * still collected: pinned repos from the profile page, merged/closed PR counts from search, public orgs.
+   * Token-only fields stay empty and `partial` is set.
+   */
   getUserExtended(login: string): Promise<UserExtended> {
-    if (!this.hasToken) return Promise.resolve(emptyExtended());
+    if (!this.hasToken) return this.cache(`userx:${login.toLowerCase()}:public`, () => this.getExtendedPublic(login), Math.max(this.ttl, 3600));
     return this.cache(`userx:${login.toLowerCase()}`, () => this.getExtendedGraphQL(login), Math.max(this.ttl, 3600));
   }
 
@@ -173,13 +178,22 @@ export class GitHubClient {
   /** Contribution breakdown for a window, including work in other people's repositories (needs a token for full detail). */
   getContributions(login: string, range: DateRange = lastYearRange()): Promise<ContributionDetail> {
     const id = range.rolling ? 'rolling' : range.from.slice(0, 4);
-    return this.cache(`contrib:${login.toLowerCase()}:${id}:${this.hasToken ? 'g' : 'r'}`, async () => {
+    return this.cache(`contrib:${login.toLowerCase()}:${id}:${this.hasToken ? 'g' : 'r2'}`, async () => {
       const extQuery = `author:${login} is:pr is:merged -user:${login}`;
       if (!this.hasToken) {
+        // token-less: the search API counts public commits, PRs, issues and reviews for any date range
+        const span = `${range.from}..${range.to}`;
+        const [ext, commits, prs, issues, reviews] = await Promise.all([
+          this.searchCount('issues', extQuery),
+          this.searchCount('commits', `author:${login} author-date:${span}`),
+          this.searchCount('issues', `author:${login} type:pr created:${span}`),
+          this.searchCount('issues', `author:${login} type:issue created:${span}`),
+          this.searchCount('issues', `reviewed-by:${login} -author:${login} type:pr updated:${span}`)
+        ]);
         return {
-          from: range.from, to: range.to, commits: 0, pullRequests: 0, issues: 0, reviews: 0, restricted: 0,
+          from: range.from, to: range.to, commits: commits ?? 0, pullRequests: prs ?? 0, issues: issues ?? 0, reviews: reviews ?? 0, restricted: 0,
           reposWithCommits: 0, reposWithPullRequests: 0, reposWithIssues: 0, reposWithReviews: 0,
-          externalMergedPullRequests: (await this.searchCount('issues', extQuery)) ?? 0, externalRepos: []
+          externalMergedPullRequests: ext ?? 0, externalRepos: [], searched: true
         };
       }
       const data = await this.graphql<{ user: any; ext: { issueCount: number } }>(CONTRIB_QUERY, {
@@ -254,7 +268,8 @@ export class GitHubClient {
       const url = new URL(avatarUrl);
       if (url.protocol !== 'https:' || !/^([a-z0-9-]+\.)*githubusercontent\.com$/i.test(url.hostname)) throw upstream('Unexpected avatar host');
       url.searchParams.set('s', String(size));
-      const res = await this.request(url.toString(), { auth: false, redirect: 'error' });
+      // 'manual' (not 'error', which Workers rejects): a redirect comes back as 3xx and is refused below
+      const res = await this.request(url.toString(), { auth: false, redirect: 'manual' });
       if (!res.ok) throw upstream(`Could not load avatar (${res.status})`);
       if (Number(res.headers.get('content-length') ?? 0) > MAX_AVATAR_BYTES) throw upstream('Avatar is too large');
       const bytes = new Uint8Array(await res.arrayBuffer());
@@ -349,7 +364,15 @@ export class GitHubClient {
    * the author's local time. Needs a token.
    */
   getCommitTimes(login: string): Promise<string[]> {
-    if (!this.hasToken) return Promise.reject(badRequest('The punch card needs a GitHub token on the server'));
+    if (!this.hasToken) {
+      // token-less: commit search returns the 100 newest commits with author-local timestamps
+      return this.cache(`committimes:${login.toLowerCase()}:search`, async () => {
+        const j = await this.rest<{ items?: { commit?: { author?: { date?: string } } }[] }>(
+          `/search/commits?q=${encodeURIComponent(`author:${login}`)}&sort=author-date&order=desc&per_page=100`
+        );
+        return (j.items ?? []).map((i) => i.commit?.author?.date).filter((d): d is string => typeof d === 'string');
+      }, 6 * 3600);
+    }
     return this.cache(`committimes:${login.toLowerCase()}`, async () => {
       const id = await this.cache(`uid:${login.toLowerCase()}`, async () => {
         const { user } = await this.graphql<{ user: { id: string } | null }>('query($login:String!){ user(login:$login){ id } }', { login });
@@ -518,6 +541,42 @@ export class GitHubClient {
     };
   }
 
+  private async getExtendedPublic(login: string): Promise<UserExtended> {
+    const [pinned, merged, closed, orgs] = await Promise.all([
+      this.request(`https://github.com/${encodeURIComponent(login)}`, { auth: false })
+        .then(async (r) => (r.ok ? parsePinnedHtml(await r.text()) : []))
+        .catch(() => [] as PinnedRepo[]),
+      this.searchCount('issues', `author:${login} type:pr is:merged`),
+      this.searchCount('issues', `author:${login} type:pr is:unmerged is:closed`),
+      this.rest<{ login: string; avatar_url: string }[]>(`/users/${encodeURIComponent(login)}/orgs`).catch(() => [])
+    ]);
+    return {
+      ...emptyExtended(),
+      partial: true,
+      pinned,
+      mergedPullRequests: merged ?? 0,
+      closedPullRequests: closed ?? 0,
+      organizations: (Array.isArray(orgs) ? orgs : []).slice(0, 12).map((o) => ({ login: o.login, name: null, avatarUrl: o.avatar_url }))
+    };
+  }
+
+  /** Language bytes of a few repositories via REST (token-less fallback for byte-based cards). */
+  getLanguageBytes(owner: string, repos: string[]): Promise<LanguageStat[]> {
+    return this.cache(`langbytes:${owner.toLowerCase()}:${repos.join(',').toLowerCase()}`, async () => {
+      const parts = await Promise.all(
+        repos.map((r) => this.rest<Record<string, number>>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(r)}/languages`).catch(() => ({} as Record<string, number>)))
+      );
+      const total = new Map<string, LanguageStat>();
+      for (const part of parts) for (const [name, size] of Object.entries(part)) {
+        const cur = total.get(name) ?? { name, color: null, size: 0, repos: 0 };
+        cur.size += size;
+        cur.repos += 1;
+        total.set(name, cur);
+      }
+      return [...total.values()].sort((a, b) => b.size - a.size);
+    }, 86_400);
+  }
+
   private fetchCalendars(login: string, ranges: DateRange[]): Promise<CalendarDay[][]> {
     return this.hasToken ? this.calendarGraphQL(login, ranges) : Promise.all(ranges.map((r) => this.calendarHtml(login, r)));
   }
@@ -599,7 +658,8 @@ export class GitHubClient {
         language: r.language ?? null,
         languageColor: null,
         archived: !!r.archived,
-        pushedAt: r.pushed_at ?? null
+        pushedAt: r.pushed_at ?? null,
+        createdAt: r.created_at ?? null
       }))
       .sort((a, b) => b.stars - a.stars || b.forks - a.forks);
 

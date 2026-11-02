@@ -16,11 +16,14 @@ const BYTES_PER_LINE: Record<string, number> = {
   elixir: 30, clojure: 34, 'jupyter notebook': 120, markdown: 60, tex: 45, r: 30, perl: 30, zig: 30, nix: 30
 };
 const DEFAULT_BPL = 33;
+/** Repositories measured without a token (each costs one REST call). */
+const SAMPLE = 10;
 const LAYOUTS = ['bars', 'tiles'] as const;
 
 interface Data {
   languages: LanguageStat[];
-  exact: boolean;
+  /** Number of repositories measured when it isn't all of them (token-less mode). */
+  sampled: number | null;
 }
 
 interface Params {
@@ -48,7 +51,7 @@ export const codeCard = defineCard<Params, Data>({
   tags: ['lines of code', 'loc', 'bytes', 'size', 'volume', 'languages'],
   variants: [{ label: 'Bars' }, { label: 'Tiles', params: { layout: 'tiles' } }],
   title: 'Code Volume',
-  description: 'How much code lives in your public repositories: bytes per language from GitHub, with an estimated line count (bytes ÷ typical bytes per line). Estimates are labelled as such. Needs a token on the server.',
+  description: 'How much code lives in your public repositories: bytes per language from GitHub, with an estimated line count (bytes ÷ typical bytes per line). Estimates are labelled as such. Without a server token, your 10 most recently pushed repos are measured.',
   params: [
     { name: 'count', type: 'number', default: 6, min: 1, max: 10, description: 'Languages shown' },
     { name: 'exclude', type: 'list', description: 'Languages to leave out, e.g. HTML,Jupyter Notebook' },
@@ -57,8 +60,11 @@ export const codeCard = defineCard<Params, Data>({
   parse: (q) => ({ count: int(q.count, 6, 1, 10), exclude: list(q.exclude).map((s) => s.toLowerCase()), layout: oneOf(q.layout, LAYOUTS, 'bars') }),
   async load(client, _p, common) {
     const user = await client.getUser(common.username);
-    if (user.source !== 'graphql') throw badRequest('Code volume needs a GitHub token on the server (language byte counts come from GraphQL)');
-    return { languages: user.languages, exact: true };
+    if (user.source === 'graphql') return { languages: user.languages, sampled: null };
+    // token-less: language bytes of the most recently pushed repositories via REST (one call each)
+    const recent = [...user.repos].sort((a, b) => (b.pushedAt ?? '').localeCompare(a.pushedAt ?? '')).slice(0, SAMPLE).map((r) => r.name);
+    if (!recent.length) throw badRequest(`${common.username} has no public repositories`);
+    return { languages: await client.getLanguageBytes(user.login, recent), sampled: recent.length };
   },
   toJSON: (d, p) =>
     d.languages.filter((l) => !p.exclude.includes(l.name.toLowerCase())).map((l) => ({ name: l.name, bytes: l.size, estimatedLines: Math.round(lines(l)) })),
@@ -104,7 +110,8 @@ export const codeCard = defineCard<Params, Data>({
       });
       y += shown.length * 24 + 4;
     }
-    body += `<text x="${PAD}" y="${y + 12}" class="label muted" font-size="10">Bytes from GitHub (own public non-fork repos); lines are an estimate, not a count.</text>`;
+    const basis = d.sampled ? `your ${d.sampled} latest repos` : 'your public repos';
+    body += `<text x="${PAD}" y="${y + 12}" class="label muted" font-size="10">Bytes from GitHub (${basis}). Lines are estimated, not counted.</text>`;
     return frame(body, {
       width: W,
       height: y + 26,

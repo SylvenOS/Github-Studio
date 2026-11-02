@@ -8,6 +8,8 @@ export interface RepoSummary {
   languageColor: string | null;
   archived: boolean;
   pushedAt: string | null;
+  /** Creation date (absent in old cache entries). */
+  createdAt?: string | null;
 }
 
 export interface LanguageStat {
@@ -77,6 +79,8 @@ export interface UserExtended {
   /** Last 12 months. */
   pullRequestContributions: number;
   issueContributions: number;
+  /** Collected without a token: only public, token-free fields are filled in. */
+  partial?: boolean;
 }
 
 export interface PinnedRepo {
@@ -109,6 +113,8 @@ export interface ContributionDetail {
   externalRepos: { nameWithOwner: string; owner: string; stars: number; language: string | null; languageColor: string | null; pullRequests: number; commits: number }[];
   /** Every public repository contributed to in the window (own included), most contributions first. Absent in old cache entries. */
   repos?: { nameWithOwner: string; stars: number; language: string | null; languageColor: string | null; contributions: number }[];
+  /** Counted with the search API (no token): public, default-branch commits only. */
+  searched?: boolean;
 }
 
 export interface CalendarDay {

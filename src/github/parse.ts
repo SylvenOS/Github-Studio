@@ -1,4 +1,4 @@
-import type { CalendarDay, LanguageStat, RepoSummary } from './types';
+import type { CalendarDay, LanguageStat, RepoSummary, PinnedRepo } from './types';
 
 /**
  * Parses GitHub's server-rendered contribution graph (`/users/:name/contributions`).
@@ -39,6 +39,7 @@ export interface GqlRepoNode {
   forkCount: number;
   isArchived: boolean;
   pushedAt: string | null;
+  createdAt?: string | null;
   primaryLanguage: { name: string; color: string | null } | null;
   languages?: { edges: { size: number; node: { name: string; color: string | null } }[] };
 }
@@ -62,7 +63,8 @@ export function aggregateRepos(nodes: GqlRepoNode[]) {
       language: n.primaryLanguage?.name ?? null,
       languageColor: n.primaryLanguage?.color ?? null,
       archived: n.isArchived,
-      pushedAt: n.pushedAt
+      pushedAt: n.pushedAt,
+      createdAt: n.createdAt ?? null
     });
 
     for (const e of n.languages?.edges ?? []) {
@@ -81,4 +83,44 @@ export function aggregateRepos(nodes: GqlRepoNode[]) {
   repos.sort((a, b) => b.stars - a.stars || b.forks - a.forks);
   const languages = [...langs.values()].sort((a, b) => b.size - a.size || b.repos - a.repos);
   return { repos, languages, stars, forks };
+}
+
+const decode = (s: string) =>
+  s.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&#x27;/g, "'").replace(/\s+/g, ' ').trim();
+const count = (s: string | undefined) => {
+  if (!s) return 0;
+  const t = s.replace(/,/g, '').trim().toLowerCase();
+  const n = Number.parseFloat(t);
+  return Number.isFinite(n) ? Math.round(t.endsWith('k') ? n * 1000 : n) : 0;
+};
+
+/**
+ * Pinned repositories from a public profile page (token-less fallback; the GraphQL API needs a token).
+ * Tolerant by design: anything it can't read is skipped, and a markup change just yields [].
+ */
+export function parsePinnedHtml(html: string): PinnedRepo[] {
+  const out: PinnedRepo[] = [];
+  const parts = html.split('pinned-item-list-item-content').slice(1, 7);
+  for (const part of parts) {
+    const chunk = part.slice(0, 6000);
+    const link = /href="\/([\w.-]+)\/([\w.-]+)"[^>]*class="[^"]*text-bold/.exec(chunk) ?? /href="\/([\w.-]+)\/([\w.-]+)"/.exec(chunk);
+    if (!link) continue;
+    const [, owner, name] = link;
+    const desc = /<p class="pinned-item-desc[^"]*">([\s\S]*?)<\/p>/.exec(chunk)?.[1];
+    const lang = /itemprop="programmingLanguage">([^<]+)</.exec(chunk)?.[1];
+    const color = /repo-language-color" style="background-color:\s*(#[0-9a-fA-F]{3,8})/.exec(chunk)?.[1];
+    const stars = new RegExp(`href="/${owner}/${name}/stargazers"[^>]*>([\\s\\S]*?)</a>`).exec(chunk)?.[1];
+    const forks = new RegExp(`href="/${owner}/${name}/forks"[^>]*>([\\s\\S]*?)</a>`).exec(chunk)?.[1];
+    out.push({
+      name,
+      owner,
+      description: desc ? decode(desc) || null : null,
+      url: `https://github.com/${owner}/${name}`,
+      stars: count(stars ? decode(stars) : undefined),
+      forks: count(forks ? decode(forks) : undefined),
+      language: lang ? decode(lang) : null,
+      languageColor: color ?? null
+    });
+  }
+  return out;
 }

@@ -12,12 +12,16 @@ export const SCRIPT = String.raw`
   // UI-only style bundles: they just set ordinary parameters
   var STYLE_PRESETS = {
     Flat: { hide_border: 'true' },
-    Outline: { bg_opacity: '0', border_width: '2' },
-    Glass: { bg_opacity: '55', border_width: '1' },
-    Neon: { glow: 'true', border_width: '2', theme: 'synthwave' },
+    Outline: { card_style: 'outline', bg_opacity: '0' },
+    Glass: { card_style: 'glass', bg_pattern: 'dots' },
+    Elevated: { card_style: 'elevated', radius: '14' },
+    Gradient: { card_style: 'gradient', title_gradient: 'true' },
+    Neon: { card_style: 'neon', glow: 'true', theme: 'synthwave' },
+    Soft: { card_style: 'soft', bg_pattern: 'topo', radius: '16' },
     Minimal: { hide_border: 'true', hide_subtitle: 'true', padding: '16' },
     Large: { width: '720', text_scale: '110' }
   };
+
   var CATS = { overview: 'Overview', activity: 'Activity', languages: 'Languages', repositories: 'Repositories', achievements: 'Achievements', art: 'Art', decor: 'Decor', utility: 'Utility', integrations: 'Integrations', designs: 'Designs' };
   var SPECIAL = { username: 1, theme: 1, format: 1, cache_seconds: 1 };
   var BLOCK_LABELS = { card: 'Card', row: 'Row of cards', heading: 'Heading', text: 'Text', badges: 'Badges', divider: 'Divider', html: 'HTML' };

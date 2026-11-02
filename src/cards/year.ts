@@ -68,7 +68,7 @@ export const yearCard = defineCard<Params, Data>({
     return {
       year: p.year,
       partial: p.year === new Date().getUTCFullYear(),
-      detailed: client.hasToken,
+      detailed: client.hasToken || !!contributions.searched,
       contributions,
       patterns: analyzePatterns(inYear),
       longestStreak: computeStreaks(inYear).longest.length,

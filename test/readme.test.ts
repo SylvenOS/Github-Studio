@@ -264,7 +264,8 @@ describe('new cards', () => {
     expect(svg).toContain(" vs ");
     const json = await (await get('/api/compare?username=octo&vs=octocat&metrics=stars,repos&format=json')).json();
     expect(json.rows.map((r: { metric: string }) => r.metric)).toEqual(['stars', 'repos']);
-    expect((await get('/api/compare?username=octo&format=json')).status).toBe(400);
+    expect((await get('/api/compare?username=octo&vs=OCTO&format=json')).status).toBe(400); // comparing with yourself
+    expect((await get('/api/compare?username=octo&format=json')).status).toBe(200); // vs defaults to octocat
     expect((await get('/api/compare?username=octo&vs=octocat&format=json', { ...env, BLOCKLIST: 'octocat' })).status).toBe(404);
   });
 });

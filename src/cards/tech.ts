@@ -71,7 +71,7 @@ export const techCard = defineCard<Params, string[]>({
   render(names, p, { theme, common, title }) {
     const header = title('Tech Stack');
     const slugs = [...new Set(names.map(resolveIcon).filter((s): s is string => !!s))];
-    if (!slugs.length) return messageCard('Add some icons, e.g. icons=ts,react,docker,postgres', theme, { title: header ?? 'Tech Stack' });
+    if (!slugs.length) return messageCard('Add some icons, e.g. icons=ts,react,docker,postgres', theme, { title: header ?? 'Tech Stack', tone: 'info' });
 
     const s = p.size;
     const labelH = p.labels ? Math.round(12 + s * 0.12) : 0;

@@ -82,7 +82,7 @@ export const activityCard = defineCard<Params, CalendarDay[]>({
   render(days, p, { theme, common, title, t }) {
     const header = title(t('title.activity'));
     const buckets = bucketize(days, p.by);
-    if (!buckets.length) return messageCard('No contribution data available.', theme, { title: header ?? t('title.activity') });
+    if (!buckets.length) return messageCard('No contribution data available.', theme, { title: header ?? t('title.activity'), tone: 'info' });
 
     const width = 480;
     const top = contentTop(!!header);

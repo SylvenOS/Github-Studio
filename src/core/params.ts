@@ -140,6 +140,9 @@ export function parseCommon(q: Query, requireUser = true): CommonParams {
   };
 }
 
+export const CARD_STYLES = ['default', 'glass', 'elevated', 'outline', 'neon', 'gradient', 'soft'] as const;
+export const BG_PATTERNS = ['none', 'dots', 'grid', 'diagonal', 'topo'] as const;
+
 /** Everything here is validated to numbers, enums or hex colours: user text never reaches CSS. */
 export function parseStyle(q: Query): FrameStyle {
   const s: FrameStyle = {};
@@ -162,6 +165,13 @@ export function parseStyle(q: Query): FrameStyle {
   if (q.bg_opacity) s.bgOpacity = int(q.bg_opacity, 100, 0, 100);
   if (q.border_width) s.borderWidth = num(q.border_width, 1.5, 0, 6, 0.5);
   if (q.glow) s.glow = bool(q.glow, false);
+  if (q.card_style) s.cardStyle = oneOf(q.card_style, CARD_STYLES, 'default');
+  if (q.bg_pattern) s.bgPattern = oneOf(q.bg_pattern, BG_PATTERNS, 'none');
+  const accent2 = color(q.accent2);
+  if (accent2) s.accent2 = accent2;
+  if (q.title_gradient) s.titleGradient = bool(q.title_gradient, false);
+  if (q.title_transform) s.titleTransform = oneOf(q.title_transform, ['none', 'uppercase', 'lowercase'] as const, 'none');
+  if (q.title_divider) s.titleDivider = bool(q.title_divider, false);
   return s;
 }
 
@@ -176,6 +186,7 @@ export const COMMON_PARAMS: ParamDoc[] = [
   { name: 'title_color', type: 'color', description: 'Title colour', group: 'colors' },
   { name: 'value_color', type: 'color', description: 'Colour of the big numbers', group: 'colors' },
   { name: 'icon_color', type: 'color', description: 'Icon colour', group: 'colors' },
+  { name: 'accent2', type: 'color', description: 'Second accent colour (gradient border and gradient title)', group: 'colors' },
   { name: 'border', type: 'color', description: 'Border colour', group: 'colors' },
   { name: 'chart_colors', type: 'list', description: 'Chart series colours, comma-separated hex (up to 10)', group: 'colors' },
   { name: 'heat_colors', type: 'list', description: 'Five heatmap colours (empty → most), comma-separated hex', group: 'colors' },
@@ -189,16 +200,21 @@ export const COMMON_PARAMS: ParamDoc[] = [
   { name: 'hide_title', type: 'boolean', description: 'Hide the card header', default: false, group: 'layout' },
   { name: 'hide_subtitle', type: 'boolean', description: 'Hide the @username next to the title', default: false, group: 'layout' },
   { name: 'title_align', type: 'enum', options: ['left', 'center', 'right'], default: 'left', description: 'Title alignment', group: 'layout' },
+  { name: 'title_divider', type: 'boolean', description: 'Line under the header', default: false, group: 'layout' },
   // typography
   { name: 'title', type: 'string', description: 'Custom card title', group: 'typography' },
   { name: 'font', type: 'string', description: 'Font family, e.g. Fira Code, monospace', group: 'typography' },
   { name: 'title_size', type: 'number', description: 'Title font size', default: 18, min: 10, max: 32, group: 'typography' },
+  { name: 'title_transform', type: 'enum', options: ['none', 'uppercase', 'lowercase'], default: 'none', description: 'Title letter case', group: 'typography' },
   { name: 'text_scale', type: 'number', description: 'Text size %', default: 100, min: 70, max: 150, step: 5, group: 'typography' },
   { name: 'number_format', type: 'enum', options: ['auto', 'full', 'compact'], default: 'auto', description: 'Numbers: as designed, always full (12,345) or always compact (12.3k)', group: 'typography' },
   { name: 'locale', type: 'enum', options: [...LOCALES], default: 'en', description: 'Language for labels, titles and numbers', group: 'typography' },
   // effects
   { name: 'animation', type: 'boolean', description: 'Enable animations (fade-ins, ASCII effects, 3D spin). Off by default', default: false, group: 'effects' },
   { name: 'glow', type: 'boolean', description: 'Neon glow on titles and accents', default: false, group: 'effects' },
+  { name: 'card_style', type: 'enum', options: [...CARD_STYLES], default: 'default', description: 'Whole-card look: glass, elevated shadow, outline, neon, gradient border or soft tint', group: 'effects' },
+  { name: 'bg_pattern', type: 'enum', options: [...BG_PATTERNS], default: 'none', description: 'Subtle background texture', group: 'effects' },
+  { name: 'title_gradient', type: 'boolean', description: 'Gradient title (accent → accent2)', default: false, group: 'effects' },
   // data / output
   { name: 'format', type: 'enum', description: 'Response format (`text` is supported by the ascii card)', options: ['svg', 'json', 'text'], default: 'svg', group: 'data' },
   { name: 'cache_seconds', type: 'number', description: 'Cache lifetime (min 1800)', min: 1800, max: 86400, group: 'data' }

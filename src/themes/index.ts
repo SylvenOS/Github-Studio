@@ -33,6 +33,15 @@ export interface FrameStyle {
   bgOpacity?: number;
   borderWidth?: number;
   glow?: boolean;
+  /** Whole-card look: glass, elevated (shadow), outline, neon, gradient border, soft. */
+  cardStyle?: 'default' | 'glass' | 'elevated' | 'outline' | 'neon' | 'gradient' | 'soft';
+  /** Subtle background texture. */
+  bgPattern?: 'none' | 'dots' | 'grid' | 'diagonal' | 'topo';
+  /** Second accent colour (gradient border, gradient title). Defaults to a violet. */
+  accent2?: string;
+  titleGradient?: boolean;
+  titleTransform?: 'none' | 'uppercase' | 'lowercase';
+  titleDivider?: boolean;
 }
 
 /** A theme after query overrides; `dark` is set for `theme=auto` and applied via prefers-color-scheme. */

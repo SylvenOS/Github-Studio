@@ -62,14 +62,19 @@ export function withExtras(
   x: { extended?: UserExtended; contributions?: ContributionDetail; calendar?: CalendarDay[]; hasToken?: boolean }
 ): ProfileMetrics {
   const out = { ...m };
-  if (x.contributions && x.hasToken !== false) out.externalMergedPRs = x.contributions.externalMergedPullRequests;
-  if (x.extended && x.hasToken !== false) {
-    out.reposContributedTo = x.extended.reposContributedTo;
+  // external merged PRs come from search, which works with and without a token
+  if (x.contributions) out.externalMergedPRs = x.contributions.externalMergedPullRequests;
+  if (x.extended) {
+    // public data (also collected without a token)
     out.organizations = x.extended.organizations.length;
-    out.discussionAnswers = x.extended.discussionAnswers;
-    out.sponsors = x.extended.sponsors;
     const decided = x.extended.mergedPullRequests + x.extended.closedPullRequests;
     if (decided > 0) out.mergeRate = Math.round((x.extended.mergedPullRequests / decided) * 1000) / 10;
+    // token-only data
+    if (x.hasToken !== false && !x.extended.partial) {
+      out.reposContributedTo = x.extended.reposContributedTo;
+      out.discussionAnswers = x.extended.discussionAnswers;
+      out.sponsors = x.extended.sponsors;
+    }
   }
   if (x.calendar?.length) out.consistency = analyzePatterns(x.calendar).consistencyPct;
   return out;

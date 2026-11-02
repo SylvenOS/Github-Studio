@@ -99,10 +99,33 @@ function themeFromQuery(query: Query) {
   return resolveTheme(query.theme, { bg: bg.color, fg: color(query.fg), muted: color(query.muted), accent: color(query.accent), border: color(query.border) }, { gradient: bg.gradient });
 }
 
+const ERROR_TITLE: Record<ErrorCode, string> = {
+  bad_request: 'Check the card options',
+  not_found: 'Not found',
+  rate_limited: 'Taking a short break',
+  upstream: 'Temporarily unavailable',
+  internal: 'Something went wrong'
+};
+
+/** A hint on how to fix the error, when there's an obvious one. */
+function errorHint(err: ApiError): string | undefined {
+  const m = err.message.toLowerCase();
+  if (m.includes('token')) return 'The server owner can add GITHUB_TOKEN (no scopes needed) to unlock this.';
+  if (m.includes('not configured') || m.includes('not set up')) return 'This optional feature has to be enabled on the server; see the README.';
+  if (err.code === 'rate_limited') return 'GitHub is limiting requests. The card fixes itself within a few minutes.';
+  if (err.code === 'upstream') return 'The data source did not answer. Cached data is used as soon as it is available.';
+  if (err.code === 'not_found') return 'Check the spelling of the username or repository.';
+  if (err.code === 'bad_request') return 'See /api/cards for every option and its allowed values.';
+  return undefined;
+}
+
 /** Card error responses: JSON for `format=json`, otherwise an SVG (HTTP 200) so READMEs show the reason instead of a broken image. */
 function errorResponse(c: Ctx, err: ApiError, query: Query) {
   if (query.format === 'json') return jsonError(c, err);
-  return c.body(messageCard(err.message, themeFromQuery(query)), 200, {
+  const tone = err.code === 'rate_limited' || err.code === 'upstream' ? 'warn' : err.code === 'bad_request' ? 'info' : 'error';
+  const lower = err.message.toLowerCase();
+  const title = lower.includes('token') ? 'Needs a GitHub token' : lower.includes('not configured') || lower.includes('not set up') ? 'Not enabled on this server' : ERROR_TITLE[err.code];
+  return c.body(messageCard(err.message, themeFromQuery(query), { title, hint: errorHint(err), tone }), 200, {
     ...SVG_HEADERS,
     'Cache-Control': `public, max-age=${ERROR_CACHE[err.code]}`,
     'X-Card-Error': err.code
@@ -215,7 +238,7 @@ const PROFILE_PARAMS = new Map<string, ParamDoc>([
 
 // Aggregated developer profile (JSON only): GitHub data + derived metrics + trophies + plugins.
 app.get('/api/profile', async (c) => {
-  const key = canonicalKey(new URL(c.req.url).origin, '/api/profile', c.req.query(), PROFILE_PARAMS);
+  const key = canonicalKey(new URL(c.req.url).origin, `/${pkg.version}/api/profile`, c.req.query(), PROFILE_PARAMS);
   const [res] = await edgeResponse(c, key, async () => {
     try {
       const login = username(c.req.query('username'));
@@ -250,7 +273,7 @@ async function handleCard(c: Ctx, id: string) {
   const query = applyCompat(card.id, c.req.query());
 
   // One cache entry per *meaningful* request: unknown params, defaults and param order don't matter.
-  const key = canonicalKey(new URL(c.req.url).origin, `/api/${card.id}`, query, allowedFor(card), card.extraParam);
+  const key = canonicalKey(new URL(c.req.url).origin, `/${pkg.version}/api/${card.id}`, query, allowedFor(card), card.extraParam);
   let client: GitHubClient | undefined;
   const [res, hit] = await edgeResponse(c, key, async () => {
     if (await overLimit(c, query.username)) return errorResponse(c, rateLimited('Too many requests, please try again in a minute'), query);

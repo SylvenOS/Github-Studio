@@ -26,12 +26,13 @@ export async function safeFetch(url: string, o: SafeFetchOptions): Promise<Respo
       method: o.method ?? 'GET',
       headers: { 'User-Agent': 'github-stats-api', ...o.headers },
       body: o.body,
-      redirect: 'error',
+      redirect: 'manual', // Workers rejects 'error'; 3xx responses are refused below
       signal: AbortSignal.timeout(o.timeoutMs ?? 6000)
     });
   } catch {
     throw upstream(`${o.name} did not respond in time`);
   }
+  if (res.status >= 300 && res.status < 400) throw upstream(`${o.name} tried to redirect`);
   const len = Number(res.headers.get('content-length') ?? 0);
   if (len > (o.maxBytes ?? 2_000_000)) throw upstream(`${o.name} response is too large`);
   return res;

@@ -1,5 +1,5 @@
 import type { FrameStyle, ResolvedTheme, Palette } from '../themes';
-import { esc } from '../core/text';
+import { esc, wrap } from '../core/text';
 
 export const PAD = 25;
 
@@ -62,8 +62,17 @@ function styleCss(st: FrameStyle): string {
   if (st.heatColors) css += st.heatColors.map((c, i) => `.l${i}{fill:${c};fill-opacity:1}`).join('');
   if (st.bgOpacity !== undefined && st.bgOpacity < 100) css += `.bgr{fill-opacity:${st.bgOpacity / 100}}`;
   if (st.glow) css += '.header,.accent,.ic{filter:drop-shadow(0 0 3px var(--accent))}';
+  if (st.titleTransform && st.titleTransform !== 'none') css += `.header{text-transform:${st.titleTransform}}`;
+  if (st.titleGradient) css += '.header{fill:url(#titleGrad)}';
   return css;
 }
+
+const PATTERNS: Record<string, string> = {
+  dots: '<pattern id="bgpat" width="14" height="14" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.1" class="fg" fill-opacity=".09"/></pattern>',
+  grid: '<pattern id="bgpat" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M22 0H0V22" fill="none" class="sk-fg" stroke-opacity=".06"/></pattern>',
+  diagonal: '<pattern id="bgpat" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" class="sk-fg" stroke-opacity=".05" stroke-width="3"/></pattern>',
+  topo: '<pattern id="bgpat" width="120" height="80" patternUnits="userSpaceOnUse"><path d="M0 40c20-18 40-18 60 0s40 18 60 0M0 60c20-18 40-18 60 0s40 18 60 0M0 20c20-18 40-18 60 0s40 18 60 0" fill="none" class="sk-fg" stroke-opacity=".06"/></pattern>'
+};
 
 /** Scales inline font sizes for `text_scale` (cards set sizes as attributes). */
 const scaleFonts = (svg: string, ts: number) =>
@@ -81,13 +90,29 @@ export function frame(content: string, o: FrameOptions): string {
   const d = (st.padding ?? PAD) - PAD;
   const vw = width + 2 * d;
   const vh = height + 2 * d;
-  const outW = st.width ?? vw;
-  const outH = Math.round((vh * outW) / vw);
-  const bw = theme.hideBorder ? 0 : st.borderWidth ?? 1.5;
+  const cs = o.transparent ? 'default' : st.cardStyle ?? 'default';
+  // elevated cards need room for the shadow
+  const m = cs === 'elevated' ? 10 : cs === 'neon' ? 6 : 0;
+  const outW = st.width ? Math.round((st.width * (vw + 2 * m)) / vw) : vw + 2 * m;
+  const outH = Math.round(((vh + 2 * m) * outW) / (vw + 2 * m));
+  const bw = theme.hideBorder || cs === 'soft' ? 0 : cs === 'outline' || cs === 'neon' || cs === 'gradient' ? Math.max(2, st.borderWidth ?? 2) : st.borderWidth ?? 1.5;
+  const accent2 = st.accent2 ?? '#a371f7';
   const darkCss = theme.dark ? `@media (prefers-color-scheme:dark){:root{${vars(theme.dark)}}}` : '';
+  const strokeAttr = cs === 'gradient' ? 'stroke="url(#bdGrad)"' : cs === 'neon' || cs === 'outline' ? 'class="sk-accent"' : 'class="sk-bd"';
   const border = bw > 0
-    ? `<rect x="${bw / 2}" y="${bw / 2}" width="${vw - bw}" height="${vh - bw}" rx="${theme.borderRadius}" fill="none" class="sk-bd" stroke-width="${bw}"/>`
+    ? `<rect x="${bw / 2}" y="${bw / 2}" width="${vw - bw}" height="${vh - bw}" rx="${theme.borderRadius}" fill="none" ${strokeAttr} stroke-width="${bw}"${cs === 'neon' ? ' filter="url(#neon)"' : ''}${cs === 'glass' ? ' stroke-opacity=".55"' : ''}/>`
     : '';
+  // style defs: gradients, shadow/glow filters, background texture
+  let defs = '';
+  if (cs === 'gradient' || st.titleGradient) {
+    defs += `<linearGradient id="bdGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--accent)"/><stop offset="1" stop-color="${accent2}"/></linearGradient>`;
+    defs += `<linearGradient id="titleGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0" style="stop-color:var(--accent)"/><stop offset="1" stop-color="${accent2}"/></linearGradient>`;
+  }
+  if (cs === 'elevated') defs += '<filter id="lift" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000" flood-opacity=".22"/></filter>';
+  if (cs === 'neon') defs += '<filter id="neon" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>';
+  if (cs === 'glass') defs += '<linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/></linearGradient>';
+  const pattern = !o.transparent && st.bgPattern && st.bgPattern !== 'none' ? PATTERNS[st.bgPattern] : '';
+  if (pattern) defs += pattern;
 
   let header = '';
   if (o.title) {
@@ -98,19 +123,26 @@ export function frame(content: string, o: FrameOptions): string {
     if (o.subtitle && !st.hideSubtitle && align === 'left') {
       header += `<text x="${width - PAD}" y="35" class="label muted" text-anchor="end" font-size="13">${esc(o.subtitle)}</text>`;
     }
+    if (st.titleDivider) header += `<line x1="${PAD}" y1="46" x2="${width - PAD}" y2="46" class="sk-bd" stroke-width="1"/>`;
   }
   const body = scaleFonts(header + content, ts);
   const inner = d ? `<g transform="translate(${d} ${d})">${body}</g>` : body;
 
+  const glassBg = cs === 'glass' ? ' fill-opacity=".72"' : '';
+  const bgRect = theme.gradient
+    ? `<rect x="0" y="0" width="${vw}" height="${vh}" rx="${theme.borderRadius}" fill="url(#bgGrad)" class="bgr"${cs === 'elevated' ? ' filter="url(#lift)"' : ''}/>`
+    : `<rect x="0" y="0" width="${vw}" height="${vh}" rx="${theme.borderRadius}" class="bg bgr"${glassBg}${cs === 'elevated' ? ' filter="url(#lift)"' : ''}/>`;
+  const extras =
+    (cs === 'soft' ? `<rect x="0" y="0" width="${vw}" height="${vh}" rx="${theme.borderRadius}" class="accent" fill-opacity=".06"/>` : '') +
+    (pattern ? `<rect x="0" y="0" width="${vw}" height="${vh}" rx="${theme.borderRadius}" fill="url(#bgpat)"/>` : '') +
+    (cs === 'glass' ? `<rect x="0" y="0" width="${vw}" height="${vh}" rx="${theme.borderRadius}" fill="url(#sheen)"/>` : '');
+  const card =
+    (o.transparent ? '' : gradientDef(theme) + bgRect + extras + border) + inner;
   return (
-    `<svg width="${outW}" height="${outH}" viewBox="0 0 ${vw} ${vh}" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(o.label ?? o.title ?? 'GitHub card')}">` +
+    `<svg width="${outW}" height="${outH}" viewBox="${-m} ${-m} ${vw + 2 * m} ${vh + 2 * m}" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(o.label ?? o.title ?? 'GitHub card')}">` +
     `<style>:root{${vars(theme)}}${darkCss}text{font-family:${theme.fontFamily.replace(/"/g, "'")}}${STYLE}${styleCss(st)}${o.animate ?? /fade-in|pulse/.test(content) ? ANIMATION : ''}</style>` +
-    (o.transparent
-      ? ''
-      : gradientDef(theme) +
-        `<rect x="0" y="0" width="${vw}" height="${vh}" rx="${theme.borderRadius}" ${theme.gradient ? 'fill="url(#bgGrad)" class="bgr"' : 'class="bg bgr"'}/>` +
-        border) +
-    inner +
+    (defs ? `<defs>${defs}</defs>` : '') +
+    card +
     `</svg>`
   );
 }
@@ -126,14 +158,36 @@ export const anim = (animate: boolean | undefined, i = 0, extra = '') =>
 export const cls = (base: string, animate: boolean | undefined, i = 0) =>
   animate ? ` class="${base} fade-in" style="--i:${i}"` : ` class="${base}"`;
 
-/** Small message card used for empty states and errors. */
-export function messageCard(message: string, theme: ResolvedTheme, opts: { title?: string; width?: number } = {}): string {
-  const width = opts.width ?? 440;
-  return frame(`<text x="${PAD}" y="80" class="label muted" font-size="13">${esc(message)}</text>`, {
-    width,
-    height: 110,
-    theme,
-    title: opts.title ?? 'Something went wrong',
-    label: message
-  });
+export type MessageTone = 'error' | 'warn' | 'info';
+const TONE: Record<MessageTone, { color: string; glyph: string }> = {
+  error: { color: '#f85149', glyph: '!' },
+  warn: { color: '#d29922', glyph: '!' },
+  info: { color: '#58a6ff', glyph: 'i' }
+};
+
+/** Message card for empty states and errors: a status glyph, a title, the wrapped message and an optional hint. */
+export function messageCard(
+  message: string,
+  theme: ResolvedTheme,
+  opts: { title?: string; width?: number; hint?: string; tone?: MessageTone } = {}
+): string {
+  const width = opts.width ?? 480;
+  const tone = TONE[opts.tone ?? 'error'];
+  const textX = PAD + 40;
+  const lines = wrap(message, Math.floor((width - textX - PAD) / 6.6), 3);
+  const hint = opts.hint ? wrap(opts.hint, Math.floor((width - textX - PAD) / 6), 2) : [];
+  let y = PAD + 40;
+  let body =
+    `<circle cx="${PAD + 14}" cy="${PAD + 14}" r="14" fill="${tone.color}" fill-opacity=".15"/>` +
+    `<text x="${PAD + 14}" y="${PAD + 19.5}" text-anchor="middle" font-size="16" font-weight="800" fill="${tone.color}">${tone.glyph}</text>` +
+    `<text x="${textX}" y="${PAD + 19}" class="fg" font-size="15" font-weight="700">${esc(opts.title ?? 'Something went wrong')}</text>`;
+  for (const l of lines) {
+    body += `<text x="${textX}" y="${y}" class="fg" font-size="12.5" opacity=".85">${esc(l)}</text>`;
+    y += 18;
+  }
+  for (const l of hint) {
+    body += `<text x="${textX}" y="${y + 4}" class="muted" font-size="11.5">${esc(l)}</text>`;
+    y += 16;
+  }
+  return frame(body, { width, height: y + PAD - 6, theme, label: `${opts.title ?? 'Error'}: ${message}` });
 }

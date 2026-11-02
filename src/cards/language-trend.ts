@@ -16,6 +16,8 @@ interface Params {
 
 interface Data {
   years: YearLanguages[];
+  /** What was counted: commit contributions (token) or repositories created per year (no token). */
+  basis: 'commits' | 'repos';
 }
 
 export const languageTrendCard = defineCard<Params, Data>({
@@ -25,7 +27,7 @@ export const languageTrendCard = defineCard<Params, Data>({
   tags: ['languages', 'trend', 'history', 'evolution', 'years', 'stack', 'chart'],
   variants: [{ label: 'Stream' }, { label: 'Stacked bars', params: { layout: 'bars' } }, { label: 'Lines', params: { layout: 'lines' } }],
   title: 'Language Trend',
-  description: 'How your languages changed year by year: share of commit contributions by the repository’s primary language. Needs a token on the server.',
+  description: 'How your languages changed year by year: share of commit contributions by the repository’s primary language. Without a server token it uses the languages of the repositories you created each year (labelled on the card).',
   cacheSeconds: 12 * 3600,
   params: [
     { name: 'years', type: 'number', default: 5, min: 2, max: 10, description: 'How many recent years' },
@@ -36,20 +38,46 @@ export const languageTrendCard = defineCard<Params, Data>({
   parse: (q) => ({ years: int(q.years, 5, 2, 10), count: int(q.count, 6, 2, 8), layout: oneOf(q.layout, LAYOUTS, 'stream'), exclude: list(q.exclude).map((s) => s.toLowerCase()) }),
 
   async load(client, p, common) {
+    if (!client.hasToken) {
+      // token-less fallback: primary languages of the repositories created each year
+      const user = await client.getUser(common.username);
+      const now = new Date().getUTCFullYear();
+      const years = Array.from({ length: p.years }, (_, i) => now - p.years + 1 + i);
+      return {
+        basis: 'repos',
+        years: years.map((year) => {
+          const byLang = new Map<string, { name: string; color: string | null; count: number }>();
+          for (const r of user.repos) {
+            // older cached repo lists have no createdAt; the last push year is the next best signal
+            const when = r.createdAt === undefined ? r.pushedAt : r.createdAt;
+            if (!r.language || !when?.startsWith(String(year))) continue;
+            const cur = byLang.get(r.language) ?? { name: r.language, color: r.languageColor, count: 0 };
+            cur.count++;
+            byLang.set(r.language, cur);
+          }
+          const languages = [...byLang.values()].sort((a, b) => b.count - a.count);
+          return { year, languages, total: languages.reduce((a, l) => a + l.count, 0) };
+        })
+      };
+    }
     const ext = await client.getUserExtended(common.username);
     const now = new Date().getUTCFullYear();
     let years = ext.contributionYears.length ? [...ext.contributionYears].sort((a, b) => b - a).slice(0, p.years) : [];
     if (!years.length) years = Array.from({ length: p.years }, (_, i) => now - i);
-    return { years: await client.getLanguageTrend(common.username, years) };
+    return { basis: 'commits', years: await client.getLanguageTrend(common.username, years) };
   },
-  toJSON: (d) => d.years,
+  toJSON: (d) => ({ basis: d.basis, years: d.years }),
 
   render(d, p, { theme, common, title }) {
     const header = title('Language Trend');
     const top = contentTop(!!header);
     const W = 560;
     const animate = common.animation;
-    const years = d.years.map((y) => ({ ...y, languages: y.languages.filter((l) => !p.exclude.includes(l.name.toLowerCase())) }));
+    let years = d.years.map((y) => ({ ...y, languages: y.languages.filter((l) => !p.exclude.includes(l.name.toLowerCase())) }));
+    // empty years at the edges would collapse the chart to zero; keep the span that has data
+    const has = (y: (typeof years)[number]) => y.languages.some((l) => l.count > 0);
+    while (years.length > 1 && !has(years[0])) years = years.slice(1);
+    while (years.length > 1 && !has(years[years.length - 1])) years = years.slice(0, -1);
 
     // top languages across all years
     const totals = new Map<string, { name: string; color: string | null; count: number }>();
@@ -59,7 +87,8 @@ export const languageTrendCard = defineCard<Params, Data>({
       totals.set(l.name, cur);
     }
     const top_ = [...totals.values()].sort((a, b) => b.count - a.count).slice(0, p.count);
-    const keys = [...top_.map((l) => l.name), 'Other'];
+    const hasOther = [...totals.values()].length > top_.length;
+    const keys = [...top_.map((l) => l.name), ...(hasOther ? ['Other'] : [])];
     const color = (k: string) => (k === 'Other' ? '#8b949e' : languageColor(k, totals.get(k)?.color));
     const share = years.map((y) => {
       const sum = y.languages.reduce((a, l) => a + l.count, 0);
@@ -77,7 +106,7 @@ export const languageTrendCard = defineCard<Params, Data>({
     let body = '';
 
     if (!share.some((s) => s.sum)) {
-      body += `<text x="${PAD}" y="${top + 30}" class="label muted" font-size="12.5">No public commit contributions with a detectable language in these years.</text>`;
+      body += `<text x="${PAD}" y="${top + 30}" class="label muted" font-size="12.5">${d.basis === 'repos' ? 'No public repositories with a language were created in these years.' : 'No public commit contributions with a detectable language in these years.'}</text>`;
       return frame(body, { width: W, height: top + 50, theme, title: header, label: 'Language trend: no data' });
     }
 
@@ -148,7 +177,7 @@ export const languageTrendCard = defineCard<Params, Data>({
       height: ly + legendRows * 20 + 4,
       theme,
       title: header,
-      subtitle: `${share[0].year}-${share[share.length - 1].year}`,
+      subtitle: `${d.basis === 'repos' ? 'repos created · ' : ''}${share[0].year}-${share[share.length - 1].year}`,
       label: `Language trend of ${common.username}, ${share[0].year} to ${share[share.length - 1].year}; most used overall: ${lead}`
     });
   }

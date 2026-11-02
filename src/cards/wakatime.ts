@@ -7,11 +7,11 @@ import { safeJson } from '../providers/fetch';
 import { languageColor } from '../svg/colors';
 import { anim, contentTop, frame, PAD } from '../svg/frame';
 
-const RANGES = ['last_7_days', 'last_30_days', 'last_6_months', 'last_year', 'all_time'] as const;
+const RANGES = ['auto', 'last_7_days', 'last_30_days', 'last_6_months', 'last_year', 'all_time'] as const;
 const SECTIONS = ['languages', 'editors', 'operating_systems', 'categories', 'projects'] as const;
 const LAYOUTS = ['bars', 'compact', 'totals'] as const;
-const RANGE_LABEL: Record<(typeof RANGES)[number], string> = {
-  last_7_days: 'last 7 days', last_30_days: 'last 30 days', last_6_months: 'last 6 months', last_year: 'last year', all_time: 'all time'
+const RANGE_LABEL: Record<string, string> = {
+  auto: 'public range', last_7_days: 'last 7 days', last_30_days: 'last 30 days', last_6_months: 'last 6 months', last_year: 'last year', all_time: 'all time'
 };
 const PALETTE = ['#58a6ff', '#a371f7', '#3fb950', '#f78166', '#d29922', '#db61a2', '#39c5cf', '#8b949e'];
 
@@ -23,6 +23,10 @@ interface Data {
   bestDay: { date: string; text: string } | null;
   items: Item[];
   pending: boolean;
+  /** The range WakaTime actually returned (a profile only shares one public range). */
+  range: string;
+  /** The requested range wasn't public, so the profile's own range is shown. */
+  fellBack: boolean;
 }
 
 interface Params {
@@ -48,14 +52,14 @@ export const wakatimeCard = defineCard<Params, Data>({
   description: 'Coding time from WakaTime: total, daily average, best day and a breakdown by language, editor, OS, category or project. `username` is your WakaTime username; your stats must be public on wakatime.com.',
   cacheSeconds: 3600,
   params: [
-    { name: 'range', type: 'enum', options: [...RANGES], default: 'last_7_days', description: 'Time range' },
+    { name: 'range', type: 'enum', options: [...RANGES], default: 'auto', description: 'Time range (auto = the range your WakaTime profile shares publicly)' },
     { name: 'section', type: 'enum', options: [...SECTIONS], default: 'languages', description: 'Breakdown to show' },
     { name: 'layout', type: 'enum', options: [...LAYOUTS], default: 'bars', description: 'Presentation' },
     { name: 'count', type: 'number', default: 6, min: 1, max: 10, description: 'Rows in the breakdown' },
     { name: 'percent', type: 'boolean', default: false, description: 'Show percentages instead of hours' }
   ],
   parse: (q) => ({
-    range: oneOf(q.range, RANGES, 'last_7_days'),
+    range: oneOf(q.range, RANGES, 'auto'),
     section: oneOf(q.section, SECTIONS, 'languages'),
     layout: oneOf(q.layout, LAYOUTS, 'bars'),
     count: int(q.count, 6, 1, 10),
@@ -64,17 +68,25 @@ export const wakatimeCard = defineCard<Params, Data>({
 
   async load(_client, p, common, { waitUntil }) {
     const user = common.username;
-    const raw = await cached(`waka:${user.toLowerCase()}:${p.range}`, { ttl: 3600, waitUntil }, async () => {
-      const { status, data } = await safeJson<{ data?: any; error?: string }>(
-        `https://wakatime.com/api/v1/users/${encodeURIComponent(user)}/stats/${p.range}`,
+    const get = (range: string) =>
+      safeJson<{ data?: any; error?: string }>(
+        `https://wakatime.com/api/v1/users/${encodeURIComponent(user)}/stats${range === 'auto' ? '' : `/${range}`}`,
         { hosts: ['wakatime.com'], name: 'WakaTime', maxBytes: 1_000_000 }
       ).catch((e) => {
-        if (e?.code === 'not_found') throw notFound('WakaTime user not found (or their stats are private)');
+        if (e?.code === 'not_found') throw notFound('No public WakaTime profile with this username');
         throw e;
       });
-      if (status === 403 || status === 401) throw badRequest('This WakaTime profile is private. Make your stats public on wakatime.com');
-      if (status >= 400 || !data.data) throw upstream(`WakaTime responded with ${status}`);
-      return data.data;
+    const { raw, fellBack } = await cached(`waka2:${user.toLowerCase()}:${p.range}`, { ttl: 3600, waitUntil }, async () => {
+      let res = await get(p.range);
+      let fellBack = false;
+      // a profile shares exactly one public range; asking for another returns 400 - show the public one instead
+      if (res.status === 400 && p.range !== 'auto') {
+        res = await get('auto');
+        fellBack = true;
+      }
+      if (res.status === 403 || res.status === 401) throw badRequest('This WakaTime profile is private. Make your stats public on wakatime.com');
+      if (res.status >= 400 || !res.data.data) throw upstream(res.data.error ? `WakaTime: ${String(res.data.error).slice(0, 80)}` : `WakaTime responded with ${res.status}`);
+      return { raw: res.data.data, fellBack };
     });
     const list = (raw[p.section] ?? []) as any[];
     return {
@@ -83,7 +95,9 @@ export const wakatimeCard = defineCard<Params, Data>({
       dailyAverage: raw.human_readable_daily_average_including_other_language ?? raw.human_readable_daily_average ?? null,
       bestDay: raw.best_day?.date ? { date: raw.best_day.date, text: raw.best_day.text ?? '' } : null,
       items: list.filter((x) => x && x.name).map((x) => ({ name: String(x.name), percent: Number(x.percent) || 0, text: String(x.text ?? '') })),
-      pending: raw.is_up_to_date === false || raw.status === 'pending_update'
+      pending: raw.is_up_to_date === false || raw.status === 'pending_update',
+      range: String(raw.range ?? p.range),
+      fellBack
     };
   },
 
@@ -94,7 +108,7 @@ export const wakatimeCard = defineCard<Params, Data>({
     const animate = common.animation;
     const items = d.items.slice(0, p.count);
     const color = (it: Item, i: number) => (p.section === 'languages' ? languageColor(it.name) : PALETTE[i % PALETTE.length]);
-    const sub = `WakaTime · ${RANGE_LABEL[p.range]}`;
+    const sub = `WakaTime · ${RANGE_LABEL[d.range] ?? d.range.replace(/_/g, ' ')}`;
 
     // totals strip
     const totals = [
@@ -151,6 +165,6 @@ export const wakatimeCard = defineCard<Params, Data>({
       }
     }
 
-    return frame(body, { width: W, height: y + 12, theme, title: header, subtitle: sub, label: `WakaTime coding time for ${d.username}: ${d.total ?? 'unknown'} (${RANGE_LABEL[p.range]})` });
+    return frame(body, { width: W, height: y + 12, theme, title: header, subtitle: sub, label: `WakaTime coding time for ${d.username}: ${d.total ?? 'unknown'} (${RANGE_LABEL[d.range] ?? d.range})` });
   }
 });

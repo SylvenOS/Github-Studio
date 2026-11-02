@@ -70,7 +70,8 @@ describe('analytics cards', () => {
     expect(await svgOf(`/api/year?username=octo&year=${new Date().getUTCFullYear() - 1}`)).toContain('YEAR IN REVIEW');
     expect(await svgOf(`/api/year?username=octo&year=${new Date().getUTCFullYear()}`)).toContain('SO FAR');
     const tokenless = await svgOf('/api/year?username=octo', {});
-    expect(tokenless).toMatch(/>-<\/text><text[^>]*>Commits/);
+    // without a token the counts come from the search API instead of showing dashes
+    expect(tokenless).toMatch(/>\d+<\/text><text[^>]*>Commits/);
   });
   it('monthly trend compares against last year', async () => {
     mockGitHub({ calendarDays: 400 });
@@ -88,11 +89,14 @@ describe('analytics cards', () => {
     expect(svg).toContain('4 commits'); // the private repo is skipped
     expect(svg).toContain('busiest Tue around 23:00');
     expect((await get('/api/punchcard?username=octo&tz=99')).headers.get('x-card-error')).toBe('bad_request');
-    expect((await get('/api/punchcard?username=octo', {})).headers.get('x-card-error')).toBe('bad_request'); // needs a token
+    // without a token the commit search API is used (author-local timestamps too)
+    const tokenless = await svgOf('/api/punchcard?username=octo', {});
+    expect(tokenless).toContain('2 commits');
   });
   it('language trend groups commits by repo language per year and skips private repos', async () => {
     mockGitHub();
-    const j = await (await get('/api/language-trend?username=octo&years=3&format=json')).json();
+    const { basis, years: j } = await (await get('/api/language-trend?username=octo&years=3&format=json')).json();
+    expect(basis).toBe('commits');
     expect(j).toHaveLength(3);
     expect(j[0].year).toBeLessThan(j[2].year);
     expect(JSON.stringify(j)).not.toContain('Secret');
@@ -102,7 +106,7 @@ describe('analytics cards', () => {
     mockGitHub();
     const svg = await svgOf('/api/code?username=octo');
     expect(svg).toContain('estimated lines of code');
-    expect(svg).toContain('not a count');
+    expect(svg).toContain('not counted');
     expect((await get('/api/code?username=octo', {})).headers.get('x-card-error')).not.toBeNull(); // no token: REST data has no byte counts
   });
 });

@@ -3,7 +3,7 @@ import { badRequest } from '../core/errors';
 import { bool, list, oneOf, repoName } from '../core/params';
 import { compact, esc, MONTHS, truncate } from '../core/text';
 import type { StarHistory } from '../github/client';
-import { contentTop, frame, PAD } from '../svg/frame';
+import { contentTop, frame, messageCard, PAD } from '../svg/frame';
 
 const SCALES = ['linear', 'log'] as const;
 const MAX_REPOS = 3;
@@ -70,6 +70,10 @@ export const starsCard = defineCard<Params, StarHistory[]>({
   render(series, p, { theme, title }) {
     const header = title('Star History');
     const top = contentTop(!!header);
+    if (series.every((x) => x.total === 0)) {
+      const names = series.map((x) => x.repo).join(', ');
+      return messageCard(`${names} has no stars yet. Star history appears after the first one.`, theme, { title: header ?? 'Star History', tone: 'info', width: 520 });
+    }
     const W = 560;
     const legendH = p.legend ? 24 : 0;
     const chart = { x: PAD + 44, y: top + 10 + legendH, w: W - PAD * 2 - 52, h: 190 };

@@ -1,6 +1,7 @@
 import type { CalendarDay, UserData, UserExtended } from '../github/client';
 import { computeStreaks } from '../metrics/streak';
 import { languageColor } from '../svg/colors';
+import { emojify } from '../core/text';
 
 /**
  * The content of a profile design, independent of how it is drawn. Every design system renders this
@@ -44,8 +45,8 @@ export function buildModel(i: ModelInput): ProfileModel {
   const { user, extended, calendar } = i;
   const totalLang = user.languages.slice(0, 5).reduce((a, l) => a + l.size, 0) || 1;
   const pinned = extended?.pinned ?? [];
-  const projects = (pinned.length ? pinned.map((p) => ({ name: p.name, owner: p.owner, description: p.description, stars: p.stars, language: p.language, color: languageColor(p.language, p.languageColor) }))
-    : user.repos.map((r) => ({ name: r.name, owner: user.login, description: r.description, stars: r.stars, language: r.language, color: languageColor(r.language, r.languageColor) }))
+  const projects = (pinned.length ? pinned.map((p) => ({ name: p.name, owner: p.owner, description: emojify(p.description) || null, stars: p.stars, language: p.language, color: languageColor(p.language, p.languageColor) }))
+    : user.repos.map((r) => ({ name: r.name, owner: user.login, description: emojify(r.description) || null, stars: r.stars, language: r.language, color: languageColor(r.language, r.languageColor) }))
   ).slice(0, i.projectCount);
   const weeks: number[] = [];
   const recent = calendar.slice(-26 * 7);
@@ -57,7 +58,7 @@ export function buildModel(i: ModelInput): ProfileModel {
     login: user.login,
     name: user.name || user.login,
     role: i.role || null,
-    intro: i.intro || user.bio || null,
+    intro: i.intro || emojify(user.bio) || null,
     now: i.now || null,
     location: user.location,
     company: user.company,

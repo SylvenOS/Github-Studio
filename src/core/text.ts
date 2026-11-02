@@ -92,3 +92,19 @@ function compactRaw(n: number): string {
   }
   return String(n);
 }
+
+const EMOJI: Record<string, string> = {
+  zap: '⚡', rocket: '🚀', sparkles: '✨', fire: '🔥', star: '⭐', star2: '🌟', tada: '🎉', heart: '❤️', book: '📖', books: '📚',
+  wrench: '🔧', hammer: '🔨', package: '📦', art: '🎨', bug: '🐛', memo: '📝', pencil: '📝', white_check_mark: '✅', warning: '⚠️',
+  earth_americas: '🌎', globe_with_meridians: '🌐', computer: '💻', bulb: '💡', lock: '🔒', key: '🔑', robot: '🤖', gear: '⚙️',
+  chart_with_upwards_trend: '📈', bar_chart: '📊', mag: '🔍', iphone: '📱', snake: '🐍', crab: '🦀', whale: '🐳', penguin: '🐧',
+  coffee: '☕', heavy_check_mark: '✔️', construction: '🚧', octocat: '🐙', unicorn: '🦄', zap2: '⚡', boom: '💥', eyes: '👀',
+  sunglasses: '😎', smile: '😄', wave: '👋', point_right: '👉', link: '🔗', globe: '🌐', calendar: '📅', clipboard: '📋',
+  movie_camera: '🎥', musical_note: '🎵', video_game: '🎮', trophy: '🏆', gift: '🎁', seedling: '🌱', evergreen_tree: '🌲',
+  deciduous_tree: '🌳', cloud: '☁️', sun: '☀️', moon: '🌙', rainbow: '🌈', shield: '🛡️', toolbox: '🧰', test_tube: '🧪', dna: '🧬'
+};
+
+/** GitHub-style :shortcodes: become emoji; unknown ones are dropped (they'd show as raw text). */
+export function emojify(s: string | null | undefined): string {
+  return String(s ?? '').replace(/:([a-z0-9_+-]{2,40}):/g, (_, k: string) => EMOJI[k] ?? '').replace(/\s{2,}/g, ' ').trim();
+}
