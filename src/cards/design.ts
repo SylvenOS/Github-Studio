@@ -46,16 +46,8 @@ export const designCard = defineCard<Params, ProfileModel>({
   aliases: ['profile-design', 'hero', 'identity'],
   category: 'designs',
   tags: ['design system', 'terminal', 'ide', 'vscode', 'editorial', 'dashboard', 'blueprint', 'retro', 'pixel', 'minimal', 'glass', 'glassmorphism', 'poster', 'portfolio', 'hero', 'identity', 'crt', 'neofetch'],
-  variants: [
-    ...DESIGNS.map((d) => ({ label: LABEL[d], params: { design: d } })),
-    { label: 'Terminal with photo', params: { design: 'terminal', avatar: 'photo' } },
-    { label: 'Terminal CRT (Windows)', params: { design: 'terminal', scanlines: 'true', chrome: 'windows', glow: 'true' } },
-    { label: 'Code Studio (Linux)', params: { design: 'ide', chrome: 'linux' } },
-    { label: 'Dashboard with photo', params: { design: 'dashboard', avatar: 'photo' } },
-    { label: 'Glass with photo', params: { design: 'glass', avatar: 'photo' } },
-    { label: 'Poster with photo', params: { design: 'poster', avatar: 'photo', shape: 'circle' } },
-    { label: 'Minimal, light', params: { design: 'minimal', theme: 'default' } }
-  ],
+  // one look per design: photo, window style and scanlines are options, not separate looks
+  variants: DESIGNS.map((d) => ({ label: LABEL[d], params: { design: d } })),
   title: 'Profile Design',
   description: 'Your whole profile as one designed piece: identity, work and signals rendered as a terminal, a code editor, an editorial page, a dashboard, a blueprint, a retro arcade screen, a minimal page, a glass dashboard or a poster. Same data, nine design systems; any theme recolors them.',
   params: [

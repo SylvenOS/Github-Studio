@@ -12,9 +12,9 @@ An all-in-one, customisable **GitHub stats API and profile design studio**. It r
 
 Open `/` on your deployment for the web app. It is generated from the API, so new cards, options, themes and presets show up automatically:
 
-- **Playground** - pick a card, tweak every option with live preview, copy Markdown/HTML/URL.
+- **Playground** - a three-pane workbench: pick one of 35 cards on the left (search or browse by category), see it live in the middle, and tune it on the right. Each card offers one-click **Looks**, then searchable options grouped into Look, Content and Details. Copy Markdown, HTML or the URL from the preview.
 - **Store** - browse every card in every ready-made style (90+), search and filter by category, then *Customize* or add it straight to your README.
-- **README Studio** - assemble a whole profile README. Pick a **design system** (Terminal OS, Code Studio, Editorial, Dashboard, Blueprint, Retro Arcade) or a preset, then add, reorder (drag or ▲▼), edit and remove blocks. Live preview in light/dark and desktop/mobile width, every image is checked for errors, editable Markdown, share link, **save/open the design as JSON**, and **Export ZIP** (see *Self-hosted mode*).
+- **README Studio** - assemble a whole profile README. Pick a **design system** (Terminal OS, Code Studio, Editorial, Dashboard, Blueprint, Retro Arcade, Minimal, Glass, Poster) or a preset, then add, reorder (drag or ▲▼), edit and remove blocks. Live preview in light/dark and desktop/mobile width, every image is checked for errors, editable Markdown, share link, **save/open the design as JSON**, and **Export ZIP** (see *Self-hosted mode*).
 - **Metric definitions** - every number's source and calculation, next to each card and at `/api/definitions`.
 
 ---
@@ -140,41 +140,41 @@ They combine with themes, gradients (`bg=135,c1,c2`), every colour override, wid
 
 | Card | Parameters |
 |------|------------|
-| design | `design` (`terminal ide editorial dashboard blueprint retro`), `role`, `intro` (default: bio), `now`, `links`, `projects` (0–6), `hide` (`stats languages projects activity now links`), `prompt` |
-| year | `year`, `hide` (`commits prs reviews issues active streak best_day repos months repos_list languages`) |
-| monthly | `year`, `compare`, `layout` (`bars`, `line`), `values` |
-| punchcard | `tz` (UTC offset in hours; default = each commit's own timezone), `shape` (`circle`, `square`, `heat`), `week_start` |
-| stars | `repo` (up to 3, `owner/name`; bare name = `username`'s repo; default = top repo), `scale` (`linear`, `log`), `area`, `points`, `legend` |
-| repo-compare | `repos` (1–3; default = `username`'s top 2), `signals`, `highlight` |
-| language-trend | `years` (2–10), `count` (2–8), `layout` (`stream`, `bars`, `lines`), `exclude` |
-| code | `count`, `exclude`, `layout` (`bars`, `tiles`) |
-| sponsors | `mode` (`sponsors`, `sponsoring`), `count` (1–60), `size`, `per_line`, `names`, `shape` (`circle rounded square`) |
-| views | `style` (`badge flat pill digits card`), `label`, `key` (separate counter, e.g. a repo), `base`, `abbreviated`, `count` (`false` = read only) |
-| wakatime | `range` (`auto` = your public range, `last_7_days last_30_days last_6_months last_year all_time`; falls back to your public range if another isn't shared), `section` (`languages editors operating_systems categories projects`), `layout` (`bars compact totals`), `count`, `percent` |
-| spotify | `layout` (`card compact bar`), `show` (`auto now recent`), `cover`, `equalizer` |
-| quote | `layout` (`card minimal terminal bubble`), `topic`, `index`, `text`, `author`, `quote_width` |
-| stats | `layout` (`grid`, `classic` list, `tiles`, `compact`, `minimal`), `columns` (1–6), `show_icons`, `hide`, `show`, `compact_numbers`, `footer`, `rank` (`none`, `letter`, `percentile`; readme-stats `hide_rank=false` maps here). Stat keys: `repos stars forks followers following gists commits contributions prs issues reviews age`. |
-| languages | `layout` (`bar`, `donut`, `pie`, `bars`, `chips`, `treemap`), `langs_count` (1–10), `hide`, `by` (`size`, `repos`), `decimals` (0–2), `percentages`, `center_label` |
+| design | `design` (`terminal ide editorial dashboard blueprint retro minimal glass poster`), `role`, `intro` (default: bio), `now`, `skills` (your stack line), `links`, `projects` (0–6), `hide` (`stats languages projects activity now links`), `avatar` (`photo` uses your real picture), `shape` (`auto circle rounded square`), `chrome` (`mac windows linux none`), `scanlines` (CRT effect), `prompt` |
+| year | `year`, `hide` (`commits prs reviews issues active streak best_day repos months repos_list languages`), `layout` (`full compact story`), `columns` (2–6), `headline` |
+| monthly | `year`, `compare`, `layout` (`bars`, `line`), `values`, `goal`, `diff` (green/red against last year) |
+| punchcard | `tz` (UTC offset in hours; default = each commit's own timezone), `shape` (`circle`, `square`, `heat`), `week_start`, `hours` (`12h 24h`), `highlight`, `legend` |
+| stars | `repo` (up to 3, `owner/name`; bare name = `username`'s repo; default = top repo), `scale` (`linear`, `log`), `area`, `points`, `legend`, `period` (`all 1y 2y 5y`), `milestones` |
+| repo-compare | `repos` (1–3; default = `username`'s top 2), `signals`, `highlight`, `rows` (pick which), `bars` |
+| language-trend | `years` (2–10), `count` (2–8), `layout` (`stream`, `bars`, `lines`), `exclude`, `mode` (`share absolute`), `smooth`, `height`, `legend`, `values` |
+| code | `count`, `exclude`, `layout` (`bars tiles stack`), `unit` (`both lines bytes`), `total` |
+| sponsors | `mode` (`sponsors`, `sponsoring`), `count` (1–60), `size`, `per_line`, `names`, `shape` (`circle rounded square`), `layout` (`wall list stack`), `cta` |
+| views | `style` (`badge flat pill plastic for-the-badge social digits card`), `label`, `key` (separate counter, e.g. a repo), `base`, `abbreviated`, `count` (`false` = read only), `color`, `label_color`, `logo`, `scale` |
+| wakatime | `range` (`auto` = your public range, `last_7_days last_30_days last_6_months last_year all_time`; falls back to your public range if another isn't shared), `section` (`languages editors operating_systems categories projects`), `layout` (`bars compact totals donut`), `count`, `percent` |
+| spotify | `layout` (`card compact bar`), `show` (`auto now recent`), `cover`, `equalizer`, `bar` (`none progress waves`), `backdrop` (blurred album art), `size` (`small medium large`) |
+| quote | `layout` (`card minimal terminal bubble`), `topic`, `index`, `text`, `author`, `quote_width`, `layout` also `code big note`, `size`, `italic` |
+| stats | `layout` (`grid classic tiles row compact minimal`), `columns` (1–6), `show_icons`, `hide`, `show`, `sort` (`default value`), `highlight`, `labels` (`full short none`), `compact_numbers`, `rank` (`none letter percentile badge stars bar`; readme-stats `hide_rank=false` maps here), `ring_color`, `sparkline`, `dividers`, `footer`, `footer_text`. Stat keys: `repos stars forks followers following gists commits contributions prs issues reviews age`. |
+| languages | `layout` (`bar`, `donut`, `pie`, `bars`, `chips`, `treemap`), `langs_count` (1–10), `hide`, `by` (`size`, `repos`), `decimals` (0–2), `percentages`, `center_label`, `min_percent`, `other` (group the rest), `order` (`size name`), `legend` |
 | radar | `data` (`languages`, `activity`), `langs_count` (3–8), `hide`, `levels` (2–8), `fill` (0–100), `values`, `grid` (`polygon`, `circle`), `scale` (`sqrt`, `linear`) |
 | streak | `layout` (`classic`, `ring`, `cards`, `compact`, `week`), `mode` (`daily`, `weekly`), `exclude_days` (e.g. `sat,sun` never break a streak), `hide` (`total current longest`), `dates`, `years` (1–15) |
-| contributions | `year`, `shape` (`square`, `round`, `circle`), `cell` (6–18), `gap` (1–6), `week_start` (`sun`, `mon`), `months`, `weekdays`, `legend`, `effect` (`none`, `snake`, `wave`; with `animation=true`) |
+| contributions | `year`, `view` (`heatmap bars`), `shape` (`square round circle`), `cell` (6–18), `gap` (1–6), `week_start` (`sun mon`), `months`, `weekdays`, `legend`, `highlight` (`none best today both`), `summary`, `effect` (`none snake wave`; with `animation=true`) |
 | skyline | `year`, `height` (20–140), `cell` (6–16), `stats` |
-| patterns | `year`, `week_start`, `hide` (`active consistency average busiest weekend best break`) |
-| impact | `count` (0–6 external projects), `orgs`, `hide` (`external merge_rate repos reviews answers orgs`), `columns` (2–6), `tiles` |
+| patterns | `year`, `week_start`, `hide` (`active consistency average busiest weekend best break`), `chart` (`bars radial none`), `values`, `icons` |
+| impact | `count` (0–6 external projects), `orgs`, `hide` (`external merge_rate repos reviews answers orgs`), `columns` (2–6), `tiles`, `recent` (0–6 latest merged PRs) |
 | pinned | `layout` (`grid`, `list`), `count` (1–6), `columns` (1–3), `descriptions`, `owner`, `fallback` (show top repos when nothing is pinned) |
-| tech | `icons` (e.g. `ts,react,docker`; empty = your languages), `style` (`tile`, `plain`, `mono`, `outline`), `size`, `per_line`, `gap`, `labels` |
-| typing | `lines` (separated by `;`), `mode` (`cycle`, `stack`), `size`, `speed`, `pause`, `align`, `width`, `cursor` |
+| tech | `icons` (e.g. `ts,react,docker`; empty = your languages), `groups` (named sections: `Frontend:ts,react;DevOps:docker,git`), `style` (`tile plain mono outline`), `shape` (`rounded circle square`), `size`, `per_line`, `gap`, `align` (`left center right`), `shadow`, `labels` |
+| typing | `lines` (separated by `;`), `mode` (`cycle stack`), `size`, `speed`, `pause`, `align` (`left center right`), `width`, `height`, `vcenter`, `cursor`, `cursor_style` (`bar block underscore`), `repeat` (`false` types once), `letter_spacing`, `color` |
 | composite | `cards` (up to 4 ids), `columns`, `gap`, `valign`; per-card options with a prefix, e.g. `stats.layout=compact` |
 | top-repos | `layout` (`list`, `grid`, `table`, `ranked`), `limit` (1–10), `sort` (`stars`, `forks`, `updated`), `language`, `min_stars`, `exclude`, `skip_archived`, `descriptions`, `updated` |
 | repos | `repo` (name, `owner/name`, or `auto` = your most-starred), `layout` (`default`, `detailed`, `compact`), `show_owner`, `topics`, `description_lines` |
-| achievements | `style` (`trophy`, `badge`), `columns` (1–6), `sort` (`default`, `rank`), `min_rank` (`E`..`SSS+`), `progress`, `hide` (`commits prs contributions repos stars followers issues reviews years external collaborations consistency answers orgs sponsors`) |
-| ascii | `shape` (`flat`, `sphere`, `cylinder`, `coin`), `charset` (`classic dense blocks binary hex alnum text`), `text`, `mode` (`mono`, `color`), `anim` (`scan reveal type wave flicker pulse none`), `speed`, `frames`, `cutout`, `cols` (20–110), `cell`, `contrast`, `invert`, `caption`, `source` (`avatar`, `identicon`) |
-| profile-card | `layout` (`default`, `centered`, `banner`), `stats` (up to 5 of `followers following repos stars forks prs issues contributions commits reviews`), `avatar`, `shape` (`circle rounded square`), `bio_lines`, `languages`, `details`, `links`, `grade` |
+| achievements | `style` (`trophy`, `badge`), `columns` (1–6), `sort` (`default`, `rank`), `min_rank` (`E`..`SSS+`), `progress`, `hide` (`commits prs contributions repos stars followers issues reviews years external collaborations consistency answers orgs sponsors`), `style` also `list`, `show`, `rows`, `gap`, `names`, `values` |
+| ascii | `shape` (`flat`, `sphere`, `cylinder`, `coin`), `charset` (`classic dense blocks binary hex alnum text`), `text`, `mode` (`mono`, `color`), `anim` (`scan reveal type wave flicker pulse none`), `speed`, `frames`, `cutout`, `cols` (20–110), `cell`, `contrast`, `invert`, `caption`, `source` (`avatar`, `identicon`), `brightness` (±50); `charset` also `braille minimal dots geometric retro math custom` (`custom` takes your ramp in `text`) |
+| profile-card | `layout` (`default`, `centered`, `banner`), `stats` (up to 5 of `followers following repos stars forks prs issues contributions commits reviews`), `avatar`, `shape` (`circle rounded square`), `bio_lines`, `languages`, `details`, `links`, `grade`, `layout` also `cover` (gradient cover + Open to work chip), `chips` |
 | compare | `vs` (default `octocat`), `layout` (`bars`, `table`), `avatars`, `metrics` (`repos stars forks followers following gists commits contributions prs issues reviews age`) |
-| banner | `text`, `subtitle`, `style` (`wave gradient grid terminal`), `height`, `size`, `align`, `border` |
-| divider | `style` (`wave dots line gradient dashed stars footer header`), `height` |
-| activity | `by` (`month`, `week`, `weekday`), `style` (`bar`, `area`, `line`), `year`, `bar_radius`, `line_width`, `grid` |
-| badge | `stat` (`stars followers following repos forks commits prs issues reviews contributions gists years rank top_language external_prs collaborations consistency merge_rate`), `label`, `style` (`flat`, `pill`, `for-the-badge`), `color`, `label_color` |
+| banner | `text`, `subtitle`, `style` (`wave gradient grid terminal aurora slice shark egg cylinder rect soft`), `height`, `size`, `align`, `border`, `fill` (`gradient solid`), `reverse` (flip for footers), `stroke`, `color` |
+| divider | `style` (`wave dots line gradient dashed stars zigzag pulse blocks diamond label footer header`), `height`, `text` (for `label`), `thickness` |
+| activity | `by` (`month week weekday`), `style` (`bar area line step lollipop`), `year`, `bar_radius`, `line_width`, `grid`, `height`, `smooth`, `peak`, `average`, `values` |
+| badge | `stat` (`stars followers following repos forks commits prs issues reviews contributions gists years rank top_language external_prs collaborations consistency merge_rate`), `label`, `style` (`flat flat-square plastic pill for-the-badge social`), `color`, `label_color`, `logo` (any bundled tech icon), `logo_color`, `scale` |
 
 ### Errors
 

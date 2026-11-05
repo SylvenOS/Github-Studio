@@ -1,5 +1,5 @@
 import { defineCard } from './types';
-import { int, list } from '../core/params';
+import { int, list, oneOf } from '../core/params';
 import { compact, esc, fmt, MONTHS, shortDate, truncate } from '../core/text';
 import { calendarYearRange, type CalendarDay, type ContributionDetail } from '../github/client';
 import { analyzePatterns, type WorkPatterns } from '../metrics/patterns';
@@ -8,9 +8,14 @@ import { languageColor } from '../svg/colors';
 import { anim, cls, frame, PAD } from '../svg/frame';
 import { icon, type IconName } from '../svg/icons';
 
+const LAYOUTS = ['full', 'compact', 'story'] as const;
+
 interface Params {
   year: number;
   hide: string[];
+  layout: (typeof LAYOUTS)[number];
+  columns: number;
+  headline: string;
 }
 
 interface Data {
@@ -46,15 +51,18 @@ export const yearCard = defineCard<Params, Data>({
   aliases: ['year-in-review', 'wrapped', 'recap'],
   category: 'activity',
   tags: ['year in review', 'wrapped', 'recap', 'annual', 'summary', 'realistic', 'milestones'],
-  variants: [{ label: 'Full review' }, { label: 'Numbers only', params: { hide: 'repos_list,languages,months' } }, { label: 'Last year', params: { year: String(new Date().getUTCFullYear() - 1) } }],
+  variants: [{ label: 'Full review' }, { label: 'Compact', params: { layout: 'compact', columns: '6', hide: 'months' } }, { label: 'Story', params: { layout: 'story' } }, { label: 'Custom headline', params: { headline: 'MY YEAR IN CODE' } }, { label: 'Three columns', params: { columns: '3' } }, { label: 'Numbers only', params: { hide: 'repos_list,languages,months' } }, { label: 'Last year', params: { year: String(new Date().getUTCFullYear() - 1) } }],
   title: 'Year in Review',
   description: 'Your year on GitHub, “wrapped” style: total contributions, commits, PRs, reviews, issues, active days, longest streak, best day, a month-by-month chart, top repositories and languages.',
   cacheSeconds: 6 * 3600,
   params: [
     { name: 'year', type: 'number', min: 2008, description: 'Year to review (default: this year; last year during January)' },
-    { name: 'hide', type: 'list', description: `Parts to hide: ${TILES.map((t) => t.key).join(', ')}, months, repos_list, languages` }
+    { name: 'hide', type: 'list', description: `Parts to hide: ${TILES.map((t) => t.key).join(', ')}, months, repos_list, languages` },
+    { name: 'layout', type: 'enum', options: [...LAYOUTS], default: 'full', description: 'full, compact (hero + tiles) or story (big sentence)' },
+    { name: 'columns', type: 'number', default: 4, min: 2, max: 6, description: 'Tiles per row' },
+    { name: 'headline', type: 'string', description: 'Your own text above the year, e.g. MY 2025 (max 30)' }
   ],
-  parse: (q) => ({ year: int(q.year, defaultYear(), 2008, new Date().getUTCFullYear()), hide: list(q.hide) }),
+  parse: (q) => ({ year: int(q.year, defaultYear(), 2008, new Date().getUTCFullYear()), hide: list(q.hide), layout: oneOf(q.layout, LAYOUTS, 'full'), columns: int(q.columns, 4, 2, 6), headline: (q.headline ?? '').trim().slice(0, 30) }),
 
   async load(client, p, common) {
     const range = calendarYearRange(p.year);
@@ -80,12 +88,33 @@ export const yearCard = defineCard<Params, Data>({
   render(d, p, { theme, common }) {
     const W = 720;
     const animate = common.animation;
+    // compact drops the repository and language lists
+    if (p.layout === 'compact') p = { ...p, hide: [...p.hide, 'repos_list', 'languages'] };
     const tiles = TILES.filter((t) => !p.hide.includes(t.key));
     const total = d.patterns.total;
 
+    // ---- story: one big sentence of your year
+    if (p.layout === 'story') {
+      const c = d.contributions;
+      const lines = [
+        [fmt(total), 'contributions'],
+        d.detailed ? [fmt(c.commits + c.restricted), 'commits'] : null,
+        d.detailed ? [fmt(c.pullRequests), 'pull requests'] : null,
+        [fmt(d.patterns.activeDays), 'active days'],
+        [`${d.longestStreak}`, 'day best streak']
+      ].filter(Boolean) as string[][];
+      let sy = PAD + 22;
+      let st = `<text x="${PAD}" y="${PAD + 4}" class="label muted" font-size="12" letter-spacing="2">${esc(p.headline || `@${common.username.toUpperCase()} · ${d.year}`)}</text>`;
+      lines.forEach(([n, l], i) => {
+        st += `<g${anim(animate, i)}><text x="${PAD}" y="${sy + 44}" class="${i === 0 ? 'accent' : 'fg'}" font-size="${i === 0 ? 64 : 44}" font-weight="800">${esc(n)}</text><text x="${PAD + 20 + n.length * (i === 0 ? 38 : 27)}" y="${sy + 44}" class="muted" font-size="${i === 0 ? 24 : 20}">${esc(l)}</text></g>`;
+        sy += i === 0 ? 76 : 58;
+      });
+      return frame(st, { width: W, height: sy + 24, theme, label: `${common.username}'s ${d.year}: ${total} contributions` });
+    }
+
     // hero
     let body =
-      `<text x="${PAD}" y="${PAD + 14}" class="label muted" font-size="12" letter-spacing="2">@${esc(common.username.toUpperCase())} · ${d.partial ? 'SO FAR' : 'YEAR IN REVIEW'}</text>` +
+      `<text x="${PAD}" y="${PAD + 14}" class="label muted" font-size="12" letter-spacing="2">${p.headline ? esc(p.headline) : `@${esc(common.username.toUpperCase())} · ${d.partial ? 'SO FAR' : 'YEAR IN REVIEW'}`}</text>` +
       `<text x="${PAD}" y="${PAD + 62}" class="accent" font-size="54" font-weight="800">${d.year}</text>` +
       `<text x="${PAD + 175}" y="${PAD + 46}" class="fg" font-size="30" font-weight="700">${esc(fmt(total))}</text>` +
       `<text x="${PAD + 175}" y="${PAD + 64}" class="label muted">contributions${d.partial ? ` through ${shortDate(new Date().toISOString().slice(0, 10))}` : ''}</text>`;
@@ -105,7 +134,7 @@ export const yearCard = defineCard<Params, Data>({
 
     // tiles
     let y = PAD + 92;
-    const per = 4;
+    const per = p.columns;
     const colW = (W - PAD * 2) / per;
     tiles.forEach((t, i) => {
       const x = PAD + (i % per) * colW;

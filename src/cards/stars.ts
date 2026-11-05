@@ -143,6 +143,7 @@ export const starsCard = defineCard<Params, StarHistory[]>({
     if (p.milestones && view[0]) {
       const pts = view[0].points;
       const marks = [10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000].filter((m) => m <= pts[pts.length - 1].count && m > pts[0].count);
+      let lastY = Infinity;
       for (const m of marks) {
         for (let k = 1; k < pts.length; k++) {
           if (pts[k].count >= m && pts[k - 1].count < m) {
@@ -151,6 +152,8 @@ export const starsCard = defineCard<Params, StarHistory[]>({
             const tm = a + ((b - a) * (m - pts[k - 1].count)) / Math.max(1, pts[k].count - pts[k - 1].count);
             const mx = chart.x + ((tm - t0) / Math.max(1, t1 - t0)) * chart.w;
             const my = ys(m);
+            if (Math.abs(lastY - my) < 16) break; // labels would overlap
+            lastY = my;
             body += `<circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="4.5" class="bg sk-ser" stroke-width="2"/><text x="${mx.toFixed(1)}" y="${(my - 10).toFixed(1)}" class="fg" font-size="10.5" font-weight="700" text-anchor="middle">${compact(m)}</text>`;
             break;
           }

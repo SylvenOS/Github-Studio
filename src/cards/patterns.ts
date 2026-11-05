@@ -82,13 +82,14 @@ export const patternsCard = defineCard<Params, WorkPatterns>({
     const bw = step * 0.62;
     const rcx = chartX + chartW / 2;
     const rcy = top + chartH / 2;
-    const rR = Math.min(chartW, chartH) / 2 - 12;
+    // leave room for the day labels (and their numbers) outside the shape
+    const rR = Math.min(chartW, chartH) / 2 - (p.values ? 34 : 20);
     const radial = (() => {
       const ang = (i: number) => (i * 2 * Math.PI) / 7 - Math.PI / 2;
       const pt = (i: number, r: number) => `${(rcx + r * Math.cos(ang(i))).toFixed(1)},${(rcy + r * Math.sin(ang(i))).toFixed(1)}`;
       const web = [0.5, 1].map((k) => `<polygon points="${order.map((_, i) => pt(i, rR * k)).join(' ')}" fill="none" class="sk-bd"/>`).join('');
       const shape = `<polygon points="${order.map((dow, i) => pt(i, Math.max(rR * 0.08, (w.weekdayTotals[dow] / max) * rR))).join(' ')}" class="ser" fill-opacity=".35" stroke="var(--s0,var(--accent))" stroke-width="2"/>`;
-      const names = order.map((dow, i) => `<text x="${(rcx + (rR + 11) * Math.cos(ang(i))).toFixed(1)}" y="${(rcy + (rR + 11) * Math.sin(ang(i)) + 3.5).toFixed(1)}" text-anchor="middle" class="label muted" font-size="10">${WEEKDAYS[dow].slice(0, 2)}${p.values ? ` ${fmt(w.weekdayTotals[dow])}` : ''}</text>`).join('');
+      const names = order.map((dow, i) => `<text x="${(rcx + (rR + 14) * Math.cos(ang(i))).toFixed(1)}" y="${(rcy + (rR + 14) * Math.sin(ang(i)) + 3.5).toFixed(1)}" text-anchor="middle" class="label muted" font-size="10">${WEEKDAYS[dow].slice(0, 2)}${p.values ? ` ${fmt(w.weekdayTotals[dow])}` : ''}</text>`).join('');
       return web + shape + names;
     })();
     const bars = noChart ? '' : p.chart === 'radial' ? radial : order

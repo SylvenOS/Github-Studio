@@ -9,7 +9,7 @@ import { anim, contentTop, frame, PAD } from '../svg/frame';
 
 const RANGES = ['auto', 'last_7_days', 'last_30_days', 'last_6_months', 'last_year', 'all_time'] as const;
 const SECTIONS = ['languages', 'editors', 'operating_systems', 'categories', 'projects'] as const;
-const LAYOUTS = ['bars', 'compact', 'totals'] as const;
+const LAYOUTS = ['bars', 'compact', 'totals', 'donut'] as const;
 const RANGE_LABEL: Record<string, string> = {
   auto: 'public range', last_7_days: 'last 7 days', last_30_days: 'last 30 days', last_6_months: 'last 6 months', last_year: 'last year', all_time: 'all time'
 };
@@ -46,7 +46,10 @@ export const wakatimeCard = defineCard<Params, Data>({
     { label: 'Languages' },
     { label: 'Editors', params: { section: 'editors' } },
     { label: 'Compact bar', params: { layout: 'compact' } },
-    { label: 'Totals only', params: { layout: 'totals' } }
+    { label: 'Totals only', params: { layout: 'totals' } },
+    { label: 'Donut', params: { layout: 'donut', count: '5' } },
+    { label: 'Projects', params: { section: 'projects', layout: 'donut' } },
+    { label: 'Percentages', params: { percent: 'true' } }
   ],
   title: 'WakaTime Coding Time',
   description: 'Coding time from WakaTime: total, daily average, best day and a breakdown by language, editor, OS, category or project. `username` is your WakaTime username; your stats must be public on wakatime.com.',
@@ -126,7 +129,25 @@ export const wakatimeCard = defineCard<Params, Data>({
       y += 22;
     }
 
-    if (p.layout !== 'totals') {
+    if (p.layout === 'donut' && items.length) {
+      const r = 48;
+      const C = 2 * Math.PI * r;
+      const cx = PAD + 62;
+      const cy = y + 70;
+      const sum = items.reduce((a, it) => a + it.percent, 0) || 1;
+      let off = 0;
+      items.forEach((it, i) => {
+        const len = (it.percent / sum) * C;
+        body += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${esc(color(it, i))}" stroke-width="18" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"${anim(animate, i + 3)}/>`;
+        off += len;
+      });
+      body += `<text x="${cx}" y="${cy + 4}" class="fg" font-size="10.5" font-weight="800" text-anchor="middle">${esc(truncate((d.total ?? '-').replace(/ hrs?/, 'h').replace(/ mins?/, 'm'), 14))}</text><text x="${cx}" y="${cy + 19}" class="muted" font-size="9.5" text-anchor="middle">total</text>`;
+      items.forEach((it, i) => {
+        const ly = y + 24 + i * 24;
+        body += `<g${anim(animate, i + 3)}><circle cx="${PAD + 150}" cy="${ly - 4}" r="5" fill="${esc(color(it, i))}"/><text x="${PAD + 162}" y="${ly}" class="fg" font-size="12.5">${esc(truncate(it.name, 16))}</text><text x="${W - PAD}" y="${ly}" class="muted" font-size="12" text-anchor="end">${esc(p.percent ? `${it.percent.toFixed(1)}%` : truncate(it.text, 14))}</text></g>`;
+      });
+      y += Math.max(150, items.length * 24 + 30);
+    } else if (p.layout !== 'totals') {
       if (!items.length) {
         body += `<text x="${PAD}" y="${y + 18}" class="label muted" font-size="12">No public ${p.section.replace('_', ' ')} data for this range.</text>`;
         y += 30;

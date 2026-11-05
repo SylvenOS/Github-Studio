@@ -7,8 +7,32 @@ export const SCRIPT = String.raw`
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
-  var ICONS = { stats: '📊', 'profile-card': '👤', ascii: '🎨', languages: '🔤', streak: '🔥', contributions: '🟩', repos: '📌', 'top-repos': '⭐', radar: '🕸️', achievements: '🏆', activity: '📈', badge: '🏷️', compare: '⚔️', banner: '🏞️', divider: '➖', impact: '🌍', patterns: '🗓️', pinned: '📍', tech: '🧰', skyline: '🏙️', typing: '⌨️', composite: '🧩', design: '🖼️', year: '🎉', monthly: '📅', punchcard: '🕐', stars: '🌟', 'repo-compare': '⚖️', 'language-trend': '🌊', code: '📏', sponsors: '💖', views: '👁️', wakatime: '⏱️', spotify: '🎧', quote: '💬' };
-  var GROUPS = [['colors', '🎨 Colours'], ['layout', '📐 Layout & size'], ['typography', '🔤 Text'], ['effects', '✨ Effects'], ['data', '⚙️ Data & output']];
+  // line icons by card category (24x24 grid, drawn with currentColor); static markup only
+  var SVG_ICONS = {
+    overview: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+    activity: '<polyline points="3 13 7 13 10 5 14 19 17 11 21 11"/>',
+    languages: '<path d="M4 7h10M9 4v3M6 12c2 3 5 5 8 6M12 7c-1 4-4 8-8 10"/><path d="M13 20l4-9 4 9M14.5 17h5"/>',
+    repositories: '<path d="M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2V4z"/><path d="M5 16a2 2 0 0 1 2-2h11"/>',
+    achievements: '<path d="M8 4h8v5a4 4 0 0 1-8 0V4z"/><path d="M8 6H5v1a3 3 0 0 0 3 3M16 6h3v1a3 3 0 0 1-3 3M12 13v4M8 20h8"/>',
+    art: '<circle cx="12" cy="12" r="8"/><circle cx="9" cy="10" r="1"/><circle cx="14" cy="9" r="1"/><circle cx="15.5" cy="14" r="1"/>',
+    decor: '<path d="M3 10c3-4 6-4 9 0s6 4 9 0"/><path d="M3 16c3-4 6-4 9 0s6 4 9 0"/>',
+    utility: '<path d="M4 8h10M18 8h2M4 16h2M10 16h10"/><circle cx="16" cy="8" r="2"/><circle cx="8" cy="16" r="2"/>',
+    integrations: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    designs: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/>',
+    up: '<path d="M6 15l6-6 6 6"/>', down: '<path d="M6 9l6 6 6-6"/>',
+    copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/>',
+    x: '<path d="M6 6l12 12M18 6L6 18"/>',
+    grip: '<circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>'
+  };
+  function icon(name, size) {
+    var s = el('span', { class: 'ic', 'aria-hidden': 'true' });
+    var n = size || 16;
+    s.innerHTML = '<svg viewBox="0 0 24 24" width="' + n + '" height="' + n + '" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + (SVG_ICONS[name] || SVG_ICONS.overview) + '</svg>';
+    return s;
+  }
+  function human(n) { var t = String(n).replace(/_/g, ' '); return t.charAt(0).toUpperCase() + t.slice(1); }
+  var GROUPS = [['colors', 'Colours'], ['layout', 'Layout and size'], ['typography', 'Text'], ['effects', 'Effects'], ['data', 'Data and output']];
   // UI-only style bundles: they just set ordinary parameters
   var STYLE_PRESETS = {
     Flat: { hide_border: 'true' },
@@ -26,7 +50,7 @@ export const SCRIPT = String.raw`
   var SPECIAL = { username: 1, theme: 1, format: 1, cache_seconds: 1 };
   var BLOCK_LABELS = { card: 'Card', row: 'Row of cards', heading: 'Heading', text: 'Text', badges: 'Badges', divider: 'Divider', html: 'HTML' };
   var meta, themes, presets = [], timer, buildTimer, previewMode = 'light', dragFrom = -1;
-  var state = { tab: 'play', card: 'stats', username: 'torvalds', theme: 'default', params: {}, editing: null, q: '', cat: 'all' };
+  var state = { tab: 'play', card: 'stats', username: 'torvalds', theme: 'default', params: {}, editing: null, q: '', cat: 'all', pickCat: 'all' };
   var builder = { presetId: 'classic', spec: { dark: '', align: 'center', footer: false, params: {}, blocks: [] }, manual: false, md: '', host: '' };
 
   // ---- small helpers -------------------------------------------------------------------------
@@ -79,9 +103,7 @@ export const SCRIPT = String.raw`
   function field(p, store) {
     var box = el('div');
     var head = function () {
-      var l = el('label', { class: 'f', text: p.name, for: 'p_' + p.name });
-      l.appendChild(el('span', { class: 'hint', text: ' - ' + p.description }));
-      return l;
+      return el('label', { class: 'f', text: human(p.name), for: 'p_' + p.name });
     };
     var cur = store.get(p);
     var shown = cur === '' || cur === undefined ? (p.default === undefined ? '' : p.default) : cur;
@@ -90,12 +112,13 @@ export const SCRIPT = String.raw`
       var input = el('input', { type: 'checkbox', id: 'p_' + p.name });
       input.checked = String(shown) === 'true';
       input.addEventListener('change', function () { store.set(p, input.checked ? 'true' : 'false'); });
-      return el('div', { class: 'row', title: p.description }, [
-        el('label', { for: 'p_' + p.name, text: p.name.replace(/_/g, ' ') }),
+      return el('div', { class: 'row' }, [
+        el('div', { class: 'rowtxt' }, [el('label', { for: 'p_' + p.name, text: human(p.name) }), el('div', { class: 'help', text: p.description })]),
         el('span', { class: 'switch' }, [input, el('span')])
       ]);
     }
     box.appendChild(head());
+    if (p.description) box.appendChild(el('div', { class: 'help', text: p.description }));
 
     if (p.type === 'enum' && p.options && p.options.length <= 5) {
       var seg = el('div', { class: 'seg', role: 'group', 'aria-label': p.name });
@@ -188,10 +211,31 @@ export const SCRIPT = String.raw`
   function currentCard() { return cardDef(state.card); }
   function renderTiles() {
     var box = $('tiles'); box.innerHTML = '';
-    meta.cards.forEach(function (c) {
-      var t = el('button', { class: 'tile' + (c.id === state.card ? ' on' : ''), type: 'button', title: c.description }, [el('b', { text: ICONS[c.id] || '🧩' }), el('span', { text: c.title })]);
-      t.addEventListener('click', function () { selectCard(c.id, true); });
-      box.appendChild(t);
+    var q = ($('card-search').value || '').toLowerCase().trim();
+    var cats = $('card-cats'); cats.innerHTML = '';
+    ['all'].concat(Object.keys(CATS)).forEach(function (k) {
+      if (k !== 'all' && !meta.cards.some(function (c) { return c.category === k; })) return;
+      var bt = el('button', { class: state.pickCat === k || (!state.pickCat && k === 'all') ? 'on' : '', type: 'button', text: k === 'all' ? 'All' : CATS[k] });
+      bt.addEventListener('click', function () { state.pickCat = k; renderTiles(); });
+      cats.appendChild(bt);
+    });
+    var shown = meta.cards.filter(function (c) {
+      if (state.pickCat && state.pickCat !== 'all' && c.category !== state.pickCat) return false;
+      if (!q) return true;
+      return (c.title + ' ' + c.id + ' ' + c.tags.join(' ') + ' ' + c.aliases.join(' ')).toLowerCase().indexOf(q) >= 0;
+    });
+    $('card-count').textContent = shown.length === meta.cards.length ? String(shown.length) : shown.length + ' of ' + meta.cards.length;
+    if (!shown.length) box.appendChild(el('div', { class: 'note', text: 'No card matches that search.', style: 'padding:16px 10px' }));
+    Object.keys(CATS).forEach(function (k) {
+      var inCat = shown.filter(function (c) { return c.category === k; });
+      if (!inCat.length) return;
+      box.appendChild(el('div', { class: 'grphd', text: CATS[k] }));
+      inCat.forEach(function (c) {
+        var t = el('button', { class: 'tile' + (c.id === state.card ? ' on' : ''), type: 'button', title: c.description }, [document.createTextNode(c.title)]);
+        if (c.id === state.card) t.setAttribute('aria-current', 'true');
+        t.addEventListener('click', function () { selectCard(c.id, true); });
+        box.appendChild(t);
+      });
     });
   }
   function renderThemes() {
@@ -220,7 +264,7 @@ export const SCRIPT = String.raw`
         toast(name + ' style applied');
       } }));
     });
-    common.appendChild(el('div', { class: 'note', text: 'Quick styles' }));
+    common.appendChild(el('div', { class: 'looks-title', text: 'Quick styles' }));
     common.appendChild(presets);
     var open = {};
     try { open = JSON.parse(localStorage.getItem('gp-groups') || '{"colors":true,"layout":true}'); } catch (e) { open = { colors: true, layout: true }; }
@@ -235,7 +279,79 @@ export const SCRIPT = String.raw`
     });
     var box = $('card-params'); box.innerHTML = '';
     var c = currentCard();
-    if (c) c.params.forEach(function (p) { box.appendChild(field(p, playStore)); });
+    if (c) renderCardPanel(box, c);
+  }
+  // ---- per-card panel: header, looks, search, grouped options ------------------------------------
+  var LOOK_RE = /^(layout|style|shape|chart|view|rank|effect|cursor_style|charset|design|chrome|avatar|align|grid|fill|scale|bar|backdrop|size|cell|gap|columns|per_line|height|width|smooth|reverse|stroke|color|ring_color|label_color|logo_color|bar_radius|line_width|equalizer|scanlines|tiles|cover|levels|data|ramp|anim|mode|speed)$/;
+  var BUCKETS = [['look', 'Look'], ['content', 'Content'], ['details', 'Details']];
+  function paramBucket(p) {
+    if (LOOK_RE.test(p.name)) return 'look';
+    if (p.type === 'boolean') return 'details';
+    return 'content';
+  }
+  function cardParamNames(c) { var o = {}; c.params.forEach(function (p) { o[p.name] = 1; }); return o; }
+  function lookMatches(v) {
+    var vp = v.params || {};
+    for (var k in vp) { if (k === 'theme') { if (state.theme !== vp[k]) return false; } else if (String(state.params[k]) !== String(vp[k])) return false; }
+    return true;
+  }
+  function applyLook(v) {
+    var keep = {};
+    meta.common.forEach(function (p) { if (state.params[p.name] !== undefined) keep[p.name] = state.params[p.name]; });
+    state.params = keep;
+    var vp = v.params || {};
+    for (var k in vp) { if (k === 'theme') { state.theme = vp[k]; renderThemes(); } else state.params[k] = vp[k]; }
+    renderParams(); update();
+  }
+  function renderCardPanel(box, c) {
+    var names = cardParamNames(c);
+    var changed = Object.keys(state.params).filter(function (k) { return names[k]; }).length;
+    var head = el('div', { class: 'cardhead' }, [
+      el('span', { class: 'ico' }, [icon(c.category, 20)]),
+      el('div', { class: 'ct' }, [
+        el('b', { text: c.title }),
+        el('span', { class: 'cs', text: c.params.length + ' options, ' + c.variants.length + ' looks' + (c.needsUser === false ? ', no username needed' : '') })
+      ]),
+      el('button', { class: 'ghost small', type: 'button', text: 'Reset' + (changed ? ' (' + changed + ')' : ''), title: 'Clear this card’s options', disabled: changed ? null : 'true', onclick: function () {
+        Object.keys(names).forEach(function (k) { delete state.params[k]; });
+        renderParams(); update();
+      } })
+    ]);
+    box.appendChild(head);
+    box.appendChild(el('div', { class: 'cardnote', text: c.description }));
+
+    if (c.variants.length > 1) {
+      box.appendChild(el('div', { class: 'looks-title', text: 'Looks' }));
+      var looks = el('div', { class: 'looks', role: 'group', 'aria-label': 'Looks for ' + c.title });
+      c.variants.forEach(function (v) {
+        var b = el('button', { type: 'button', class: 'look' + (lookMatches(v) ? ' on' : ''), text: v.label, onclick: function () { applyLook(v); } });
+        b.setAttribute('aria-pressed', lookMatches(v) ? 'true' : 'false');
+        looks.appendChild(b);
+      });
+      box.appendChild(looks);
+    }
+
+    var fields = [];
+    var search = el('input', { type: 'search', class: 'optsearch', placeholder: 'Search ' + c.params.length + ' options…', 'aria-label': 'Search card options', autocomplete: 'off' });
+    if (c.params.length > 6) box.appendChild(search);
+    var sections = [];
+    BUCKETS.forEach(function (bk) {
+      var ps = c.params.filter(function (p) { return paramBucket(p) === bk[0]; });
+      if (!ps.length) return;
+      var det = el('details', { class: 'grp', open: bk[0] === 'details' && ps.length > 4 ? null : 'true' }, [el('summary', { text: bk[1] + ' (' + ps.length + ')' })]);
+      ps.forEach(function (p) { var node = field(p, playStore); det.appendChild(node); fields.push({ p: p, node: node, det: det }); });
+      box.appendChild(det);
+      sections.push(det);
+    });
+    search.addEventListener('input', function () {
+      var q = search.value.toLowerCase().trim();
+      fields.forEach(function (f) { f.node.style.display = !q || (f.p.name + ' ' + (f.p.description || '')).toLowerCase().indexOf(q) >= 0 ? '' : 'none'; });
+      sections.forEach(function (d) {
+        var any = fields.some(function (f) { return f.det === d && f.node.style.display !== 'none'; });
+        d.style.display = any ? '' : 'none';
+        if (q && any) d.open = true;
+      });
+    });
   }
   function selectCard(id, keepCommon) {
     var common = {};
@@ -260,7 +376,8 @@ export const SCRIPT = String.raw`
     var editing = state.editing !== null && builder.spec.blocks[state.editing];
     $('editing').classList.toggle('hidden', !editing);
     $('update-block').classList.toggle('hidden', !editing);
-    $('add-readme').textContent = editing ? '＋ Add as new block' : '＋ Add to README';
+    $('add-readme').textContent = editing ? 'Add as new block' : 'Add to README';
+    $('stage-title').textContent = c.title;
     if (editing) $('editing-label').textContent = 'Editing README block #' + (state.editing + 1);
     renderDefinitions();
     saveHash();
@@ -284,7 +401,7 @@ export const SCRIPT = String.raw`
   function renderCats() {
     var box = $('cats'); box.innerHTML = '';
     ['all'].concat(Object.keys(CATS)).forEach(function (k) {
-      var b = el('button', { class: 'chip plain' + (state.cat === k ? ' on' : ''), type: 'button', text: k === 'all' ? 'All' : CATS[k] });
+      var b = el('button', { class: state.cat === k ? 'on' : '', type: 'button', text: k === 'all' ? 'All' : CATS[k] });
       b.addEventListener('click', function () { state.cat = k; renderCats(); renderStore(); });
       box.appendChild(b);
     });
@@ -309,12 +426,12 @@ export const SCRIPT = String.raw`
     var url = imgUrl(c.id, params);
     var acts = el('div', { class: 'acts' }, [
       el('button', { class: 'ghost small', type: 'button', text: 'Customize', onclick: function () { customize(c.id, params); } }),
-      el('button', { class: 'primary small', type: 'button', text: '＋ README', onclick: function () { addCardBlock(c.id, params); toast('Added to your README'); } }),
+      el('button', { class: 'ghost small', type: 'button', text: 'Add to README', onclick: function () { addCardBlock(c.id, params); toast('Added to your README'); } }),
       el('button', { class: 'ghost small', type: 'button', text: 'Copy', onclick: function () { copy('![' + c.title + '](' + location.origin + url + ')'); } })
     ]);
     return el('div', { class: 'item' }, [
-      el('h3', {}, [el('span', { text: ICONS[c.id] || '🧩' }), el('div', { text: c.title }), el('span', { text: v.label })]),
       el('div', { class: 'shot' }, [el('img', { src: url, loading: 'lazy', alt: c.title + ' - ' + v.label })]),
+      el('div', { class: 'meta' }, [el('h3', { text: v.label }), el('span', { class: 'look-name', text: c.title })]),
       acts
     ]);
   }
@@ -455,7 +572,7 @@ export const SCRIPT = String.raw`
         b.items.forEach(function (it, k) {
           out.push(el('div', { class: 'item-edit' }, [el('div', { class: 'note', text: 'Card ' + (k + 1) })].concat(cardEditor(it, change, b.items.length > 1 ? function () { b.items.splice(k, 1); renderBlocks(); scheduleBuild(); } : null, i))));
         });
-        if (b.items.length < 4) out.push(el('button', { class: 'ghost small', type: 'button', text: '＋ Add card to row', onclick: function () { b.items.push(newCard('streak')); renderBlocks(); scheduleBuild(); } }));
+        if (b.items.length < 4) out.push(el('button', { class: 'ghost small', type: 'button', text: 'Add card to row', onclick: function () { b.items.push(newCard('streak')); renderBlocks(); scheduleBuild(); } }));
         out.push(alignSel());
         return out;
       }
@@ -492,15 +609,15 @@ export const SCRIPT = String.raw`
     node.textContent = b.type === 'card' ? b.card : b.type === 'row' ? b.items.map(function (x) { return x.card; }).join(' + ') : b.type === 'heading' ? b.text : b.type === 'text' ? b.markdown.slice(0, 40) : '';
   }
   function blockEl(b, i) {
-    var handle = el('span', { class: 'handle', title: 'Drag to reorder', text: '⠿' });
+    var handle = el('span', { class: 'handle', title: 'Drag to reorder' }, [icon('grip')]);
     var head = el('header', {}, [
       handle,
       el('span', { class: 'name', text: (i + 1) + '. ' + BLOCK_LABELS[b.type] }),
       el('span', { class: 'sub' }),
-      el('button', { class: 'ghost small', type: 'button', title: 'Move up', text: '▲', onclick: function () { move(i, -1); } }),
-      el('button', { class: 'ghost small', type: 'button', title: 'Move down', text: '▼', onclick: function () { move(i, 1); } }),
-      el('button', { class: 'ghost small', type: 'button', title: 'Duplicate', text: '⧉', onclick: function () { builder.spec.blocks.splice(i + 1, 0, clone(b)); renderBlocks(); scheduleBuild(); } }),
-      el('button', { class: 'ghost small danger', type: 'button', title: 'Remove', text: '✕', onclick: function () { builder.spec.blocks.splice(i, 1); renderBlocks(); scheduleBuild(); } })
+      el('button', { class: 'ghost small icon', type: 'button', title: 'Move up', 'aria-label': 'Move up', onclick: function () { move(i, -1); } }, [icon('up')]),
+      el('button', { class: 'ghost small icon', type: 'button', title: 'Move down', 'aria-label': 'Move down', onclick: function () { move(i, 1); } }, [icon('down')]),
+      el('button', { class: 'ghost small icon', type: 'button', title: 'Duplicate', 'aria-label': 'Duplicate', onclick: function () { builder.spec.blocks.splice(i + 1, 0, clone(b)); renderBlocks(); scheduleBuild(); } }, [icon('copy')]),
+      el('button', { class: 'ghost small danger icon', type: 'button', title: 'Remove', 'aria-label': 'Remove', onclick: function () { builder.spec.blocks.splice(i, 1); renderBlocks(); scheduleBuild(); } }, [icon('x')])
     ]);
     var node = el('div', { class: 'blk', 'data-blk': String(i) }, [head, el('div', { class: 'body' }, blockBody(b, i))]);
     handle.addEventListener('mousedown', function () { node.draggable = true; });
@@ -539,7 +656,8 @@ export const SCRIPT = String.raw`
     return fetch('/api/presets?username=' + encodeURIComponent(user())).then(function (r) { return r.json(); }).then(function (j) {
       presets = j.presets;
       var sel = $('preset'); sel.innerHTML = '';
-      presets.forEach(function (p) { sel.appendChild(el('option', { value: p.id, text: p.title })); });
+      var designIds = DESIGN_PRESETS.map(function (d) { return d[0]; });
+      presets.filter(function (p) { return designIds.indexOf(p.id) < 0; }).forEach(function (p) { sel.appendChild(el('option', { value: p.id, text: p.title })); });
     });
   }
   function resetBuilder() {
@@ -564,7 +682,7 @@ export const SCRIPT = String.raw`
     $('b-clear').addEventListener('click', function () { if (!builder.spec.blocks.length || confirm('Remove every block?')) { builder.spec.blocks = []; renderBlocks(); scheduleBuild(); } });
     var bar = $('addbar');
     Object.keys(BLOCK_LABELS).forEach(function (t) {
-      bar.appendChild(el('button', { class: 'ghost', type: 'button', text: '＋ ' + BLOCK_LABELS[t], onclick: function () { builder.spec.blocks.push(newBlock(t)); renderBlocks(); scheduleBuild(); } }));
+      bar.appendChild(el('button', { class: 'ghost', type: 'button', text: BLOCK_LABELS[t], onclick: function () { builder.spec.blocks.push(newBlock(t)); renderBlocks(); scheduleBuild(); } }));
     });
     var showOut = function (which) {
       $('pane-preview').classList.toggle('hidden', which !== 'preview'); $('pane-md').classList.toggle('hidden', which !== 'md');
@@ -589,11 +707,14 @@ export const SCRIPT = String.raw`
       b.addEventListener('click', function () {
         previewWidth = b.dataset.w;
         $('frame').classList.toggle('mobile', previewWidth === 'mobile');
-        Array.prototype.forEach.call(document.querySelectorAll('.wbtn'), function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+        Array.prototype.forEach.call(document.querySelectorAll('.wbtn'), function (x) { x.setAttribute('aria-pressed', String(x === b)); x.classList.toggle('on', x === b); });
       });
     });
     Array.prototype.forEach.call(document.querySelectorAll('.pvbtn'), function (b) {
-      b.addEventListener('click', function () { previewMode = b.dataset.pv; if (builder.html) $('frame').srcdoc = previewDoc(builder.html); });
+      b.addEventListener('click', function () {
+        previewMode = b.dataset.pv; if (builder.html) $('frame').srcdoc = previewDoc(builder.html);
+        Array.prototype.forEach.call(document.querySelectorAll('.pvbtn'), function (x) { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
+      });
     });
   }
 
@@ -640,7 +761,7 @@ export const SCRIPT = String.raw`
         }, function () { return card + ': unreachable (check the image host)'; });
       })).then(function (res) {
         var bad = res.filter(Boolean);
-        box.textContent = bad.length ? '✖ ' + bad.length + ' image(s) show an error card - ' + bad.join(' · ') : (list.length ? '✔ All ' + list.length + ' images render' : '');
+        box.textContent = bad.length ? bad.length + ' image(s) show an error card: ' + bad.slice(0, 3).join(', ') + (bad.length > 3 ? ' and ' + (bad.length - 3) + ' more' : '') : (list.length ? 'All ' + list.length + ' images render' : '');
         box.className = 'note ' + (bad.length ? 'bad' : 'good');
       });
     }, 600);
@@ -780,6 +901,7 @@ export const SCRIPT = String.raw`
     for (var k in h) if (!reserved[k]) state.params[k] = h[k];
     var restored = restoreBuilder();
     $('username').value = state.username;
+    $('card-search').addEventListener('input', function () { renderTiles(); });
     initBuilderControls();
     renderTiles(); renderThemes(); renderCats();
     return fetchPresets().then(function () {
@@ -839,14 +961,18 @@ export const SCRIPT = String.raw`
   });
   $('editing-cancel').addEventListener('click', function () { state.editing = null; state.editingItem = null; update(); });
   Array.prototype.forEach.call(document.querySelectorAll('.bgbtn'), function (b) {
-    b.addEventListener('click', function () { $('stage').className = 'stage ' + b.dataset.bg; });
+    b.addEventListener('click', function () {
+      $('stage').className = 'stage ' + b.dataset.bg;
+      Array.prototype.forEach.call(document.querySelectorAll('.bgbtn'), function (x) { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
+    });
   });
   var root = document.documentElement;
+  function effectiveScheme() { return root.dataset.scheme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
   $('scheme').addEventListener('click', function () {
-    var next = root.dataset.scheme === 'light' ? 'dark' : 'light';
+    var next = effectiveScheme() === 'dark' ? 'light' : 'dark';
     root.dataset.scheme = next;
     try { localStorage.setItem('gp-scheme', next); } catch (e) { /* ignore */ }
   });
-  try { var saved = localStorage.getItem('gp-scheme'); if (saved) root.dataset.scheme = saved; else if (matchMedia('(prefers-color-scheme: light)').matches) root.dataset.scheme = 'light'; } catch (e) { /* ignore */ }
+  try { var saved = localStorage.getItem('gp-scheme'); if (saved === 'light' || saved === 'dark') root.dataset.scheme = saved; } catch (e) { /* ignore */ }
 })();
 `;

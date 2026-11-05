@@ -10,6 +10,8 @@ interface Params {
   repos: { owner: string; repo: string }[];
   signals: boolean;
   highlight: boolean;
+  rows: string[];
+  bars: boolean;
 }
 
 const DAY = 86_400_000;
@@ -44,17 +46,17 @@ function signals(r: RepoHealth): { label: string; text: string; level: Level }[]
 }
 const LEVEL_COLOR: Record<Level, string> = { good: '#3fb950', warn: '#d29922', bad: '#f85149', none: '#8b949e' };
 
-const ROWS: { label: string; value: (r: RepoHealth) => number | null; fmt?: (r: RepoHealth) => string; better?: 'high' | 'low' }[] = [
-  { label: 'Stars', value: (r) => r.stars, better: 'high' },
-  { label: 'Forks', value: (r) => r.forks, better: 'high' },
-  { label: 'Watchers', value: (r) => r.watchers, better: 'high' },
-  { label: 'Open issues', value: (r) => r.openIssues },
-  { label: 'Open PRs', value: (r) => r.openPullRequests },
-  { label: 'Merged PRs', value: (r) => r.mergedPullRequests, better: 'high' },
-  { label: 'Releases', value: (r) => r.releases, better: 'high' },
-  { label: 'Language', value: () => null, fmt: (r) => r.language ?? '-' },
-  { label: 'License', value: () => null, fmt: (r) => r.license ?? 'none' },
-  { label: 'Created', value: () => null, fmt: (r) => (r.createdAt ? r.createdAt.slice(0, 4) : '-') }
+const ROWS: { key: string; label: string; value: (r: RepoHealth) => number | null; fmt?: (r: RepoHealth) => string; better?: 'high' | 'low' }[] = [
+  { key: 'stars', label: 'Stars', value: (r) => r.stars, better: 'high' },
+  { key: 'forks', label: 'Forks', value: (r) => r.forks, better: 'high' },
+  { key: 'watchers', label: 'Watchers', value: (r) => r.watchers, better: 'high' },
+  { key: 'issues', label: 'Open issues', value: (r) => r.openIssues },
+  { key: 'prs', label: 'Open PRs', value: (r) => r.openPullRequests },
+  { key: 'merged', label: 'Merged PRs', value: (r) => r.mergedPullRequests, better: 'high' },
+  { key: 'releases', label: 'Releases', value: (r) => r.releases, better: 'high' },
+  { key: 'language', label: 'Language', value: () => null, fmt: (r) => r.language ?? '-' },
+  { key: 'license', label: 'License', value: () => null, fmt: (r) => r.license ?? 'none' },
+  { key: 'created', label: 'Created', value: () => null, fmt: (r) => (r.createdAt ? r.createdAt.slice(0, 4) : '-') }
 ];
 
 export const repoCompareCard = defineCard<Params, RepoHealth[]>({
@@ -63,14 +65,16 @@ export const repoCompareCard = defineCard<Params, RepoHealth[]>({
   category: 'repositories',
   needsUser: false,
   tags: ['compare', 'repository', 'health', 'maintenance', 'releases', 'issues', 'pull requests', 'vs'],
-  variants: [{ label: 'Comparison' }, { label: 'Numbers only', params: { signals: 'false' } }],
+  variants: [{ label: 'Comparison' }, { label: 'Numbers only', params: { signals: 'false' } }, { label: 'With bars', params: { bars: 'true', rows: 'stars,forks,merged,releases' } }],
   title: 'Repository Compare & Health',
   description: 'One to three repositories side by side: stars, forks, issues, PRs, releases, language, license, plus health signals (recent activity, issue close rate, release recency, 30-day commits) with documented thresholds. One repo = a health card.',
   cacheSeconds: 3 * 3600,
   params: [
     { name: 'repos', type: 'list', description: '1-3 repositories, e.g. vercel/next.js,remix-run/remix (default: top 2 repos of username; bare names use username as owner)' },
     { name: 'signals', type: 'boolean', default: true, description: 'Show health signals' },
-    { name: 'highlight', type: 'boolean', default: true, description: 'Bold the leader in each row' }
+    { name: 'highlight', type: 'boolean', default: true, description: 'Bold the leader in each row' },
+    { name: 'rows', type: 'list', description: 'Only these rows, e.g. stars,forks,releases (stars forks watchers issues prs merged releases language license created)' },
+    { name: 'bars', type: 'boolean', default: false, description: 'Draw a small proportional bar behind each number' }
   ],
   parse(q, common) {
     const repos = list(q.repos).slice(0, 3).map((full) => {
@@ -80,7 +84,7 @@ export const repoCompareCard = defineCard<Params, RepoHealth[]>({
       return { owner: owner.trim(), repo: repoName(repo.trim()) };
     });
     if (!repos.length && !common.username) throw badRequest('Pass repos=owner/name (up to 3, comma-separated), or a username to compare their top repositories');
-    return { repos, signals: bool(q.signals, true), highlight: bool(q.highlight, true) };
+    return { repos, signals: bool(q.signals, true), highlight: bool(q.highlight, true), rows: list(q.rows).map((r) => r.toLowerCase()), bars: bool(q.bars, false) };
   },
   users: (p) => p.repos.map((r) => r.owner),
   async load(client, p, common) {
@@ -118,7 +122,7 @@ export const repoCompareCard = defineCard<Params, RepoHealth[]>({
       y += 16;
     }
 
-    ROWS.forEach((row, ri) => {
+    ROWS.filter((row) => !p.rows.length || p.rows.includes(row.key)).forEach((row, ri) => {
       const vals = repos.map((r) => row.value(r));
       if (!row.fmt && vals.every((v) => v === null)) return; // no data without a token
       const nums = vals.filter((v): v is number => v !== null);
@@ -126,8 +130,10 @@ export const repoCompareCard = defineCard<Params, RepoHealth[]>({
       const ry = y + 14;
       if (ri % 2 === 0) body += `<rect x="${PAD - 8}" y="${ry - 15}" width="${W - PAD * 2 + 16}" height="22" rx="4" class="bd" fill-opacity=".35"/>`;
       body += `<text x="${PAD}" y="${ry}" class="label muted" font-size="12">${esc(row.label)}</text>`;
+      const rowMax = Math.max(1, ...nums);
       repos.forEach((r, i) => {
         const v = vals[i];
+        if (p.bars && v !== null && !row.fmt) body += `<rect x="${colX(i) + 14}" y="${ry - 12}" width="${Math.max(2, (v / rowMax) * (colW - 40)).toFixed(1)}" height="14" rx="3" class="accent" fill-opacity=".14"/>`;
         const text = row.fmt ? row.fmt(r) : v === null ? '-' : compact(v);
         const lead = p.highlight && best !== null && v === best;
         body += `<text x="${colX(i) + 16}" y="${ry}" class="${lead ? 'accent' : 'fg'}" font-size="12.5"${lead ? ' font-weight="700"' : ''}>${esc(truncate(text, single ? 34 : 18))}</text>`;
