@@ -913,6 +913,8 @@ export const SCRIPT = String.raw`
   });
 
   // ---- events --------------------------------------------------------------------------------------
+  // the pulse only invites the first click
+  $('username').addEventListener('focus', function () { $('username').parentNode.classList.remove('attention'); });
   $('username').addEventListener('input', function (e) {
     state.username = e.target.value;
     if (state.tab === 'play') scheduleUpdate(); else if (state.tab === 'store') { clearTimeout(timer); timer = setTimeout(renderStore, 400); } else { scheduleBuild(); clearTimeout(checkTimer); checkTimer = setTimeout(renderDesigns, 700); }

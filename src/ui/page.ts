@@ -22,7 +22,7 @@ export const pageHtml = `<!DOCTYPE html>
     <button id="tab-builder">README Studio</button>
   </nav>
   <span class="grow"></span>
-  <label class="who" title="GitHub username to preview"><span>@</span><input type="text" id="username" value="torvalds" autocomplete="off" spellcheck="false" placeholder="username" aria-label="GitHub username"></label>
+  <label class="who attention" title="Type any GitHub username to preview every card"><b>GitHub user</b><span>@</span><input type="text" id="username" value="torvalds" autocomplete="off" spellcheck="false" placeholder="username" aria-label="GitHub username"></label>
   <div class="links">
     <a href="/api/cards">Cards</a><a href="/api/openapi.json">OpenAPI</a><a href="/api/themes">Themes</a>
     <button id="scheme" title="Switch light and dark" aria-label="Switch light and dark"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
