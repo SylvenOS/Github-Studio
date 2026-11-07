@@ -248,3 +248,34 @@ describe('response diagnostics', () => {
     assertWellFormedSvg(await first.text());
   });
 });
+
+describe('repository timeline card', () => {
+  it('renders every style and metric', async () => {
+    mockGitHub();
+    for (const style of ['bars', 'line', 'area', 'dots', 'lollipop']) {
+      expect(await svgOf(`/api/repo-timeline?username=octo&style=${style}&values=true&grid=true`), style).toContain('Repository Timeline');
+    }
+    await svgOf('/api/repo-timeline?username=octo&metric=stars&cumulative=true&labels=full&years=3&summary=false&axis=false');
+    const json = await (await get('/api/repo-timeline?username=octo&format=json')).json();
+    expect(json.years.length).toBeGreaterThan(0);
+  });
+});
+
+describe('card-wide style options', () => {
+  it('applies weight, spacing, border, shadow, tone and opacity safely', async () => {
+    mockGitHub();
+    const svg = await svgOf('/api/stats?username=octo&title_weight=black&value_weight=medium&letter_spacing=1.5&border_style=dashed&shadow=strong&margin=10&tone=sepia&card_opacity=80&hide_icons=true&subtitle_color=ff0066&title_font=Georgia,serif');
+    expect(svg).toContain('font-weight:900');
+    expect(svg).toContain('letter-spacing:1.5px');
+    expect(svg).toContain('stroke-dasharray="7 5"');
+    expect(svg).toContain('drop-shadow');
+    expect(svg).toContain('sepia(');
+    expect(svg).toContain('opacity:0.8');
+    expect(svg).toContain('.sub{fill:#ff0066}');
+    expect(svg).toContain('Georgia');
+    // user text can't break out of the CSS
+    const bad = await svgOf('/api/stats?username=octo&title_font=a%7D%3Cscript%3E&tone=evil&shadow=%22');
+    expect(bad).not.toContain('<script');
+    expect(bad).not.toContain('evil');
+  });
+});

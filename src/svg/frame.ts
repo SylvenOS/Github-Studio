@@ -64,6 +64,18 @@ function styleCss(st: FrameStyle): string {
   if (st.glow) css += '.header,.accent,.ic{filter:drop-shadow(0 0 3px var(--accent))}';
   if (st.titleTransform && st.titleTransform !== 'none') css += `.header{text-transform:${st.titleTransform}}`;
   if (st.titleGradient) css += '.header{fill:url(#titleGrad)}';
+  const W = { normal: 400, medium: 550, bold: 700, black: 900 };
+  if (st.titleWeight) css += `.header{font-weight:${W[st.titleWeight]}}`;
+  if (st.valueWeight) css += `.value{font-weight:${W[st.valueWeight]}}`;
+  if (st.letterSpacing) css += `text{letter-spacing:${st.letterSpacing}px}`;
+  if (st.titleFont) css += `.header{font-family:${st.titleFont.replace(/"/g, "'")}}`;
+  if (st.subtitleColor) css += `.sub{fill:${st.subtitleColor}}`;
+  if (st.hideIcons) css += '.ic{display:none}';
+  if (st.shadow === 'soft') css += '.bgr{filter:drop-shadow(0 3px 5px rgb(0 0 0/.22))}';
+  if (st.shadow === 'strong') css += '.bgr{filter:drop-shadow(0 8px 12px rgb(0 0 0/.42))}';
+  const TONE = { grayscale: 'grayscale(1)', sepia: 'sepia(.85)', vivid: 'saturate(1.6) contrast(1.05)', faded: 'saturate(.55) opacity(.9)' } as const;
+  if (st.tone && st.tone !== 'none') css += `:root{filter:${TONE[st.tone]}}`;
+  if (st.cardOpacity !== undefined && st.cardOpacity < 100) css += `:root{opacity:${st.cardOpacity / 100}}`;
   return css;
 }
 
@@ -92,7 +104,7 @@ export function frame(content: string, o: FrameOptions): string {
   const vh = height + 2 * d;
   const cs = o.transparent ? 'default' : st.cardStyle ?? 'default';
   // elevated cards need room for the shadow
-  const m = cs === 'elevated' ? 10 : cs === 'neon' ? 6 : 0;
+  const m = Math.max(cs === 'elevated' ? 10 : cs === 'neon' ? 6 : 0, st.shadow === 'soft' ? 10 : st.shadow === 'strong' ? 22 : 0) + (st.margin ?? 0);
   const outW = st.width ? Math.round((st.width * (vw + 2 * m)) / vw) : vw + 2 * m;
   const outH = Math.round(((vh + 2 * m) * outW) / (vw + 2 * m));
   const bw = theme.hideBorder || cs === 'soft' ? 0 : cs === 'outline' || cs === 'neon' || cs === 'gradient' ? Math.max(2, st.borderWidth ?? 2) : st.borderWidth ?? 1.5;
@@ -100,7 +112,7 @@ export function frame(content: string, o: FrameOptions): string {
   const darkCss = theme.dark ? `@media (prefers-color-scheme:dark){:root{${vars(theme.dark)}}}` : '';
   const strokeAttr = cs === 'gradient' ? 'stroke="url(#bdGrad)"' : cs === 'neon' || cs === 'outline' ? 'class="sk-accent"' : 'class="sk-bd"';
   const border = bw > 0
-    ? `<rect x="${bw / 2}" y="${bw / 2}" width="${vw - bw}" height="${vh - bw}" rx="${theme.borderRadius}" fill="none" ${strokeAttr} stroke-width="${bw}"${cs === 'neon' ? ' filter="url(#neon)"' : ''}${cs === 'glass' ? ' stroke-opacity=".55"' : ''}/>`
+    ? `<rect x="${bw / 2}" y="${bw / 2}" width="${vw - bw}" height="${vh - bw}" rx="${theme.borderRadius}" fill="none" ${strokeAttr} stroke-width="${bw}"${cs === 'neon' ? ' filter="url(#neon)"' : ''}${cs === 'glass' ? ' stroke-opacity=".55"' : ''}${st.borderStyle === 'dashed' ? ' stroke-dasharray="7 5"' : st.borderStyle === 'dotted' ? ' stroke-dasharray="1.5 4" stroke-linecap="round"' : ''}/>`
     : '';
   // style defs: gradients, shadow/glow filters, background texture
   let defs = '';
@@ -121,7 +133,7 @@ export function frame(content: string, o: FrameOptions): string {
     const anchor = align === 'center' ? ' text-anchor="middle"' : align === 'right' ? ' text-anchor="end"' : '';
     header = `<text x="${x}" y="35" class="header accent"${anchor}>${esc(o.title)}</text>`;
     if (o.subtitle && !st.hideSubtitle && align === 'left') {
-      header += `<text x="${width - PAD}" y="35" class="label muted" text-anchor="end" font-size="13">${esc(o.subtitle)}</text>`;
+      header += `<text x="${width - PAD}" y="35" class="label muted sub" text-anchor="end" font-size="13">${esc(o.subtitle)}</text>`;
     }
     if (st.titleDivider) header += `<line x1="${PAD}" y1="46" x2="${width - PAD}" y2="46" class="sk-bd" stroke-width="1"/>`;
   }

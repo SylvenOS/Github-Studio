@@ -57,6 +57,7 @@ Without a token the API still works through REST, search and the public profile 
 | `/api/monthly` (`trend`) | Contributions per month with last year as a ghost series, plus year-to-date change. |
 | `/api/punchcard` (`rhythm`) | Commit punch card (weekday × hour) with a night-owl / early-bird summary. Needs a token. |
 | `/api/stars` (`star-history`) | Star history of up to 3 repositories (sampled stargazer timestamps). |
+| `/api/repo-timeline` (`timeline`) | Repositories, stars or forks by creation year as bars, line, area, dots or lollipops, with cumulative growth, grid, value labels and best-year highlight. |
 | `/api/repo-compare` (`repo-health`) | 1-3 repositories side by side with health signals (activity, issue close rate, release recency, 30-day commits). |
 | `/api/language-trend` | Share of commits by language, year by year (stream, stacked bars or lines). Needs a token. |
 | `/api/code` (`loc`) | Code volume: bytes per language and an estimated line count, clearly labelled as an estimate. Needs a token. |
@@ -133,6 +134,11 @@ Every card also supports `format=json` to get the underlying data instead of an 
 | `bg_pattern` | `none`, `dots`, `grid`, `diagonal`, `topo` |
 | `title_gradient`, `accent2` | Gradient title from `accent` to `accent2` |
 | `title_transform`, `title_divider` | Upper/lower-case titles; a line under the header |
+| `title_weight`, `value_weight` | `normal`, `medium`, `bold`, `black` for the title and the big numbers |
+| `title_font`, `letter_spacing` | A separate font for the title; extra spacing in px (-1 to 4) |
+| `border_style`, `margin` | `solid`, `dashed`, `dotted` border; transparent space around the card |
+| `shadow`, `tone`, `card_opacity` | `none`/`soft`/`strong` shadow; `grayscale`, `sepia`, `vivid`, `faded`; whole-card opacity % |
+| `hide_icons`, `subtitle_color` | Remove every icon; colour of the @username |
 
 They combine with themes, gradients (`bg=135,c1,c2`), every colour override, width, padding, radius and text scale.
 
@@ -145,6 +151,7 @@ They combine with themes, gradients (`bg=135,c1,c2`), every colour override, wid
 | monthly | `year`, `compare`, `layout` (`bars`, `line`), `values`, `goal`, `diff` (green/red against last year) |
 | punchcard | `tz` (UTC offset in hours; default = each commit's own timezone), `shape` (`circle`, `square`, `heat`), `week_start`, `hours` (`12h 24h`), `highlight`, `legend` |
 | stars | `repo` (up to 3, `owner/name`; bare name = `username`'s repo; default = top repo), `scale` (`linear`, `log`), `area`, `points`, `legend`, `period` (`all 1y 2y 5y`), `milestones` |
+| repo-timeline | `metric` (repos/stars/forks), `style` (bars/line/area/dots/lollipop), `years`, `cumulative`, `archived`, `empty`, `values`, `grid`, `axis`, `highlight`, `summary`, `height`, `gap`, `round`, `labels` |
 | repo-compare | `repos` (1–3; default = `username`'s top 2), `signals`, `highlight`, `rows` (pick which), `bars` |
 | language-trend | `years` (2–10), `count` (2–8), `layout` (`stream`, `bars`, `lines`), `exclude`, `mode` (`share absolute`), `smooth`, `height`, `legend`, `values` |
 | code | `count`, `exclude`, `layout` (`bars tiles stack`), `unit` (`both lines bytes`), `total` |

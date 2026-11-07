@@ -172,6 +172,21 @@ export function parseStyle(q: Query): FrameStyle {
   if (q.title_gradient) s.titleGradient = bool(q.title_gradient, false);
   if (q.title_transform) s.titleTransform = oneOf(q.title_transform, ['none', 'uppercase', 'lowercase'] as const, 'none');
   if (q.title_divider) s.titleDivider = bool(q.title_divider, false);
+  const weights = ['normal', 'medium', 'bold', 'black'] as const;
+  if (q.title_weight) s.titleWeight = oneOf(q.title_weight, weights, 'bold');
+  if (q.value_weight) s.valueWeight = oneOf(q.value_weight, weights, 'bold');
+  if (q.letter_spacing) s.letterSpacing = num(q.letter_spacing, 0, -1, 4, 0.1);
+  if (q.border_style) s.borderStyle = oneOf(q.border_style, ['solid', 'dashed', 'dotted'] as const, 'solid');
+  if (q.shadow) s.shadow = oneOf(q.shadow, ['none', 'soft', 'strong'] as const, 'none');
+  if (q.margin) s.margin = int(q.margin, 0, 0, 40);
+  if (q.tone) s.tone = oneOf(q.tone, ['none', 'grayscale', 'sepia', 'vivid', 'faded'] as const, 'none');
+  if (q.card_opacity) s.cardOpacity = int(q.card_opacity, 100, 10, 100);
+  const sub = color(q.subtitle_color);
+  if (sub) s.subtitleColor = sub;
+  if (q.hide_icons) s.hideIcons = bool(q.hide_icons, false);
+  if (q.title_font && /^[\w\s,-]{1,80}$/.test(q.title_font)) {
+    s.titleFont = q.title_font.split(',').map((f) => f.trim()).filter(Boolean).slice(0, 5).map((f) => (/\s/.test(f) ? `'${f}'` : f)).join(', ');
+  }
   return s;
 }
 
@@ -200,11 +215,19 @@ export const COMMON_PARAMS: ParamDoc[] = [
   { name: 'hide_title', type: 'boolean', description: 'Hide the card header', default: false, group: 'layout' },
   { name: 'hide_subtitle', type: 'boolean', description: 'Hide the @username next to the title', default: false, group: 'layout' },
   { name: 'title_align', type: 'enum', options: ['left', 'center', 'right'], default: 'left', description: 'Title alignment', group: 'layout' },
+  { name: 'border_style', type: 'enum', options: ['solid', 'dashed', 'dotted'], default: 'solid', description: 'Border line style', group: 'layout' },
+  { name: 'margin', type: 'number', description: 'Transparent space around the card (px)', default: 0, min: 0, max: 40, group: 'layout' },
+  { name: 'hide_icons', type: 'boolean', description: 'Hide every icon', default: false, group: 'layout' },
+  { name: 'subtitle_color', type: 'color', description: 'Colour of the @username next to the title', group: 'colors' },
   { name: 'title_divider', type: 'boolean', description: 'Line under the header', default: false, group: 'layout' },
   // typography
   { name: 'title', type: 'string', description: 'Custom card title', group: 'typography' },
   { name: 'font', type: 'string', description: 'Font family, e.g. Fira Code, monospace', group: 'typography' },
   { name: 'title_size', type: 'number', description: 'Title font size', default: 18, min: 10, max: 32, group: 'typography' },
+  { name: 'title_weight', type: 'enum', options: ['normal', 'medium', 'bold', 'black'], default: 'bold', description: 'Title weight', group: 'typography' },
+  { name: 'title_font', type: 'string', description: 'Font family for the title only, e.g. Georgia, serif', group: 'typography' },
+  { name: 'value_weight', type: 'enum', options: ['normal', 'medium', 'bold', 'black'], default: 'bold', description: 'Weight of the big numbers', group: 'typography' },
+  { name: 'letter_spacing', type: 'number', description: 'Extra letter spacing (px); negative tightens', default: 0, min: -1, max: 4, step: 0.1, group: 'typography' },
   { name: 'title_transform', type: 'enum', options: ['none', 'uppercase', 'lowercase'], default: 'none', description: 'Title letter case', group: 'typography' },
   { name: 'text_scale', type: 'number', description: 'Text size %', default: 100, min: 70, max: 150, step: 5, group: 'typography' },
   { name: 'number_format', type: 'enum', options: ['auto', 'full', 'compact'], default: 'auto', description: 'Numbers: as designed, always full (12,345) or always compact (12.3k)', group: 'typography' },
@@ -214,6 +237,9 @@ export const COMMON_PARAMS: ParamDoc[] = [
   { name: 'glow', type: 'boolean', description: 'Neon glow on titles and accents', default: false, group: 'effects' },
   { name: 'card_style', type: 'enum', options: [...CARD_STYLES], default: 'default', description: 'Whole-card look: glass, elevated shadow, outline, neon, gradient border or soft tint', group: 'effects' },
   { name: 'bg_pattern', type: 'enum', options: [...BG_PATTERNS], default: 'none', description: 'Subtle background texture', group: 'effects' },
+  { name: 'shadow', type: 'enum', options: ['none', 'soft', 'strong'], default: 'none', description: 'Drop shadow under the card', group: 'effects' },
+  { name: 'tone', type: 'enum', options: ['none', 'grayscale', 'sepia', 'vivid', 'faded'], default: 'none', description: 'Colour treatment of the whole card', group: 'effects' },
+  { name: 'card_opacity', type: 'number', description: 'Whole-card opacity %', default: 100, min: 10, max: 100, step: 5, group: 'effects' },
   { name: 'title_gradient', type: 'boolean', description: 'Gradient title (accent → accent2)', default: false, group: 'effects' },
   // data / output
   { name: 'format', type: 'enum', description: 'Response format (`text` is supported by the ascii card)', options: ['svg', 'json', 'text'], default: 'svg', group: 'data' },

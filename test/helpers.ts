@@ -41,6 +41,7 @@ const repoNode = (name: string, stars: number, lang: string, color: string) => (
   forkCount: Math.floor(stars / 10),
   isArchived: false,
   pushedAt: '2024-05-01T00:00:00Z',
+  createdAt: `${2018 + (stars % 5)}-06-01T00:00:00Z`,
   primaryLanguage: { name: lang, color },
   languages: {
     edges: [

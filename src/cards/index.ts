@@ -28,6 +28,7 @@ import { monthlyCard } from './monthly';
 import { punchcardCard } from './punchcard';
 import { quoteCard } from './quote';
 import { repoCompareCard } from './repo-compare';
+import { repoTimelineCard } from './repo-timeline';
 import { sponsorsCard } from './sponsors';
 import { spotifyCard } from './spotify';
 import { starsCard } from './stars';
@@ -58,6 +59,7 @@ export const cards: CardDefinition[] = [
   pinnedCard,
   starsCard,
   repoCompareCard,
+  repoTimelineCard,
   radarCard,
   achievementsCard,
   sponsorsCard,

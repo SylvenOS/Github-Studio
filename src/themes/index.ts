@@ -42,6 +42,22 @@ export interface FrameStyle {
   titleGradient?: boolean;
   titleTransform?: 'none' | 'uppercase' | 'lowercase';
   titleDivider?: boolean;
+  titleWeight?: 'normal' | 'medium' | 'bold' | 'black';
+  valueWeight?: 'normal' | 'medium' | 'bold' | 'black';
+  /** Extra letter spacing in px (negative tightens). */
+  letterSpacing?: number;
+  borderStyle?: 'solid' | 'dashed' | 'dotted';
+  shadow?: 'none' | 'soft' | 'strong';
+  /** Transparent space around the card, px. */
+  margin?: number;
+  /** Colour treatment of the whole card. */
+  tone?: 'none' | 'grayscale' | 'sepia' | 'vivid' | 'faded';
+  /** Whole-card opacity, percent. */
+  cardOpacity?: number;
+  subtitleColor?: string;
+  hideIcons?: boolean;
+  /** Sanitised font stack for the title only. */
+  titleFont?: string;
 }
 
 /** A theme after query overrides; `dark` is set for `theme=auto` and applied via prefers-color-scheme. */
