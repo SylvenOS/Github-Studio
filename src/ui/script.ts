@@ -365,7 +365,8 @@ export const SCRIPT = String.raw`
     var url = imgUrl(state.card, state.params);
     var img = $('preview');
     img.classList.add('loading');
-    img.onload = img.onerror = function () { img.classList.remove('loading'); };
+    img.onload = function () { img.classList.remove('loading'); };
+    img.onerror = function () { img.classList.remove('loading'); toast('Could not load the preview. Check your connection and try again.'); };
     img.src = url;
     $('url').textContent = location.origin + url;
     $('desc').textContent = c.description;

@@ -238,3 +238,13 @@ describe('web app card panel', () => {
     expect(script).toContain('renderCardPanel');
   });
 });
+
+describe('response diagnostics', () => {
+  it('reports cache state and timing (no edge cache in tests, so a miss) on card responses', async () => {
+    mockGitHub();
+    const first = await get('/api/stats?username=octo');
+    expect(first.headers.get('x-cache')).toBe('MISS');
+    expect(first.headers.get('server-timing')).toMatch(/^total;dur=\d+/);
+    assertWellFormedSvg(await first.text());
+  });
+});

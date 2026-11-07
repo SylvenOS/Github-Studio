@@ -281,7 +281,12 @@ async function handleCard(c: Ctx, id: string) {
     return renderCard(c, card, query, client);
   });
   log({ evt: 'card', card: card.id, user: query.username?.toLowerCase(), cache: hit ? 'hit' : 'miss', status: res.status, error: res.headers.get('X-Card-Error') ?? undefined, ms: Date.now() - started, sub: client?.subrequests ?? 0 });
-  return res;
+  // timing and cache state are visible to developers (DevTools, curl -i); clone because cached responses are immutable
+  const out = new Response(res.body, res);
+  const ms = Date.now() - started;
+  out.headers.set('X-Cache', hit ? 'HIT' : 'MISS');
+  out.headers.set('Server-Timing', `total;dur=${ms}${client ? `, github;desc="${client.subrequests} calls"` : ''}`);
+  return out;
 }
 
 // `/api?username=` is github-readme-stats' stats card
