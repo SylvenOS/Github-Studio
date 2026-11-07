@@ -191,11 +191,11 @@ export const STYLES = String.raw`
   .stagebar h1 { margin:0; font-size:20px; font-weight:650; letter-spacing:-.015em; }
   .bgs { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:12.5px; }
   .bgs .seg button { padding:3px 11px; }
-  .stage { overflow:auto; padding:48px 32px; border-radius:var(--r-lg); border:1px solid var(--line); min-height:260px; display:flex; align-items:center; justify-content:center; }
+  .stage { overflow:auto; padding:48px 32px; border-radius:var(--r-lg); border:1px solid var(--line); min-height:260px; display:flex; align-items:center; justify-content:safe center; }
   .stage.checker { background-color:var(--sunken); background-image:radial-gradient(var(--line-strong) 1px,transparent 1.2px); background-size:18px 18px; }
   .stage.dark { background:#0d1117; border-color:#0d1117; }
   .stage.light { background:#ffffff; }
-  .stage img { display:block; max-width:none; transition:opacity .15s; }
+  .stage img { display:block; max-width:100%; height:auto; transition:opacity .15s; }
   .stage img.loading { opacity:.35; }
   .desc { color:var(--muted); max-width:68ch; line-height:1.6; margin:0; }
   .embed { display:flex; flex-direction:column; gap:12px; padding:16px; border:1px solid var(--line); border-radius:var(--r-lg); background:var(--surface); }
@@ -276,11 +276,25 @@ export const STYLES = String.raw`
 
   /* --- narrow screens ---------------------------------------------------------------------- */
   body { overflow-x:hidden; }
+  @media (min-width:1181px) and (max-width:1380px) {
+    .app { grid-template-columns:232px minmax(0,1fr) 316px; }
+    body.t-store .app, body.t-builder .app { grid-template-columns:minmax(0,1fr) 316px; }
+    .inspector { padding-left:18px; padding-right:18px; }
+  }
+  @media (min-width:1700px) {
+    .app { grid-template-columns:300px minmax(0,1fr) 400px; }
+    body.t-store .app, body.t-builder .app { grid-template-columns:minmax(0,1fr) 400px; }
+  }
   @media (max-width:1180px) {
+    html, body { height:auto; min-height:100%; }
+    .app, body.t-store .app, body.t-builder .app { overflow:visible; }
     .app, body.t-store .app, body.t-builder .app { display:block; overflow:auto; }
     .rail, .inspector { overflow:visible; border:0; border-bottom:1px solid var(--line); }
     .rail-top { position:static; }
-    .cardlist { max-height:260px; overflow:auto; }
+    .cardlist { max-height:220px; overflow:auto; }
+    .inspector { padding:8px 16px 32px; }
+    .gallery { grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); }
+    .embed .url { word-break:break-all; }
     main { overflow:visible; padding:24px 16px 40px; }
     .view-builder { grid-template-columns:minmax(0,1fr); } .col-out { position:static; }
     header.top { gap:14px; padding:0 16px; flex-wrap:wrap; height:auto; min-height:56px; }
@@ -299,7 +313,18 @@ export const STYLES = String.raw`
     .toolbar { gap:12px; }
     .designs { grid-template-columns:repeat(2,1fr); }
     .grid2 { grid-template-columns:1fr; }
-    .stage { padding:24px 12px; }
+    .stage { padding:20px 10px; min-height:180px; }
+    main { padding:16px 12px 32px; }
+    .acts-row, .btnrow, .outtabs { flex-wrap:wrap; }
+    .acts-row button { flex:1 1 auto; }
+    .gallery { grid-template-columns:1fr; }
+    .toolbar input[type=search] { width:100%; flex:1 1 100%; }
+  }
+  @media (max-width:380px) {
+    header.top { padding:8px 10px; }
+    .designs { grid-template-columns:1fr; }
+    .inspector { padding:8px 12px 28px; }
+    .seg button { padding:3px 9px; }
   }
   @media (prefers-reduced-motion:reduce) { * { transition:none !important; } .who.attention { animation:none; } }
 `;
