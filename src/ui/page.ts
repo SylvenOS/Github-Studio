@@ -152,6 +152,7 @@ export const pageHtml = `<!DOCTYPE html>
     <section class="sect only-play"><div id="card-params"></div></section>
     <section class="sect">
       <div class="sect-hd"><h2>Theme</h2><button class="ghost small only-play" id="surprise" title="Random theme and options">Shuffle</button></div>
+      <div class="row" style="margin:0 0 14px"><div class="rowtxt"><label for="sys-theme">Match system theme</label><div class="help">Cards switch between light and dark with the viewer’s device setting.</div></div><span class="switch"><input type="checkbox" id="sys-theme"><span></span></span></div>
       <div class="chips" id="themes"></div>
     </section>
     <section class="sect not-store">

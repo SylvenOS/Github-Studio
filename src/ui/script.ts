@@ -113,12 +113,12 @@ export const SCRIPT = String.raw`
       input.checked = String(shown) === 'true';
       input.addEventListener('change', function () { store.set(p, input.checked ? 'true' : 'false'); });
       return el('div', { class: 'row' }, [
-        el('div', { class: 'rowtxt' }, [el('label', { for: 'p_' + p.name, text: human(p.name) }), el('div', { class: 'help', text: p.description })]),
+        el('div', { class: 'rowtxt' }, [el('label', { for: 'p_' + p.name, text: human(p.name) }), el('div', { class: 'help', text: plain(p.description) })]),
         el('span', { class: 'switch' }, [input, el('span')])
       ]);
     }
     box.appendChild(head());
-    if (p.description) box.appendChild(el('div', { class: 'help', text: p.description }));
+    if (p.description) box.appendChild(el('div', { class: 'help', text: plain(p.description) }));
 
     if (p.type === 'enum' && p.options && p.options.length <= 5) {
       var seg = el('div', { class: 'seg', role: 'group', 'aria-label': p.name });
@@ -240,6 +240,7 @@ export const SCRIPT = String.raw`
   }
   function renderThemes() {
     var box = $('themes'); box.innerHTML = '';
+    $('sys-theme').checked = state.theme === 'auto';
     ['auto'].concat(Object.keys(themes)).forEach(function (n) {
       var th = themes[n] || themes['default'];
       var dot = el('i');
@@ -250,6 +251,12 @@ export const SCRIPT = String.raw`
       box.appendChild(c);
     });
   }
+  var themeBeforeAuto = 'default';
+  $('sys-theme').addEventListener('change', function (e) {
+    if (e.target.checked) { if (state.theme !== 'auto') themeBeforeAuto = state.theme; state.theme = 'auto'; } else state.theme = themeBeforeAuto;
+    renderThemes(); onThemeChange();
+  });
+  function plain(t) { return String(t).split(String.fromCharCode(96)).join(''); }
   function onThemeChange() { if (state.tab === 'play') scheduleUpdate(); else if (state.tab === 'store') renderStore(); else scheduleBuild(); saveHash(); }
   function renderParams() {
     var common = $('common-params'); common.innerHTML = '';
@@ -368,7 +375,9 @@ export const SCRIPT = String.raw`
     img.onload = function () { img.classList.remove('loading'); };
     img.onerror = function () { img.classList.remove('loading'); toast('Could not load the preview. Check your connection and try again.'); };
     // the default theme is a fixed light card; in the preview it follows the app's light/dark switch (copied URLs stay as chosen)
-    img.src = state.theme === 'default' && effectiveScheme() === 'dark' ? url + (url.indexOf('?') < 0 ? '?' : '&') + 'theme=github_dark' : url;
+    var dark = effectiveScheme() === 'dark';
+    img.src = state.theme === 'default' && dark ? url + (url.indexOf('?') < 0 ? '?' : '&') + 'theme=github_dark'
+      : state.theme === 'auto' ? url.replace('theme=auto', dark ? 'theme=github_dark' : 'theme=default') : url;
     $('url').textContent = location.origin + url;
     $('desc').textContent = c.description;
     img.alt = c.title + ' for @' + user();
