@@ -104,7 +104,8 @@ export const contributionsCard = defineCard<Params, CalendarDay[]>({
     const columns = (cells.at(-1)?.col ?? 0) + 1;
     const gx = PAD + (p.weekdays ? 28 : 0);
     const gy = top + (p.months ? 18 : 0);
-    const width = gx + columns * STEP - GAP + PAD;
+    // short ranges would otherwise be narrower than their own legend and summary line
+    const width = Math.max(gx + columns * STEP - GAP + PAD, p.legend ? (p.summary ? 440 : 340) : 0);
     const total = days.reduce((a, d) => a + d.count, 0);
 
     const effect = common.animation ? p.effect : 'none';

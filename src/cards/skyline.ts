@@ -89,9 +89,11 @@ export const skylineCard = defineCard<Params, CalendarDay[]>({
       ? '<style>.tw{transform-box:fill-box;transform-origin:50% 100%;animation:grow .9s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i)*25ms)}@keyframes grow{from{transform:scaleY(0);opacity:0}to{transform:none;opacity:1}}@media (prefers-reduced-motion:reduce){.tw{animation:none}}</style>'
       : '';
 
-    const width = Math.round(ox + (cols + 0.5) * cw + PAD);
+    const natural = Math.round(ox + (cols + 0.5) * cw + PAD);
+    const width = Math.max(natural, 340); // keeps the title and stats from colliding on short ranges
+    const shift = Math.round((width - natural) / 2);
     const height = Math.round(oy + (cols + 7) * ch + PAD);
-    return frame(css + stats + blocks, {
+    return frame(css + stats + (shift ? `<g transform="translate(${shift} 0)">${blocks}</g>` : blocks), {
       width,
       height,
       theme,

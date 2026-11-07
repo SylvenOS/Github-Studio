@@ -367,7 +367,8 @@ export const SCRIPT = String.raw`
     img.classList.add('loading');
     img.onload = function () { img.classList.remove('loading'); };
     img.onerror = function () { img.classList.remove('loading'); toast('Could not load the preview. Check your connection and try again.'); };
-    img.src = url;
+    // the default theme is a fixed light card; in the preview it follows the app's light/dark switch (copied URLs stay as chosen)
+    img.src = state.theme === 'default' && effectiveScheme() === 'dark' ? url + (url.indexOf('?') < 0 ? '?' : '&') + 'theme=github_dark' : url;
     $('url').textContent = location.origin + url;
     $('desc').textContent = c.description;
     img.alt = c.title + ' for @' + user();
@@ -975,7 +976,10 @@ export const SCRIPT = String.raw`
     var next = effectiveScheme() === 'dark' ? 'light' : 'dark';
     root.dataset.scheme = next;
     try { localStorage.setItem('gp-scheme', next); } catch (e) { /* ignore */ }
+    if (state.tab === 'play') update();
   });
   try { var saved = localStorage.getItem('gp-scheme'); if (saved === 'light' || saved === 'dark') root.dataset.scheme = saved; } catch (e) { /* ignore */ }
+  if (state.tab === 'play') update();
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { if (!root.dataset.scheme && state.tab === 'play') update(); });
 })();
 `;

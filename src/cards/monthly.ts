@@ -23,7 +23,7 @@ interface Data {
   through: string;
 }
 
-const pct = (a: number, b: number) => (b === 0 ? (a > 0 ? '+∞' : '±0%') : `${a >= b ? '+' : '−'}${Math.abs(Math.round(((a - b) / b) * 100))}%`);
+const pct = (a: number, b: number) => (b === 0 ? (a > 0 ? 'new' : '±0%') : `${a >= b ? '+' : '−'}${Math.abs(Math.round(((a - b) / b) * 100))}%`);
 
 export const monthlyCard = defineCard<Params, Data>({
   id: 'monthly',
