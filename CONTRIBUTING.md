@@ -102,7 +102,7 @@ A maintainer will review your pull request, usually within a few days. Expect qu
 
 ## Licence
 
-By contributing you agree that your contribution is licensed under the same licence as the project (see the `LICENSE` file).
+By contributing you agree that your contribution is licensed under the [MIT License](LICENSE), the same as the project.
 
 ## Getting help
 

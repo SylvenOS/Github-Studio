@@ -506,7 +506,11 @@ Add it to the array in `src/cards/index.ts`. That's all: the route, `format=json
 
 ## Logo
 
-The ProfileFoundry logo (`assets/logo.svg`) is an original mark by SylvenOS. You may use it to refer to this project, for example when linking to it or writing about it. Please do not use it to suggest your own product is the official one or is endorsed by SylvenOS. The code is licensed separately (see the licence file).
+The code is released under the [MIT License](LICENSE), so you can use, change and share it freely. The ProfileFoundry name and logo (`assets/`) are the exception: they are SylvenOS marks. You may use them to refer to this project, for example when linking to it or writing about it, but please do not use them to suggest your own fork or product is the official one or is endorsed by SylvenOS. If you fork the project, give it your own name and logo.
+
+## License
+
+[MIT](LICENSE) &copy; 2026 SylvenOS.
 
 ## Contributing
 
