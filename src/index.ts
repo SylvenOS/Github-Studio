@@ -19,7 +19,7 @@ import { DEFINITIONS } from './metrics/definitions';
 import { buildOpenApi } from './openapi';
 import { playgroundHtml } from './playground';
 import { aboutHtml, jsonLd, llmsFullTxt, llmsTxt, robotsTxt, securityTxt, sitemapXml } from './seo';
-import { APPLE_TOUCH_ICON_BASE64, FAVICON_SVG, OG_IMAGE_BASE64 } from './ui/icons';
+import { APPLE_TOUCH_ICON_BASE64, FAVICON_SVG, OG_IMAGE_BASE64, OG_SQUARE_BASE64 } from './ui/icons';
 import { SCRIPT } from './ui/script';
 import { runPlugins } from './plugins';
 import { readmeRoutes } from './readme/routes';
@@ -194,6 +194,7 @@ app.get('/apple-touch-icon.png', (c) => {
 const originOf = (c: Ctx) => new URL(c.req.url).origin;
 const bytesOf = (b64: string) => Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
 app.get('/og.jpg', (c) => c.body(bytesOf(OG_IMAGE_BASE64), 200, { 'Content-Type': 'image/jpeg', 'Cache-Control': ICON_CACHE }));
+app.get('/og-square.jpg', (c) => c.body(bytesOf(OG_SQUARE_BASE64), 200, { 'Content-Type': 'image/jpeg', 'Cache-Control': ICON_CACHE }));
 
 // crawler and assistant files; the host comes from the request so every deployment describes itself
 const TEXT = { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=3600' };

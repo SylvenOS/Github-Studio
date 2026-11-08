@@ -25,6 +25,8 @@ describe('search and AI discoverability', () => {
     const html = await (await get('/')).text();
     expect(html).toContain('<link rel="canonical" href="https://stats.example.org/">');
     expect(html).toContain('property="og:image" content="https://stats.example.org/og.jpg"');
+    expect(html).toContain('property="og:image" content="https://stats.example.org/og-square.jpg"');
+    expect(html).toContain('property="og:image:alt"');
     expect(html).toContain('name="twitter:card" content="summary_large_image"');
     expect(html).not.toContain('__ORIGIN__');
     expect(html).not.toContain('__JSONLD__');
@@ -51,6 +53,11 @@ describe('search and AI discoverability', () => {
     expect(html).toContain('https://sylvenos.com');
     const faq = ldOf(html)['@graph'].find((n: { '@type': string }) => n['@type'] === 'FAQPage');
     expect(faq.mainEntity.length).toBeGreaterThanOrEqual(8);
+    const types = ldOf(html)['@graph'].map((n: { '@type': string }) => n['@type']);
+    expect(types).toEqual(expect.arrayContaining(['AboutPage', 'BreadcrumbList', 'HowTo']));
+    expect(html).toContain('Key facts');
+    expect(html).toContain('Accuracy, sources and corrections');
+    expect(html).toMatch(/<time datetime="\d{4}-\d{2}-\d{2}">/);
     for (const q of faq.mainEntity) expect(html).toContain(q.name.replace(/&/g, '&amp;'));
   });
 
@@ -59,6 +66,8 @@ describe('search and AI discoverability', () => {
     expect(txt).toContain('Sitemap: https://stats.example.org/sitemap.xml');
     for (const bot of ['GPTBot', 'ClaudeBot', 'PerplexityBot', 'Google-Extended']) expect(txt).toContain(`User-agent: ${bot}`);
     expect(txt).toContain('Allow: /api/openapi.json');
+    expect(txt).toContain('Content-Signal: search=yes, ai-input=yes, ai-train=yes');
+    for (const bot of ['anthropic-ai', 'Perplexity-User', 'Meta-ExternalAgent']) expect(txt).toContain(`User-agent: ${bot}`);
   });
 
   it('sitemap is valid XML with absolute URLs for this host', async () => {
@@ -66,6 +75,8 @@ describe('search and AI discoverability', () => {
     expect(xml).toMatch(/^<\?xml/);
     expect(xml).toContain('<loc>https://stats.example.org/about</loc>');
     expect((xml.match(/<url>/g) ?? []).length).toBe((xml.match(/<\/url>/g) ?? []).length);
+    expect(xml).toContain('<image:loc>https://stats.example.org/og.jpg</image:loc>');
+    expect(xml).toContain('xmlns:image=');
   });
 
   it('llms.txt names the project, organisation and developer; llms-full lists every card', async () => {
@@ -74,6 +85,8 @@ describe('search and AI discoverability', () => {
     expect(short).toContain('SylvenOS');
     expect(short).toContain('Akshay Kurve');
     expect(short).toContain('Akshay D Kurve');
+    expect(short).toContain('## Key facts');
+    expect(short).toContain('## How to cite');
     const full = await (await get('/llms-full.txt')).text();
     for (const c of cards) expect(full, c.id).toContain(`/api/${c.id}`);
   });
@@ -85,6 +98,9 @@ describe('search and AI discoverability', () => {
     const img = await get('/og.jpg');
     expect(img.headers.get('content-type')).toBe('image/jpeg');
     expect(new Uint8Array(await img.arrayBuffer())[0]).toBe(0xff);
+    const sq = await get('/og-square.jpg');
+    expect(sq.headers.get('content-type')).toBe('image/jpeg');
+    expect(new Uint8Array(await sq.arrayBuffer())[0]).toBe(0xff);
   });
 
   it('keeps generated card responses out of search results', async () => {

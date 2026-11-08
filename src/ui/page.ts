@@ -22,10 +22,16 @@ export const pageHtml = `<!DOCTYPE html>
 <meta property="og:image" content="__ORIGIN__/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:alt" content="ProfileFoundry: sample GitHub stats, languages and streak cards next to the logo">
+<meta property="og:image" content="__ORIGIN__/og-square.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="1200">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="ProfileFoundry - free GitHub stats cards and README studio">
 <meta name="twitter:description" content="Free, open-source stats cards, profile designs and a README studio by SylvenOS.">
 <meta name="twitter:image" content="__ORIGIN__/og.jpg">
+<meta name="twitter:image:alt" content="ProfileFoundry: sample GitHub stats, languages and streak cards next to the logo">
 <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
 <link rel="alternate" type="application/json" href="/api/openapi.json" title="OpenAPI">
 <script type="application/ld+json">__JSONLD__</script>
