@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="ProfileFoundry">
+<g transform="translate(0 0) scale(1)">
+<g fill="none" stroke="currentColor" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+<path d="M256 396C256 346 130 352 130 302"/>
+<path d="M256 396C256 330 256 290 256 214"/>
+<path d="M256 396C256 300 382 262 382 122"/>
+</g>
+<circle cx="130" cy="302" r="34" fill="currentColor"/>
+<circle cx="256" cy="214" r="34" fill="currentColor"/>
+<circle cx="382" cy="122" r="34" fill="currentColor"/>
+<circle cx="256" cy="396" r="44" fill="currentColor"/></g></svg>

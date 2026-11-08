@@ -5,6 +5,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ## [Unreleased]
 
 ### Changed
+- New ProfileFoundry logo and favicon (a root node branching into rising data nodes, in the SylvenOS palette), served at `/favicon.svg` and `/apple-touch-icon.png`; source files in `assets/`.
 - The project is now called **ProfileFoundry** (previously GitPulse). Worker name is `profilefoundry-api`; exported config and workflow files are `profilefoundry.config.json` and `.github/workflows/profilefoundry.yml`.
 
 ## [5.3.0]

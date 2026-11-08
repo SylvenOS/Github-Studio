@@ -10,13 +10,13 @@ export const pageHtml = `<!DOCTYPE html>
 <title>ProfileFoundry - stats cards, profile designs and README studio</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta name="theme-color" content="#0a100d">
+<meta name="theme-color" content="#0a1931">
 <style>${STYLES}</style>
 </head>
 <body class="t-play">
 <header class="top">
   <a class="brand" href="/" aria-label="ProfileFoundry home">
-    <svg class="mark" viewBox="0 0 13.2 23.9" width="14" height="24" aria-hidden="true" fill="currentColor"><rect x="0.0" y="0.0" width="3.6" height="3.6" rx=".8"/><rect x="5.1" y="0.0" width="3.6" height="3.6" rx=".8"/><rect x="10.2" y="0.0" width="3.6" height="3.6" rx=".8"/><rect x="0.0" y="5.1" width="3.6" height="3.6" rx=".8"/><rect x="5.1" y="5.1" width="3.6" height="3.6" rx=".8" opacity=".2"/><rect x="10.2" y="5.1" width="3.6" height="3.6" rx=".8"/><rect x="0.0" y="10.2" width="3.6" height="3.6" rx=".8"/><rect x="5.1" y="10.2" width="3.6" height="3.6" rx=".8"/><rect x="10.2" y="10.2" width="3.6" height="3.6" rx=".8"/><rect x="0.0" y="15.3" width="3.6" height="3.6" rx=".8"/><rect x="5.1" y="15.3" width="3.6" height="3.6" rx=".8" opacity=".2"/><rect x="10.2" y="15.3" width="3.6" height="3.6" rx=".8" opacity=".2"/><rect x="0.0" y="20.4" width="3.6" height="3.6" rx=".8"/><rect x="5.1" y="20.4" width="3.6" height="3.6" rx=".8" opacity=".2"/><rect x="10.2" y="20.4" width="3.6" height="3.6" rx=".8" opacity=".2"/></svg>
+    <svg class="mark" viewBox="0 0 512 512" width="28" height="28" aria-hidden="true" fill="currentColor"><g transform="translate(0 0) scale(1)"><g fill="none" stroke="currentColor" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"><path d="M256 396C256 346 130 352 130 302"/><path d="M256 396C256 330 256 290 256 214"/><path d="M256 396C256 300 382 262 382 122"/></g><circle cx="130" cy="302" r="34" fill="currentColor"/><circle cx="256" cy="214" r="34" fill="currentColor"/><circle cx="382" cy="122" r="34" fill="currentColor"/><circle cx="256" cy="396" r="44" fill="currentColor"/></g></svg>
     <span>ProfileFoundry</span>
   </a>
   <nav class="tabs" aria-label="Sections">
