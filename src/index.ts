@@ -18,6 +18,7 @@ import { calculateGrade } from './metrics/grade';
 import { DEFINITIONS } from './metrics/definitions';
 import { buildOpenApi } from './openapi';
 import { playgroundHtml } from './playground';
+import { APPLE_TOUCH_ICON_BASE64, FAVICON_SVG } from './ui/icons';
 import { runPlugins } from './plugins';
 import { readmeRoutes } from './readme/routes';
 import { messageCard } from './svg/frame';
@@ -171,6 +172,15 @@ async function renderCard(c: Ctx, card: CardDefinition, query: Query, client: Gi
 }
 
 // ---- meta endpoints ------------------------------------------------------------------------
+
+const ICON_CACHE = 'public, max-age=86400';
+app.get('/favicon.svg', (c) => c.body(FAVICON_SVG, 200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': ICON_CACHE }));
+app.get('/favicon.ico', (c) => c.redirect('/favicon.svg', 301));
+app.get('/apple-touch-icon.png', (c) => {
+  const bin = atob(APPLE_TOUCH_ICON_BASE64);
+  const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
+  return c.body(bytes, 200, { 'Content-Type': 'image/png', 'Cache-Control': ICON_CACHE });
+});
 
 app.get('/', (c) => c.html(playgroundHtml, 200, { 'Content-Security-Policy': APP_CSP, 'Cache-Control': 'public, max-age=300' }));
 

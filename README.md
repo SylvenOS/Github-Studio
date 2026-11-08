@@ -1,4 +1,6 @@
-# GitPulse
+<p align="center"><img src="assets/logo.svg" alt="ProfileFoundry logo" width="112"></p>
+
+# ProfileFoundry
 
 An all-in-one, customisable **GitHub stats API and profile design studio**. It renders crisp SVG cards for READMEs and profiles - whole-profile designs (terminal, code editor, editorial, dashboard, blueprint, retro arcade), year in review, monthly trends, a commit punch card, star history, repository comparison and health, language trends, WakaTime, Spotify, a views counter, realistic impact stats, work patterns, pinned repos, a 3D contribution skyline, tech-stack icon grids, typing headers, composites, stats, languages, streaks, heatmaps (with a snake), trophies, ASCII avatars and more - and exposes the same data as JSON. It runs on Cloudflare Workers, is built to survive heavy traffic and GitHub outages, and is built to be extended: a new card is one file.
 
@@ -240,7 +242,7 @@ curl "https://your-worker.workers.dev/api/readme?username=torvalds&preset=showca
 | `row` | `items` (up to 4 cards, shrunk to sit side by side), `align` |
 | `heading` | `text`, `level` (1-6), `align` |
 | `text` | `markdown`, `align` |
-| `badges` | `items`, `style`, `align`. Item kinds: `stat` (a number from GitPulse), `tech` (any technology), `social` (github, twitter, x, linkedin, youtube, instagram, twitch, discord, mastodon, bluesky, devto, medium, hashnode, stackoverflow, reddit, telegram, npm, kaggle, leetcode, codepen, kofi, sponsor, website, email), `custom` |
+| `badges` | `items`, `style`, `align`. Item kinds: `stat` (a number from ProfileFoundry), `tech` (any technology), `social` (github, twitter, x, linkedin, youtube, instagram, twitch, discord, mastodon, bluesky, devto, medium, hashnode, stackoverflow, reddit, telegram, npm, kaggle, leetcode, codepen, kofi, sponsor, website, email), `custom` |
 | `divider` | `style`, `align` |
 | `html` | `html` (used as-is) |
 | `details` | `summary`, `open`, `blocks` (collapsible section) |
@@ -354,8 +356,8 @@ Content, style and layout are independent: one profile model (identity, work, si
 - `README.md` pointing at `./assets/*.svg` (no third-party image host needed),
 - `README.live.md` served live from your deployment,
 - `assets/` with every rendered SVG,
-- `.github/workflows/gitpulse.yml`, a GitHub Action that refreshes the assets twice a day and keeps the old file if a card fails,
-- `gitpulse.config.json`, which reopens the design with **Open config**.
+- `.github/workflows/profilefoundry.yml`, a GitHub Action that refreshes the assets twice a day and keeps the old file if a card fails,
+- `profilefoundry.config.json`, which reopens the design with **Open config**.
 
 Live-only cards (views counter, Spotify) always stay live.
 
@@ -363,7 +365,7 @@ Live-only cards (views counter, Spotify) always stay live.
 
 ## Realistic metrics
 
-Vanity numbers (raw commit counts, repo counts, account age) are easy to game. GitPulse leans on stats that reflect real collaboration:
+Vanity numbers (raw commit counts, repo counts, account age) are easy to game. ProfileFoundry leans on stats that reflect real collaboration:
 
 - **Activity score** (`profile-card`, `badge?stat=rank`): one 12-month window for every input, so it's the same with or without a server token. Weighs PRs merged into other people's repos, repos contributed to, weekly consistency, reviews, contributions, stars and followers. Missing data renormalises the weights instead of lowering the score. It's an activity indicator, not a measure of code quality.
 - **Trophies v2**: Open Sourcerer (external merged PRs), Collaborator, Consistent, Answerer, Team Player, Sponsored. Seniority/volume trophies (years, repo count, orgs) are shown but don't count towards the overall rank.

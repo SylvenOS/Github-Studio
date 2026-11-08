@@ -2,7 +2,7 @@
 
 ## Our pledge
 
-We want GitPulse to be a friendly, harassment-free place for everyone, whatever their age, background, identity, experience level, nationality, religion or ability. We pledge to act in ways that keep the community open, welcoming and healthy.
+We want ProfileFoundry to be a friendly, harassment-free place for everyone, whatever their age, background, identity, experience level, nationality, religion or ability. We pledge to act in ways that keep the community open, welcoming and healthy.
 
 ## Expected behaviour
 

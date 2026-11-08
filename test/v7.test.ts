@@ -279,3 +279,15 @@ describe('card-wide style options', () => {
     expect(bad).not.toContain('evil');
   });
 });
+
+describe('icons', () => {
+  it('serves the favicon and the touch icon and links them from the app', async () => {
+    const svg = await get('/favicon.svg');
+    expect(svg.headers.get('content-type')).toContain('image/svg+xml');
+    assertWellFormedSvg(await svg.text());
+    const png = new Uint8Array(await (await get('/apple-touch-icon.png')).arrayBuffer());
+    expect(Array.from(png.slice(1, 4))).toEqual([80, 78, 71]); // "PNG"
+    expect((await get('/favicon.ico')).status).toBe(301);
+    expect(await (await get('/')).text()).toContain('rel="icon"');
+  });
+});

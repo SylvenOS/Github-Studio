@@ -105,7 +105,7 @@ export function buildOpenApi(origin: string, version: string) {
 
   return {
     openapi: '3.0.3',
-    info: { title: 'GitPulse API', version, description: 'Customisable GitHub stats cards as SVG, JSON and text.' },
+    info: { title: 'ProfileFoundry API', version, description: 'Customisable GitHub stats cards as SVG, JSON and text.' },
     servers: [{ url: origin }],
     paths
   };

@@ -4,6 +4,9 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Changed
+- The project is now called **ProfileFoundry** (previously GitPulse). Worker name is `profilefoundry-api`; exported config and workflow files are `profilefoundry.config.json` and `.github/workflows/profilefoundry.yml`.
+
 ## [5.3.0]
 
 ### Added

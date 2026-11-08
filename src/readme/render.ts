@@ -185,7 +185,7 @@ function audit(spec: ReadmeSpec): string[] {
 export function renderReadme(spec: ReadmeSpec, origin: string): Rendered {
   spec = { ...spec, version: shortHash(JSON.stringify({ ...spec, version: undefined })) };
   const parts = spec.blocks.map((b) => renderBlock(b, spec, origin)).filter((p) => p.md.trim());
-  if (spec.footer) parts.push(both(`<p align="center"><sub>Generated with <a href="${attr(origin)}">GitPulse</a></sub></p>`));
+  if (spec.footer) parts.push(both(`<p align="center"><sub>Generated with <a href="${attr(origin)}">ProfileFoundry</a></sub></p>`));
   return {
     markdown: `${parts.map((p) => p.md).join('\n\n')}\n`,
     html: `<div class="markdown-body">${parts.map((p) => p.html).join('\n')}</div>`,

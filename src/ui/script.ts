@@ -709,7 +709,7 @@ export const SCRIPT = String.raw`
     $('b-raw').addEventListener('click', function () { window.open('/api/readme?spec=' + b64u(payload()) + (builder.host ? '&base=' + encodeURIComponent(builder.host) : ''), '_blank'); });
     $('b-zip').addEventListener('click', exportZip);
     $('b-config').addEventListener('click', function () {
-      var a = el('a', { href: URL.createObjectURL(new Blob([JSON.stringify(payload(), null, 2)], { type: 'application/json' })), download: 'gitpulse.config.json' });
+      var a = el('a', { href: URL.createObjectURL(new Blob([JSON.stringify(payload(), null, 2)], { type: 'application/json' })), download: 'profilefoundry.config.json' });
       document.body.appendChild(a); a.click(); a.remove();
     });
     $('b-import').addEventListener('click', function () { $('config-file').click(); });
@@ -797,7 +797,7 @@ export const SCRIPT = String.raw`
   }
   function workflowYaml(assets) {
     var lines = [
-      'name: Refresh GitPulse cards',
+      'name: Refresh ProfileFoundry cards',
       'on:',
       '  schedule:',
       "    - cron: '17 */12 * * *'",
@@ -821,7 +821,7 @@ export const SCRIPT = String.raw`
       '          git config user.name "github-actions[bot]"',
       '          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"',
       '          git add assets',
-      '          git diff --cached --quiet || (git commit -m "Refresh GitPulse cards" && git push)');
+      '          git diff --cached --quiet || (git commit -m "Refresh ProfileFoundry cards" && git push)');
     return lines.join('\n') + '\n';
   }
   function exportZip() {
@@ -841,9 +841,9 @@ export const SCRIPT = String.raw`
       var files = [
         { name: 'README.md', data: local },
         { name: 'README.live.md', data: md },
-        { name: 'gitpulse.config.json', data: JSON.stringify(payload(), null, 2) + '\n' },
-        { name: '.github/workflows/gitpulse.yml', data: workflowYaml(assets) },
-        { name: 'GITPULSE.txt', data: 'README.md uses the SVGs in ./assets (self-hosted).\nThe workflow in .github/workflows refreshes them twice a day; edit the cron to change that.\nREADME.live.md is the same profile served live from ' + (builder.host || location.origin) + '.\nLive-only cards (views counter, Spotify) always stay live.\nRe-open the design: Import config in the README builder and choose gitpulse.config.json.\n' }
+        { name: 'profilefoundry.config.json', data: JSON.stringify(payload(), null, 2) + '\n' },
+        { name: '.github/workflows/profilefoundry.yml', data: workflowYaml(assets) },
+        { name: 'PROFILEFOUNDRY.txt', data: 'README.md uses the SVGs in ./assets (self-hosted).\nThe workflow in .github/workflows refreshes them twice a day; edit the cron to change that.\nREADME.live.md is the same profile served live from ' + (builder.host || location.origin) + '.\nLive-only cards (views counter, Spotify) always stay live.\nRe-open the design: Import config in the README builder and choose profilefoundry.config.json.\n' }
       ];
       assets.forEach(function (a, i) { if (svgs[i]) files.push({ name: a.file, data: svgs[i] }); });
       var link = el('a', { href: URL.createObjectURL(zip(files)), download: user() + '-profile.zip' });
@@ -859,7 +859,7 @@ export const SCRIPT = String.raw`
         if (!s || !Array.isArray(s.blocks)) throw new Error('no blocks');
         location.hash = 'tab=builder&spec=' + b64u(s);
         restoreBuilder(); $('username').value = state.username; renderThemes(); renderBlocks(); renderParams(); build(); toast('Config imported');
-      } catch (e) { toast('That file is not a GitPulse config'); }
+      } catch (e) { toast('That file is not a ProfileFoundry config'); }
     };
     r.readAsText(file);
   }

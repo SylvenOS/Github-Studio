@@ -163,7 +163,7 @@ describe('caching and meta', () => {
     const meta = await (await get('/api/cards')).json();
     expect(meta.cards.map((c: { id: string }) => c.id)).toContain('streak');
     expect(meta.common.find((p: { name: string }) => p.name === 'theme').options).toContain('auto');
-    expect(await (await get('/')).text()).toContain('GitPulse');
+    expect(await (await get('/')).text()).toContain('ProfileFoundry');
   });
 
   it('serves /api/profile with metrics, trophies and isolated plugin failures', async () => {

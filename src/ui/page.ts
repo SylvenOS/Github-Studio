@@ -7,14 +7,17 @@ export const pageHtml = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GitPulse - stats cards, profile designs and README studio</title>
+<title>ProfileFoundry - stats cards, profile designs and README studio</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#0a100d">
 <style>${STYLES}</style>
 </head>
 <body class="t-play">
 <header class="top">
-  <a class="brand" href="/" aria-label="GitPulse home">
-    <svg class="mark" viewBox="0 0 18 18" width="20" height="20" aria-hidden="true" fill="currentColor"><rect x="1" y="1" width="4.4" height="4.4" rx="1" opacity=".25"/><rect x="6.8" y="1" width="4.4" height="4.4" rx="1" opacity=".55"/><rect x="12.6" y="1" width="4.4" height="4.4" rx="1" opacity=".95"/><rect x="1" y="6.8" width="4.4" height="4.4" rx="1" opacity=".55"/><rect x="6.8" y="6.8" width="4.4" height="4.4" rx="1" opacity=".95"/><rect x="12.6" y="6.8" width="4.4" height="4.4" rx="1" opacity=".4"/><rect x="1" y="12.6" width="4.4" height="4.4" rx="1" opacity=".95"/><rect x="6.8" y="12.6" width="4.4" height="4.4" rx="1" opacity=".4"/><rect x="12.6" y="12.6" width="4.4" height="4.4" rx="1" opacity=".7"/></svg>
-    <span>GitPulse</span>
+  <a class="brand" href="/" aria-label="ProfileFoundry home">
+    <svg class="mark" viewBox="0 0 13.2 23.9" width="14" height="24" aria-hidden="true" fill="currentColor"><rect x="0.0" y="0.0" width="3.6" height="3.6" rx=".8"/><rect x="5.1" y="0.0" width="3.6" height="3.6" rx=".8"/><rect x="10.2" y="0.0" width="3.6" height="3.6" rx=".8"/><rect x="0.0" y="5.1" width="3.6" height="3.6" rx=".8"/><rect x="5.1" y="5.1" width="3.6" height="3.6" rx=".8" opacity=".2"/><rect x="10.2" y="5.1" width="3.6" height="3.6" rx=".8"/><rect x="0.0" y="10.2" width="3.6" height="3.6" rx=".8"/><rect x="5.1" y="10.2" width="3.6" height="3.6" rx=".8"/><rect x="10.2" y="10.2" width="3.6" height="3.6" rx=".8"/><rect x="0.0" y="15.3" width="3.6" height="3.6" rx=".8"/><rect x="5.1" y="15.3" width="3.6" height="3.6" rx=".8" opacity=".2"/><rect x="10.2" y="15.3" width="3.6" height="3.6" rx=".8" opacity=".2"/><rect x="0.0" y="20.4" width="3.6" height="3.6" rx=".8"/><rect x="5.1" y="20.4" width="3.6" height="3.6" rx=".8" opacity=".2"/><rect x="10.2" y="20.4" width="3.6" height="3.6" rx=".8" opacity=".2"/></svg>
+    <span>ProfileFoundry</span>
   </a>
   <nav class="tabs" aria-label="Sections">
     <button id="tab-play" class="on">Playground</button>
@@ -102,7 +105,7 @@ export const pageHtml = `<!DOCTYPE html>
             <div><label class="f" for="dark">Dark-mode theme</label><select id="dark"></select></div>
             <div><label class="f" for="align">Alignment</label><select id="align"><option value="center">Center</option><option value="left">Left</option><option value="right">Right</option></select></div>
           </div>
-          <div class="row"><div class="rowtxt"><label for="footer">Footer credit</label><div class="help">A small “Generated with GitPulse” line.</div></div><span class="switch"><input type="checkbox" id="footer"><span></span></span></div>
+          <div class="row"><div class="rowtxt"><label for="footer">Footer credit</label><div class="help">A small “Generated with ProfileFoundry” line.</div></div><span class="switch"><input type="checkbox" id="footer"><span></span></span></div>
           <label class="f" for="host">Image host</label>
           <div class="help">Your deployment URL, if different from this page.</div>
           <input type="text" id="host" placeholder="https://your-worker.workers.dev" spellcheck="false">
@@ -126,7 +129,7 @@ export const pageHtml = `<!DOCTYPE html>
           <button class="ghost small" id="b-share">Share link</button>
           <button class="ghost small" id="b-raw">Open raw</button>
           <button class="ghost small" id="b-config" title="Save this design as JSON">Save config</button>
-          <button class="ghost small" id="b-import" title="Open a saved gitpulse.config.json">Open config</button>
+          <button class="ghost small" id="b-import" title="Open a saved profilefoundry.config.json">Open config</button>
           <input type="file" id="config-file" accept="application/json,.json" hidden>
         </div>
         <div class="note hidden" id="build-err" style="color:var(--danger)"></div>

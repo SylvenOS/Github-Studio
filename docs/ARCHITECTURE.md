@@ -1,6 +1,6 @@
 # Architecture
 
-GitPulse is a single Cloudflare Worker (Hono, TypeScript). There is no build step beyond Wrangler's bundling, and no database apart from one SQLite-backed Durable Object for the view counter.
+ProfileFoundry is a single Cloudflare Worker (Hono, TypeScript). There is no build step beyond Wrangler's bundling, and no database apart from one SQLite-backed Durable Object for the view counter.
 
 ## Request flow for a card
 

@@ -1,5 +1,5 @@
 name: Question
-description: Ask how to use, deploy or extend GitPulse
+description: Ask how to use, deploy or extend ProfileFoundry
 labels: [question]
 body:
   - type: textarea

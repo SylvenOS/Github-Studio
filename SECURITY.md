@@ -36,7 +36,7 @@ You can expect an acknowledgement within a few days. We will keep you updated, f
 - Rate limiting by GitHub's own API
 - Automated scanner output with no demonstrated impact
 
-## For people deploying GitPulse
+## For people deploying ProfileFoundry
 
 - Store tokens only as Worker secrets (`wrangler secret put GITHUB_TOKEN`). Never put them in `wrangler.toml`.
 - A classic token with **no scopes** is enough; it reads public data only.
