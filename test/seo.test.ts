@@ -135,7 +135,7 @@ describe('search and AI discoverability', () => {
     const llmsRes = await get('/llms.txt');
     expect(llmsRes.headers.get('content-type')).toContain('text/plain'); // text/markdown would make browsers download it
     const short = await llmsRes.text();
-    expect(short.startsWith('# ProfileFoundry')).toBe(true);
+    expect(short.startsWith('# GithubStudio')).toBe(true);
     expect(short).toContain('SylvenOS');
     expect(short).toContain('Akshay Kurve');
     expect(short).toContain('Akshay D Kurve');

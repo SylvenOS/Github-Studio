@@ -290,7 +290,7 @@ export const statsCard = defineCard<Params, Data>({
         const footerY = top + rows * rowH + 15;
         const foot = p.footer
           ? `<text x="${PAD}" y="${footerY}" class="label muted">${p.footerText ? esc(p.footerText) : `${t('misc.updated')} ${new Date().toISOString().slice(0, 10)}`}</text>` +
-            `<text x="${W - PAD}" y="${footerY}" class="label muted" text-anchor="end">ProfileFoundry</text>`
+            `<text x="${W - PAD}" y="${footerY}" class="label muted" text-anchor="end">GithubStudio</text>`
           : '';
         body = cells + lines + foot;
         bottom = top + rows * rowH + (p.footer ? 20 : -5);

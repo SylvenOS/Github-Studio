@@ -1,5 +1,5 @@
 name: Question
-description: Ask how to use, deploy or extend ProfileFoundry
+description: Ask how to use, deploy or extend GithubStudio
 labels: [question]
 body:
   - type: textarea

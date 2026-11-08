@@ -14,7 +14,7 @@ export interface Plugin {
 }
 
 const getJson = async (url: string, signal: AbortSignal) => {
-  const res = await fetch(url, { signal, headers: { 'User-Agent': 'ProfileFoundry (+https://sylvenos.com)' } });
+  const res = await fetch(url, { signal, headers: { 'User-Agent': 'GithubStudio (+https://sylvenos.com)' } });
   if (!res.ok) throw new Error(res.statusText || `HTTP ${res.status}`);
   return res.json() as Promise<any>;
 };

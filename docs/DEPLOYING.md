@@ -1,6 +1,6 @@
 # Deploying to Cloudflare Workers
 
-ProfileFoundry runs on the free Workers plan. This guide takes you from a clone to a live URL.
+GithubStudio runs on the free Workers plan. This guide takes you from a clone to a live URL.
 
 ## Before you start
 

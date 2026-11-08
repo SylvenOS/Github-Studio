@@ -32,8 +32,8 @@ export function aboutHtml(origin: string): string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>About ProfileFoundry - free GitHub stats cards by SylvenOS</title>
-<meta name="description" content="ProfileFoundry is a free, open-source GitHub stats API and README studio by SylvenOS. Learn what it does, how it works, how to use it and how your data is handled.">
+<title>About GithubStudio - free GitHub stats cards by SylvenOS</title>
+<meta name="description" content="GithubStudio is a free, open-source GitHub stats API and README studio by SylvenOS. Learn what it does, how it works, how to use it and how your data is handled.">
 <link rel="canonical" href="${o}/about">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 <meta name="color-scheme" content="light dark">
@@ -41,15 +41,15 @@ export function aboutHtml(origin: string): string {
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta property="og:type" content="article">
-<meta property="og:site_name" content="ProfileFoundry">
-<meta property="og:title" content="About ProfileFoundry - free GitHub stats cards by SylvenOS">
+<meta property="og:site_name" content="GithubStudio">
+<meta property="og:title" content="About GithubStudio - free GitHub stats cards by SylvenOS">
 <meta property="og:description" content="Free, open-source stats cards, profile designs and a README studio. An open-source project by SylvenOS.">
 <meta property="og:url" content="${o}/about">
 <meta property="og:image" content="${o}/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:type" content="image/jpeg">
-<meta property="og:image:alt" content="ProfileFoundry: sample GitHub stats, languages and streak cards next to the logo">
+<meta property="og:image:alt" content="GithubStudio: sample GitHub stats, languages and streak cards next to the logo">
 <meta property="og:image" content="${o}/og-square.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="1200">
@@ -69,7 +69,7 @@ ${headerHtml(`<a class="opt" href="/">Home</a><a class="opt" href="#how">How it 
   <div class="wrap">
     <div>
       <span class="eyebrow"><img src="/sylvenos-logo.webp" alt="" width="18" height="19">About the project</span>
-      <h1>ProfileFoundry: free GitHub stats cards and README studio</h1>
+      <h1>GithubStudio: free GitHub stats cards and README studio</h1>
       <p class="lead">${esc(SITE.name)} is a free, open-source GitHub stats API, card store and README studio. It creates SVG cards, JSON and text from public GitHub data for your profile README, with ${n} cards and ${t} themes.</p>
       <p class="meta">By <a href="${esc(SITE.org.url)}" rel="noopener">${esc(SITE.org.name)}</a> &middot; version ${esc(pkg.version)} &middot; last reviewed <time datetime="${SITE.lastReviewed}">${SITE.lastReviewed}</time></p>
     </div>

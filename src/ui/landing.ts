@@ -171,7 +171,7 @@ export const faqItem = (q: string, a: string) =>
 /** Sticky dark header with the theme toggle. `links` are the optional (hidden on phones) nav anchors. */
 export const headerHtml = (links: string) => `<header class="top">
   <div class="wrap">
-    <a class="brand" href="/" aria-label="ProfileFoundry home"><img src="/favicon.svg" alt="" width="32" height="32"><span>ProfileFoundry</span></a>
+    <a class="brand" href="/" aria-label="GithubStudio home"><img src="/favicon.svg" alt="" width="32" height="32"><span>GithubStudio</span></a>
     <nav aria-label="Main">${links}<button class="tt" id="theme" type="button" aria-label="Switch theme" title="Switch light and dark theme"><span class="i-moon">${icon(ICONS.moon, 20)}</span><span class="i-sun">${icon(ICONS.sun, 20)}</span></button><a class="btn primary" href="/app">Open the app</a></nav>
   </div>
 </header>`;
@@ -199,8 +199,8 @@ export function landingHtml(origin: string): string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ProfileFoundry - free GitHub stats cards and README studio</title>
-<meta name="description" content="ProfileFoundry is a free, open-source GitHub stats API, card store and README studio by SylvenOS. ${n} cards, ${t} themes, SVG, JSON and text output.">
+<title>GithubStudio - free GitHub stats cards and README studio</title>
+<meta name="description" content="GithubStudio is a free, open-source GitHub stats API, card store and README studio by SylvenOS. ${n} cards, ${t} themes, SVG, JSON and text output.">
 <link rel="canonical" href="${o}/">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 <meta name="author" content="${esc(SITE.developer.name)}">
@@ -209,23 +209,23 @@ export function landingHtml(origin: string): string {
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="ProfileFoundry">
-<meta property="og:title" content="ProfileFoundry - free GitHub stats cards and README studio">
+<meta property="og:site_name" content="GithubStudio">
+<meta property="og:title" content="GithubStudio - free GitHub stats cards and README studio">
 <meta property="og:description" content="Free, open-source stats cards, profile designs and a README studio. An open-source project by SylvenOS.">
 <meta property="og:url" content="${o}/">
 <meta property="og:image" content="${o}/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:type" content="image/jpeg">
-<meta property="og:image:alt" content="ProfileFoundry: sample GitHub stats, languages and streak cards next to the logo">
+<meta property="og:image:alt" content="GithubStudio: sample GitHub stats, languages and streak cards next to the logo">
 <meta property="og:image" content="${o}/og-square.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="1200">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="ProfileFoundry - free GitHub stats cards and README studio">
+<meta name="twitter:title" content="GithubStudio - free GitHub stats cards and README studio">
 <meta name="twitter:description" content="Free, open-source stats cards, profile designs and a README studio by SylvenOS.">
 <meta name="twitter:image" content="${o}/og.jpg">
-<meta name="twitter:image:alt" content="ProfileFoundry: sample GitHub stats, languages and streak cards next to the logo">
+<meta name="twitter:image:alt" content="GithubStudio: sample GitHub stats, languages and streak cards next to the logo">
 <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
 <link rel="alternate" type="application/json" href="/api/openapi.json" title="OpenAPI">
 <style>${PAGE_CSS}</style>

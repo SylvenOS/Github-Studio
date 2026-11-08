@@ -7,31 +7,31 @@ export const pageHtml = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ProfileFoundry - free GitHub stats cards, profile designs and README studio</title>
+<title>GithubStudio - free GitHub stats cards, profile designs and README studio</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta name="description" content="ProfileFoundry is a free, open-source GitHub stats API, card store and README studio by SylvenOS. Create stats cards, profile designs and README layouts.">
+<meta name="description" content="GithubStudio is a free, open-source GitHub stats API, card store and README studio by SylvenOS. Create stats cards, profile designs and README layouts.">
 <link rel="canonical" href="__ORIGIN__/app">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 <meta name="author" content="Akshay Kurve">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="ProfileFoundry">
-<meta property="og:title" content="ProfileFoundry - free GitHub stats cards and README studio">
+<meta property="og:site_name" content="GithubStudio">
+<meta property="og:title" content="GithubStudio - free GitHub stats cards and README studio">
 <meta property="og:description" content="Free, open-source stats cards, profile designs and a README studio. An open-source project by SylvenOS.">
 <meta property="og:url" content="__ORIGIN__/app">
 <meta property="og:image" content="__ORIGIN__/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:type" content="image/jpeg">
-<meta property="og:image:alt" content="ProfileFoundry: sample GitHub stats, languages and streak cards next to the logo">
+<meta property="og:image:alt" content="GithubStudio: sample GitHub stats, languages and streak cards next to the logo">
 <meta property="og:image" content="__ORIGIN__/og-square.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="1200">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="ProfileFoundry - free GitHub stats cards and README studio">
+<meta name="twitter:title" content="GithubStudio - free GitHub stats cards and README studio">
 <meta name="twitter:description" content="Free, open-source stats cards, profile designs and a README studio by SylvenOS.">
 <meta name="twitter:image" content="__ORIGIN__/og.jpg">
-<meta name="twitter:image:alt" content="ProfileFoundry: sample GitHub stats, languages and streak cards next to the logo">
+<meta name="twitter:image:alt" content="GithubStudio: sample GitHub stats, languages and streak cards next to the logo">
 <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
 <link rel="alternate" type="application/json" href="/api/openapi.json" title="OpenAPI">
 <script type="application/ld+json">__JSONLD__</script>
@@ -39,12 +39,12 @@ export const pageHtml = `<!DOCTYPE html>
 <style>${STYLES}</style>
 </head>
 <body class="t-play">
-<h1 class="sr-only">ProfileFoundry: free GitHub stats cards, profile designs and README studio</h1>
-<noscript><p style="padding:16px;font:15px system-ui">ProfileFoundry is a free, open-source GitHub stats API and README studio by SylvenOS. The editor needs JavaScript. Read <a href="/about">about ProfileFoundry</a>, the <a href="/llms.txt">summary</a> or the <a href="/api/openapi.json">API description</a>.</p></noscript>
+<h1 class="sr-only">GithubStudio: free GitHub stats cards, profile designs and README studio</h1>
+<noscript><p style="padding:16px;font:15px system-ui">GithubStudio is a free, open-source GitHub stats API and README studio by SylvenOS. The editor needs JavaScript. Read <a href="/about">about GithubStudio</a>, the <a href="/llms.txt">summary</a> or the <a href="/api/openapi.json">API description</a>.</p></noscript>
 <header class="top">
-  <a class="brand" href="/" aria-label="ProfileFoundry home">
+  <a class="brand" href="/" aria-label="GithubStudio home">
     <svg class="mark" viewBox="0 0 512 512" width="28" height="28" aria-hidden="true" fill="currentColor"><g transform="translate(0 0) scale(1)"><g fill="none" stroke="currentColor" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"><path d="M256 396C256 346 130 352 130 302"/><path d="M256 396C256 330 256 290 256 214"/><path d="M256 396C256 300 382 262 382 122"/></g><circle cx="130" cy="302" r="34" fill="currentColor"/><circle cx="256" cy="214" r="34" fill="currentColor"/><circle cx="382" cy="122" r="34" fill="currentColor"/><circle cx="256" cy="396" r="44" fill="currentColor"/></g></svg>
-    <span>ProfileFoundry</span>
+    <span>GithubStudio</span>
   </a>
   <nav class="tabs" aria-label="Sections">
     <button id="tab-play" class="on">Playground</button>
@@ -54,7 +54,7 @@ export const pageHtml = `<!DOCTYPE html>
   <span class="grow"></span>
   <label class="who attention" title="Type any GitHub username to preview every card"><b>GitHub user</b><span>@</span><input type="text" id="username" value="" autocomplete="off" spellcheck="false" placeholder="e.g. akshaykurve" aria-label="GitHub username" aria-describedby="who-hint"><span class="who-hint" id="who-hint" role="note">Enter your GitHub username here</span></label>
   <div class="links">
-    <a href="/about">About</a><a href="https://sylvenos.com" target="_blank" rel="noopener" title="ProfileFoundry is an open-source project by SylvenOS">by SylvenOS</a><a href="/api/cards">Cards</a><a href="/api/openapi.json">OpenAPI</a><a href="/api/themes">Themes</a>
+    <a href="/about">About</a><a href="https://sylvenos.com" target="_blank" rel="noopener" title="GithubStudio is an open-source project by SylvenOS">by SylvenOS</a><a href="/api/cards">Cards</a><a href="/api/openapi.json">OpenAPI</a><a href="/api/themes">Themes</a>
     <button id="scheme" title="Switch light and dark" aria-label="Switch light and dark"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
   </div>
 </header>
@@ -133,7 +133,7 @@ export const pageHtml = `<!DOCTYPE html>
             <div><label class="f" for="dark">Dark-mode theme</label><select id="dark"></select></div>
             <div><label class="f" for="align">Alignment</label><select id="align"><option value="center">Center</option><option value="left">Left</option><option value="right">Right</option></select></div>
           </div>
-          <div class="row"><div class="rowtxt"><label for="footer">Footer credit</label><div class="help">A small “Generated with ProfileFoundry” line.</div></div><span class="switch"><input type="checkbox" id="footer"><span></span></span></div>
+          <div class="row"><div class="rowtxt"><label for="footer">Footer credit</label><div class="help">A small “Generated with GithubStudio” line.</div></div><span class="switch"><input type="checkbox" id="footer"><span></span></span></div>
           <label class="f" for="host">Image host</label>
           <div class="help">Your deployment URL, if different from this page.</div>
           <input type="text" id="host" placeholder="https://your-worker.workers.dev" spellcheck="false">
@@ -157,7 +157,7 @@ export const pageHtml = `<!DOCTYPE html>
           <button class="ghost small" id="b-share">Share link</button>
           <button class="ghost small" id="b-raw">Open raw</button>
           <button class="ghost small" id="b-config" title="Save this design as JSON">Save config</button>
-          <button class="ghost small" id="b-import" title="Open a saved profilefoundry.config.json">Open config</button>
+          <button class="ghost small" id="b-import" title="Open a saved githubstudio.config.json">Open config</button>
           <input type="file" id="config-file" accept="application/json,.json" hidden>
         </div>
         <div class="note hidden" id="build-err" style="color:var(--danger)"></div>

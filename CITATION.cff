@@ -1,7 +1,7 @@
 cff-version: 1.2.0
-message: "If you use ProfileFoundry in your work, please cite it using these details."
-title: "ProfileFoundry"
-abstract: "ProfileFoundry is a free, open-source GitHub stats API, card store and README studio. It generates SVG cards, JSON and text from public GitHub data for profile READMEs, and runs on Cloudflare Workers."
+message: "If you use GithubStudio in your work, please cite it using these details."
+title: "GithubStudio"
+abstract: "GithubStudio is a free, open-source GitHub stats API, card store and README studio. It generates SVG cards, JSON and text from public GitHub data for profile READMEs, and runs on Cloudflare Workers."
 type: software
 authors:
   - family-names: "Kurve"

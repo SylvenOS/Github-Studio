@@ -767,7 +767,7 @@ export class GitHubClient {
       if (this.subrequests >= MAX_SUBREQUESTS) throw upstream('This card needs too many GitHub requests');
 
       const headers = new Headers(rest.headers);
-      headers.set('User-Agent', 'ProfileFoundry (+https://sylvenos.com)');
+      headers.set('User-Agent', 'GithubStudio (+https://sylvenos.com)');
       if (url.startsWith(API) && !headers.has('Accept')) headers.set('Accept', 'application/vnd.github+json');
       let token: TokenState | undefined;
       if (useTokens) {

@@ -25,7 +25,7 @@ export async function safeFetch(url: string, o: SafeFetchOptions): Promise<Respo
   try {
     res = await fetch(u.toString(), {
       method: o.method ?? 'GET',
-      headers: { 'User-Agent': 'ProfileFoundry (+https://sylvenos.com)', ...o.headers },
+      headers: { 'User-Agent': 'GithubStudio (+https://sylvenos.com)', ...o.headers },
       body: o.body,
       redirect: 'manual', // Workers rejects 'error'; 3xx responses are refused below
       signal: AbortSignal.timeout(o.timeoutMs ?? 6000)

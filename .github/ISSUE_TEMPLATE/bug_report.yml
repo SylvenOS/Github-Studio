@@ -37,7 +37,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: ProfileFoundry version
+      label: GithubStudio version
       description: Shown in `/api/health`.
   - type: input
     id: where

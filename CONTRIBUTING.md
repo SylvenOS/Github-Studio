@@ -1,6 +1,6 @@
-# Contributing to ProfileFoundry
+# Contributing to GithubStudio
 
-Thanks for wanting to help. ProfileFoundry is a stats API, card store and README builder that runs on Cloudflare Workers. Small fixes, new cards, new themes, translations and doc improvements are all welcome.
+Thanks for wanting to help. GithubStudio is a stats API, card store and README builder that runs on Cloudflare Workers. Small fixes, new cards, new themes, translations and doc improvements are all welcome.
 
 By taking part you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md). Report security problems privately, following [SECURITY.md](SECURITY.md), never in a public issue.
 

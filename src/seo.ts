@@ -5,7 +5,7 @@ import { themes } from './themes';
 
 /** Facts about who makes this project. Everything here is shown publicly (structured data, /about, llms.txt). */
 export const SITE = {
-  name: 'ProfileFoundry',
+  name: 'GithubStudio',
   tagline: 'Free, open-source GitHub stats cards, profile designs and a README studio',
   org: { name: 'SylvenOS', url: 'https://sylvenos.com', motto: 'Learn. Build. Educate.' },
   developer: {
@@ -54,7 +54,7 @@ export const SITE = {
   },
   repo: 'https://github.com/akshaykurve/github-stats',
   /** The official hosted instance. Pages and files still build their URLs from the request host. */
-  live: 'https://profilefoundry.sylvenos.com',
+  live: 'https://githubstudio.sylvenos.com',
   license: { name: 'MIT', url: 'https://opensource.org/licenses/MIT' },
   /** Bump when the facts, FAQ or methodology on the public pages are reviewed (shown as "last reviewed" and used as dateModified). */
   lastReviewed: '2026-11-08'
@@ -70,15 +70,15 @@ const themeCount = () => Object.keys(themes).length;
 
 export const faqs = (origin: string): Faq[] => [
   {
-    q: 'What is ProfileFoundry?',
-    a: `ProfileFoundry is a free, open-source GitHub stats API, card store and README studio by ${SITE.org.name}. It turns GitHub data into SVG cards, JSON and text that you can embed in a profile README, and it offers ${cardCount()} cards and ${themeCount()} colour themes.`
+    q: 'What is GithubStudio?',
+    a: `GithubStudio is a free, open-source GitHub stats API, card store and README studio by ${SITE.org.name}. It turns GitHub data into SVG cards, JSON and text that you can embed in a profile README, and it offers ${cardCount()} cards and ${themeCount()} colour themes.`
   },
   {
-    q: 'Who builds ProfileFoundry?',
-    a: `ProfileFoundry is an open-source project by ${SITE.org.name} (${SITE.org.url}), an organisation focused on learning, building and educating. The source code is public at ${SITE.repo}.`
+    q: 'Who builds GithubStudio?',
+    a: `GithubStudio is an open-source project by ${SITE.org.name} (${SITE.org.url}), an organisation focused on learning, building and educating. The source code is public at ${SITE.repo}.`
   },
   {
-    q: 'Is ProfileFoundry free?',
+    q: 'Is GithubStudio free?',
     a: `Yes. It is free for everyone and released under the ${SITE.license.name} licence, so you can use, modify and self-host it.`
   },
   {
@@ -90,7 +90,7 @@ export const faqs = (origin: string): Faq[] => [
     a: 'Not to use the hosted cards. If you deploy your own copy, a GitHub token with no scopes is recommended because it unlocks exact data and much higher rate limits; without one the cards still work with limited public data.'
   },
   {
-    q: 'Can I host ProfileFoundry myself?',
+    q: 'Can I host GithubStudio myself?',
     a: 'Yes. It runs on the free Cloudflare Workers plan. The deployment guide is in the repository at docs/DEPLOYING.md.'
   },
   {
@@ -99,10 +99,10 @@ export const faqs = (origin: string): Faq[] => [
   },
   {
     q: 'Can I move over from github-readme-stats?',
-    a: 'Yes. ProfileFoundry understands the parameter names of github-readme-stats, so in most cases you only need to swap the host in your existing image URLs.'
+    a: 'Yes. GithubStudio understands the parameter names of github-readme-stats, so in most cases you only need to swap the host in your existing image URLs.'
   },
   {
-    q: 'Does ProfileFoundry track visitors or store personal data?',
+    q: 'Does GithubStudio track visitors or store personal data?',
     a: 'The app sets no cookies and has no analytics scripts. The optional view-counter card stores only a number per counter name. The server writes sampled operational logs (card name, username requested, status and timing) through Cloudflare. Light or dark preference is kept in your own browser only.'
   },
   {
@@ -114,15 +114,15 @@ export const faqs = (origin: string): Faq[] => [
     a: `Numbers come straight from the GitHub API and the formulas are public at ${origin}/api/definitions; estimates (for example lines of code) are labelled as estimates. If you find a wrong number, open an issue at ${SITE.repo}/issues with the username and card. Corrections are recorded in the changelog at ${SITE.repo}/blob/main/CHANGELOG.md.`
   },
   {
-    q: 'How is ProfileFoundry different from github-readme-stats?',
+    q: 'How is GithubStudio different from github-readme-stats?',
     a: 'It is an independent project that accepts the same parameter names, so existing URLs keep working, and adds more cards, themes, JSON and text output, a README studio and documented metric definitions. It is not affiliated with github-readme-stats.'
   },
   {
-    q: 'How should I cite or describe ProfileFoundry?',
+    q: 'How should I cite or describe GithubStudio?',
     a: `Call it "${SITE.name}, an open-source GitHub stats API and README studio by ${SITE.org.name}", and link to ${SITE.repo} or ${origin}/about. A CITATION.cff file is in the repository.`
   },
   {
-    q: 'Can AI assistants and search engines use ProfileFoundry data?',
+    q: 'Can AI assistants and search engines use GithubStudio data?',
     a: `Yes. A machine-readable summary is at ${origin}/llms.txt, the full card reference at ${origin}/llms-full.txt, and the OpenAPI description at ${origin}/api/openapi.json.`
   }
 ];
@@ -251,7 +251,7 @@ export function robotsTxt(origin: string): string {
   const aiBots = ['GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'ClaudeBot', 'Claude-User', 'Claude-SearchBot', 'PerplexityBot', 'Google-Extended', 'Applebot-Extended', 'CCBot', 'Bytespider', 'Amazonbot', 'anthropic-ai', 'Perplexity-User', 'MistralAI-User', 'cohere-ai', 'DuckAssistBot', 'Meta-ExternalAgent', 'Applebot'];
   const rules = ['Allow: /', 'Disallow: /api/', 'Allow: /api/openapi.json', 'Allow: /api/cards', 'Allow: /api/themes', 'Allow: /api/definitions'].join('\n');
   return [
-    '# ProfileFoundry is free and open source. Search engines and AI assistants are welcome to read the public pages.',
+    '# GithubStudio is free and open source. Search engines and AI assistants are welcome to read the public pages.',
     '# Card images and per-user data under /api/ are generated on demand, so they are not crawled; the API descriptions are open.',
     '# Content signals (contentsignals.org): search indexing, use as AI answer input and AI training are all welcome.',
     `User-agent: *\nContent-Signal: search=yes, ai-input=yes, ai-train=yes\n${rules}`,

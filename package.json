@@ -1,5 +1,5 @@
 {
-  "name": "profilefoundry",
+  "name": "githubstudio",
   "version": "1.0.0",
   "description": "All-in-one, customisable GitHub stats API for README cards, running on Cloudflare Workers.",
   "private": true,
