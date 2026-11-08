@@ -11,6 +11,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Canonical URL, Open Graph and Twitter tags, one static `h1` and `noscript` text on the app page; `X-Robots-Tag: noindex` on generated card responses.
 - Share images that show real sample cards: 1200x630 at `/og.jpg` and square 1200x1200 at `/og-square.jpg` (source files in `assets/`); the sitemap now lists them with change hints and priorities.
 - E-E-A-T and AI-search upgrades: key facts, byline, version and last-reviewed date, an accuracy and corrections section and a how-to-cite section on `/about` and in `llms.txt`; `AboutPage`, `BreadcrumbList` and `HowTo` structured data; three more FAQ answers; more AI crawlers and a `Content-Signal` line in `robots.txt`.
+- `docs/ARCHITECTURE.md` now has a tech stack table, a system overview diagram and a fuller folder map.
 - `CITATION.cff` and `docs/SEO.md` (what is built in and what the owners still need to do).
 
 ### Security
