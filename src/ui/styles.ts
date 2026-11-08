@@ -48,6 +48,7 @@ export const STYLES = String.raw`
   a { color:inherit; text-decoration:none; }
   button { font:inherit; color:inherit; }
   .hidden { display:none !important; }
+  .sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
   .grow { flex:1; }
   ::selection { background:var(--accent-soft); }
   :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:var(--r-sm); }

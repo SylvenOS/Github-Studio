@@ -4,7 +4,7 @@
   "description": "All-in-one, customisable GitHub stats API for README cards, running on Cloudflare Workers.",
   "private": true,
   "license": "MIT",
-  "author": "SylvenOS (https://sylvenos.com)",
+  "author": "Akshay Kurve <https://github.com/akshaykurve> (SylvenOS, https://sylvenos.com)",
   "homepage": "https://sylvenos.com",
   "repository": {
     "type": "git",

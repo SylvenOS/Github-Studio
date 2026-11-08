@@ -506,6 +506,28 @@ Add it to the array in `src/cards/index.ts`. That's all: the route, `format=json
 
 ---
 
+## About
+
+ProfileFoundry is an open-source project by [SylvenOS](https://sylvenos.com). The main developer is [Akshay Kurve](https://github.com/akshaykurve) (also written Akshay D Kurve or Akshay Dhanraj Kurve). Cite it with [CITATION.cff](CITATION.cff). A summary for search engines and AI assistants is served at `/llms.txt`, with the full card reference at `/llms-full.txt` and a readable About page at `/about`. See [docs/SEO.md](docs/SEO.md) for how discoverability is set up.
+
+## FAQ
+
+**What is ProfileFoundry?** A free, open-source GitHub stats API, card store and README studio. It turns public GitHub data into SVG cards, JSON and text for profile READMEs.
+
+**Is it free?** Yes, for everyone, under the [MIT License](LICENSE).
+
+**How do I add a card to my README?** Add an image such as `![Stats](https://your-worker.workers.dev/api/stats?username=YOUR_USERNAME&theme=auto)`, or open the Playground, pick a card and copy the Markdown.
+
+**Do I need a GitHub token?** Not to use cards. When you deploy your own copy, a token with no scopes is recommended for exact data and higher rate limits.
+
+**Can I host it myself?** Yes, on the free Cloudflare Workers plan. See [docs/DEPLOYING.md](docs/DEPLOYING.md).
+
+**Can I move from github-readme-stats?** Yes. Its parameter names are understood, so usually you only change the host in your image URLs.
+
+**Does it track people?** No cookies and no analytics scripts. The optional views counter stores a number per counter name, and the server writes sampled operational logs through Cloudflare.
+
+**Where do I report bugs or security problems?** Bugs in [issues](https://github.com/akshaykurve/github-stats/issues); security problems privately as described in [SECURITY.md](SECURITY.md).
+
 ## Logo
 
 The code is released under the [MIT License](LICENSE), so you can use, change and share it freely. The ProfileFoundry name and logo (`assets/`) are the exception: they are SylvenOS marks. You may use them to refer to this project, for example when linking to it or writing about it, but please do not use them to suggest your own fork or product is the official one or is endorsed by SylvenOS. If you fork the project, give it your own name and logo.

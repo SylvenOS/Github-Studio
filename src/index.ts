@@ -18,7 +18,8 @@ import { calculateGrade } from './metrics/grade';
 import { DEFINITIONS } from './metrics/definitions';
 import { buildOpenApi } from './openapi';
 import { playgroundHtml } from './playground';
-import { APPLE_TOUCH_ICON_BASE64, FAVICON_SVG } from './ui/icons';
+import { aboutHtml, jsonLd, llmsFullTxt, llmsTxt, robotsTxt, securityTxt, sitemapXml } from './seo';
+import { APPLE_TOUCH_ICON_BASE64, FAVICON_SVG, OG_IMAGE_BASE64 } from './ui/icons';
 import { SCRIPT } from './ui/script';
 import { runPlugins } from './plugins';
 import { readmeRoutes } from './readme/routes';
@@ -190,7 +191,33 @@ app.get('/apple-touch-icon.png', (c) => {
   return c.body(bytes, 200, { 'Content-Type': 'image/png', 'Cache-Control': ICON_CACHE });
 });
 
-app.get('/', async (c) => c.html(playgroundHtml, 200, { 'Content-Security-Policy': appCsp(await appScriptHash()), 'Cache-Control': 'public, max-age=300' }));
+const originOf = (c: Ctx) => new URL(c.req.url).origin;
+const bytesOf = (b64: string) => Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
+app.get('/og.jpg', (c) => c.body(bytesOf(OG_IMAGE_BASE64), 200, { 'Content-Type': 'image/jpeg', 'Cache-Control': ICON_CACHE }));
+
+// crawler and assistant files; the host comes from the request so every deployment describes itself
+const TEXT = { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=3600' };
+app.get('/robots.txt', (c) => c.body(robotsTxt(originOf(c)), 200, TEXT));
+app.get('/sitemap.xml', (c) => c.body(sitemapXml(originOf(c)), 200, { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' }));
+app.get('/llms.txt', (c) => c.body(llmsTxt(originOf(c)), 200, { ...TEXT, 'Content-Type': 'text/markdown; charset=utf-8' }));
+app.get('/llms-full.txt', (c) => c.body(llmsFullTxt(originOf(c)), 200, { ...TEXT, 'Content-Type': 'text/markdown; charset=utf-8' }));
+app.get('/.well-known/security.txt', (c) => c.body(securityTxt(originOf(c)), 200, TEXT));
+app.get('/about', (c) =>
+  c.html(aboutHtml(originOf(c)), 200, {
+    'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    'Cache-Control': 'public, max-age=3600'
+  })
+);
+
+app.get('/', async (c) => {
+  const origin = originOf(c);
+  const html = playgroundHtml.split('__ORIGIN__').join(origin).replace('__JSONLD__', () => jsonLd(origin));
+  return c.html(html, 200, {
+    'Content-Security-Policy': appCsp(await appScriptHash()),
+    'Cache-Control': 'public, max-age=300',
+    Link: `<${origin}/api/openapi.json>; rel="service-desc", <${origin}/llms.txt>; rel="describedby"; type="text/markdown"`
+  });
+});
 
 app.get('/api/health', (c) => {
   const tokens = poolStatus(tokensOf(c));
@@ -303,6 +330,7 @@ async function handleCard(c: Ctx, id: string) {
   const out = new Response(res.body, res);
   const ms = Date.now() - started;
   out.headers.set('X-Cache', hit ? 'HIT' : 'MISS');
+  out.headers.set('X-Robots-Tag', 'noindex'); // generated images and per-user data are not search results
   out.headers.set('Server-Timing', `total;dur=${ms}${client ? `, github;desc="${client.subrequests} calls"` : ''}`);
   return out;
 }

@@ -7,17 +7,34 @@ export const pageHtml = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ProfileFoundry - stats cards, profile designs and README studio</title>
+<title>ProfileFoundry - free GitHub stats cards, profile designs and README studio</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta name="description" content="ProfileFoundry is a free, open-source GitHub stats API, card store and README studio by SylvenOS.">
-<meta property="og:title" content="ProfileFoundry - free GitHub stats cards and README studio">
-<meta property="og:description" content="Free, open-source stats cards, profile designs and a README studio. An open-source project by SylvenOS.">
+<meta name="description" content="ProfileFoundry is a free, open-source GitHub stats API, card store and README studio by SylvenOS, built by Akshay Kurve. Create stats cards, profile designs and README layouts.">
+<link rel="canonical" href="__ORIGIN__/">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+<meta name="author" content="Akshay Kurve">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="ProfileFoundry">
+<meta property="og:title" content="ProfileFoundry - free GitHub stats cards and README studio">
+<meta property="og:description" content="Free, open-source stats cards, profile designs and a README studio. An open-source project by SylvenOS, built by Akshay Kurve.">
+<meta property="og:url" content="__ORIGIN__/">
+<meta property="og:image" content="__ORIGIN__/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="ProfileFoundry - free GitHub stats cards and README studio">
+<meta name="twitter:description" content="Free, open-source stats cards, profile designs and a README studio by SylvenOS.">
+<meta name="twitter:image" content="__ORIGIN__/og.jpg">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<link rel="alternate" type="application/json" href="/api/openapi.json" title="OpenAPI">
+<script type="application/ld+json">__JSONLD__</script>
 <meta name="theme-color" content="#0a1931">
 <style>${STYLES}</style>
 </head>
 <body class="t-play">
+<h1 class="sr-only">ProfileFoundry: free GitHub stats cards, profile designs and README studio</h1>
+<noscript><p style="padding:16px;font:15px system-ui">ProfileFoundry is a free, open-source GitHub stats API and README studio by SylvenOS. The editor needs JavaScript. Read <a href="/about">about ProfileFoundry</a>, the <a href="/llms.txt">summary</a> or the <a href="/api/openapi.json">API description</a>.</p></noscript>
 <header class="top">
   <a class="brand" href="/" aria-label="ProfileFoundry home">
     <svg class="mark" viewBox="0 0 512 512" width="28" height="28" aria-hidden="true" fill="currentColor"><g transform="translate(0 0) scale(1)"><g fill="none" stroke="currentColor" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"><path d="M256 396C256 346 130 352 130 302"/><path d="M256 396C256 330 256 290 256 214"/><path d="M256 396C256 300 382 262 382 122"/></g><circle cx="130" cy="302" r="34" fill="currentColor"/><circle cx="256" cy="214" r="34" fill="currentColor"/><circle cx="382" cy="122" r="34" fill="currentColor"/><circle cx="256" cy="396" r="44" fill="currentColor"/></g></svg>
@@ -31,7 +48,7 @@ export const pageHtml = `<!DOCTYPE html>
   <span class="grow"></span>
   <label class="who attention" title="Type any GitHub username to preview every card"><b>GitHub user</b><span>@</span><input type="text" id="username" value="torvalds" autocomplete="off" spellcheck="false" placeholder="username" aria-label="GitHub username"></label>
   <div class="links">
-    <a href="https://sylvenos.com" target="_blank" rel="noopener" title="ProfileFoundry is an open-source project by SylvenOS">by SylvenOS</a><a href="/api/cards">Cards</a><a href="/api/openapi.json">OpenAPI</a><a href="/api/themes">Themes</a>
+    <a href="/about">About</a><a href="https://sylvenos.com" target="_blank" rel="noopener" title="ProfileFoundry is an open-source project by SylvenOS">by SylvenOS</a><a href="/api/cards">Cards</a><a href="/api/openapi.json">OpenAPI</a><a href="/api/themes">Themes</a>
     <button id="scheme" title="Switch light and dark" aria-label="Switch light and dark"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
   </div>
 </header>
@@ -49,7 +66,7 @@ export const pageHtml = `<!DOCTYPE html>
     <section class="view-play">
       <div class="editing hidden" id="editing"><b id="editing-label"></b><span class="grow"></span><button class="ghost small" id="editing-cancel">Cancel</button></div>
       <div class="stagebar">
-        <h1 id="stage-title">Preview</h1>
+        <h2 id="stage-title">Preview</h2>
         <span class="grow"></span>
         <div class="bgs"><span>Background</span>
           <div class="seg" role="group" aria-label="Preview background"><button class="bgbtn on" data-bg="checker" aria-pressed="true">Grid</button><button class="bgbtn" data-bg="dark" aria-pressed="false">Dark</button><button class="bgbtn" data-bg="light" aria-pressed="false">Light</button></div>

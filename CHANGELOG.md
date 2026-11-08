@@ -4,6 +4,13 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added (search, AI and trust)
+- Crawlable `/about` page with FAQ, author and organisation details, privacy answer and links for developers.
+- Structured data (JSON-LD) naming SylvenOS and Akshay Kurve (with the name variants Akshay D Kurve and Akshay Dhanraj Kurve), the software, the website and a FAQ.
+- `/llms.txt`, `/llms-full.txt`, `/robots.txt` (AI crawlers welcome), `/sitemap.xml`, `/.well-known/security.txt` and a social share image at `/og.jpg`.
+- Canonical URL, Open Graph and Twitter tags, one static `h1` and `noscript` text on the app page; `X-Robots-Tag: noindex` on generated card responses.
+- `CITATION.cff` and `docs/SEO.md` (what is built in and what the owners still need to do).
+
 ### Security
 - Dependencies updated to current releases of their stable major lines; `pnpm audit` reports no known vulnerabilities (production or dev).
 - The app page now pins its single inline script by SHA-256 hash in the Content-Security-Policy (no `unsafe-inline` for scripts).

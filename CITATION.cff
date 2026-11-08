@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use ProfileFoundry in your work, please cite it using these details."
+title: "ProfileFoundry"
+abstract: "ProfileFoundry is a free, open-source GitHub stats API, card store and README studio. It generates SVG cards, JSON and text from public GitHub data for profile READMEs, and runs on Cloudflare Workers."
+type: software
+authors:
+  - family-names: "Kurve"
+    given-names: "Akshay"
+    alias: "akshaykurve"
+    website: "https://github.com/akshaykurve"
+    affiliation: "SylvenOS"
+  - name: "SylvenOS"
+    website: "https://sylvenos.com"
+repository-code: "https://github.com/akshaykurve/github-stats"
+url: "https://sylvenos.com"
+license: MIT
+version: "5.3.0"
+keywords:
+  - github
+  - github-stats
+  - readme
+  - svg
+  - cloudflare-workers
+  - profile-readme
+  - open-source
