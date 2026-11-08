@@ -4,19 +4,21 @@
 
 > Free and open source. An open-source project by [SylvenOS](https://sylvenos.com) - learn, build, educate.
 
+**Live site: [profilefoundry.sylvenos.com](https://profilefoundry.sylvenos.com)** &middot; [Open the app](https://profilefoundry.sylvenos.com/app) &middot; [About](https://profilefoundry.sylvenos.com/about) &middot; [llms.txt](https://profilefoundry.sylvenos.com/llms.txt) &middot; [API (OpenAPI)](https://profilefoundry.sylvenos.com/api/openapi.json)
+
 An all-in-one, customisable **GitHub stats API and profile design studio**. It renders crisp SVG cards for READMEs and profiles - whole-profile designs (terminal, code editor, editorial, dashboard, blueprint, retro arcade), year in review, monthly trends, a commit punch card, star history, repository comparison and health, language trends, WakaTime, Spotify, a views counter, realistic impact stats, work patterns, pinned repos, a 3D contribution skyline, tech-stack icon grids, typing headers, composites, stats, languages, streaks, heatmaps (with a snake), trophies, ASCII avatars and more - and exposes the same data as JSON. It runs on Cloudflare Workers, is built to survive heavy traffic and GitHub outages, and is built to be extended: a new card is one file.
 
 **Coming from github-readme-stats?** That project is no longer maintained. Swap the host in your existing URLs (`/api?username=`, `/api/top-langs`, `/api/pin`) - its parameter names (`bg_color`, `text_color`, `border_radius`, `custom_title`, `card_width`, `hide_rank`, `exclude_repo`, `disable_animations`...) and favourite themes (`onedark`, `transparent`, `highcontrast`) are understood.
 
 ```md
-![Stats](https://your-worker.workers.dev/api/stats?username=torvalds&theme=auto)
-![Languages](https://your-worker.workers.dev/api/languages?username=torvalds&layout=donut)
-![Streak](https://your-worker.workers.dev/api/streak?username=torvalds&theme=dracula)
+![Stats](https://profilefoundry.sylvenos.com/api/stats?username=torvalds&theme=auto)
+![Languages](https://profilefoundry.sylvenos.com/api/languages?username=torvalds&layout=donut)
+![Streak](https://profilefoundry.sylvenos.com/api/streak?username=torvalds&theme=dracula)
 ```
 
-Open `/` on your deployment for the web app. It is generated from the API, so new cards, options, themes and presets show up automatically:
+Open [profilefoundry.sylvenos.com/app](https://profilefoundry.sylvenos.com/app) for the web app (on your own deployment it is `/app`; `/` is the landing page). It is generated from the API, so new cards, options, themes and presets show up automatically:
 
-- **Playground** - a three-pane workbench: pick one of 35 cards on the left (search or browse by category), see it live in the middle, and tune it on the right. Each card offers one-click **Looks**, then searchable options grouped into Look, Content and Details. Copy Markdown, HTML or the URL from the preview.
+- **Playground** - a three-pane workbench: pick one of 36 cards on the left (search or browse by category), see it live in the middle, and tune it on the right. Each card offers one-click **Looks**, then searchable options grouped into Look, Content and Details. Copy Markdown, HTML or the URL from the preview.
 - **Store** - browse every card in every ready-made style (90+), search and filter by category, then *Customize* or add it straight to your README.
 - **README Studio** - assemble a whole profile README. Pick a **design system** (Terminal OS, Code Studio, Editorial, Dashboard, Blueprint, Retro Arcade, Minimal, Glass, Poster) or a preset, then add, reorder (drag or ▲▼), edit and remove blocks. Live preview in light/dark and desktop/mobile width, every image is checked for errors, editable Markdown, share link, **save/open the design as JSON**, and **Export ZIP** (see *Self-hosted mode*).
 - **Metric definitions** - every number's source and calculation, next to each card and at `/api/definitions`.
@@ -200,7 +202,7 @@ Generate a complete profile `README.md` for any account, then change and place a
 
 ```bash
 # a ready-made layout
-curl "https://your-worker.workers.dev/api/readme?username=torvalds&preset=showcase&theme=tokyonight" > README.md
+curl "https://profilefoundry.sylvenos.com/api/readme?username=torvalds&preset=showcase&theme=tokyonight" > README.md
 
 # same, as an attachment / with GitHub dark-mode variants / images served from your own domain
 .../api/readme?username=torvalds&download=1
@@ -255,57 +257,57 @@ Top-level fields: `username`, `theme`, `dark` (theme for GitHub dark mode, emitt
 
 ## Gallery
 
-Replace `your-worker.workers.dev` with your deployment and `torvalds` with any username.
+Examples use the live site, `profilefoundry.sylvenos.com`. If you host your own copy, replace it with your domain. Replace `torvalds` with any username.
 
 ### Stats
 ```md
-![Stats](https://your-worker.workers.dev/api/stats?username=torvalds&show_icons=true&theme=dracula)
-![Compact](https://your-worker.workers.dev/api/stats?username=torvalds&layout=compact&theme=tokyonight)
-![Custom stats](https://your-worker.workers.dev/api/stats?username=torvalds&hide=forks,issues&show=commits,following&compact_numbers=true)
+![Stats](https://profilefoundry.sylvenos.com/api/stats?username=torvalds&show_icons=true&theme=dracula)
+![Compact](https://profilefoundry.sylvenos.com/api/stats?username=torvalds&layout=compact&theme=tokyonight)
+![Custom stats](https://profilefoundry.sylvenos.com/api/stats?username=torvalds&hide=forks,issues&show=commits,following&compact_numbers=true)
 ```
 
 ### Top languages
 ```md
-![Languages](https://your-worker.workers.dev/api/languages?username=torvalds&theme=github_dark)
-![Donut](https://your-worker.workers.dev/api/languages?username=torvalds&layout=donut&langs_count=6&hide=HTML,CSS)
+![Languages](https://profilefoundry.sylvenos.com/api/languages?username=torvalds&theme=github_dark)
+![Donut](https://profilefoundry.sylvenos.com/api/languages?username=torvalds&layout=donut&langs_count=6&hide=HTML,CSS)
 ```
 
 ### Streak
 ```md
-![Streak](https://your-worker.workers.dev/api/streak?username=torvalds&theme=radical)
+![Streak](https://profilefoundry.sylvenos.com/api/streak?username=torvalds&theme=radical)
 ```
 
 ### Contribution heatmap
 ```md
-![Heatmap](https://your-worker.workers.dev/api/contributions?username=torvalds&theme=auto)
-![2024 only](https://your-worker.workers.dev/api/contributions?username=torvalds&year=2024)
+![Heatmap](https://profilefoundry.sylvenos.com/api/contributions?username=torvalds&theme=auto)
+![2024 only](https://profilefoundry.sylvenos.com/api/contributions?username=torvalds&year=2024)
 ```
 
 ### Top repositories
 ```md
-![Top repos](https://your-worker.workers.dev/api/top-repos?username=torvalds&limit=5&theme=catppuccin)
-![Most forked](https://your-worker.workers.dev/api/top-repos?username=torvalds&sort=forks&exclude=dotfiles&skip_archived=true)
+![Top repos](https://profilefoundry.sylvenos.com/api/top-repos?username=torvalds&limit=5&theme=catppuccin)
+![Most forked](https://profilefoundry.sylvenos.com/api/top-repos?username=torvalds&sort=forks&exclude=dotfiles&skip_archived=true)
 ```
 
 ### Repository pin
 ```md
-![Repo](https://your-worker.workers.dev/api/repos?username=torvalds&repo=linux&theme=monokai)
+![Repo](https://profilefoundry.sylvenos.com/api/repos?username=torvalds&repo=linux&theme=monokai)
 ```
 
 ### Tech stack radar
 ```md
-![Radar](https://your-worker.workers.dev/api/radar?username=torvalds&langs_count=6&theme=nord)
+![Radar](https://profilefoundry.sylvenos.com/api/radar?username=torvalds&langs_count=6&theme=nord)
 ```
 
 ### ASCII avatar
 ```md
-![ASCII](https://your-worker.workers.dev/api/ascii?username=torvalds&theme=matrix&charset=alnum&anim=scan&animation=true)
-![Your own text](https://your-worker.workers.dev/api/ascii?username=torvalds&charset=text&text=HELLO&mode=color&anim=reveal&animation=true)
+![ASCII](https://profilefoundry.sylvenos.com/api/ascii?username=torvalds&theme=matrix&charset=alnum&anim=scan&animation=true)
+![Your own text](https://profilefoundry.sylvenos.com/api/ascii?username=torvalds&charset=text&text=HELLO&mode=color&anim=reveal&animation=true)
 ```
 **3D:** `shape=sphere|cylinder|coin` wraps your avatar around a spinning globe or cylinder, or flips it like a coin. SVG has no real 3D, so the server renders one frame per angle (`frames`, default 20) and plays them back with CSS (`speed` = seconds per turn). Without `animation=true` (the default) you get a still front view.
 ```md
-![Globe](https://your-worker.workers.dev/api/ascii?username=torvalds&shape=sphere&theme=matrix&charset=dense&animation=true)
-![Coin](https://your-worker.workers.dev/api/ascii?username=torvalds&shape=coin&theme=github_dark&speed=6&animation=true)
+![Globe](https://profilefoundry.sylvenos.com/api/ascii?username=torvalds&shape=sphere&theme=matrix&charset=dense&animation=true)
+![Coin](https://profilefoundry.sylvenos.com/api/ascii?username=torvalds&shape=coin&theme=github_dark&speed=6&animation=true)
 ```
 For a crisp portrait the server removes a plain photo background (`cutout=false` to keep it), zooms in a little, equalises the histogram and boosts local contrast. On a globe the bare surface is drawn as a latitude/longitude grid so the spin is visible. 3D output is large (about 100-200 KB); `mode=color` caps `frames` at 16.
 
@@ -313,16 +315,16 @@ Paste-ready plain text for a README code block: `/api/ascii?username=torvalds&fo
 
 ### Profile card, activity and badges
 ```md
-![Profile](https://your-worker.workers.dev/api/profile-card?username=torvalds&theme=tokyonight)
-![Activity](https://your-worker.workers.dev/api/activity?username=torvalds&style=area&theme=ocean)
-![Stars](https://your-worker.workers.dev/api/badge?username=torvalds&stat=stars)
-![Rank](https://your-worker.workers.dev/api/badge?username=torvalds&stat=rank&style=for-the-badge&color=6d28d9)
+![Profile](https://profilefoundry.sylvenos.com/api/profile-card?username=torvalds&theme=tokyonight)
+![Activity](https://profilefoundry.sylvenos.com/api/activity?username=torvalds&style=area&theme=ocean)
+![Stars](https://profilefoundry.sylvenos.com/api/badge?username=torvalds&stat=stars)
+![Rank](https://profilefoundry.sylvenos.com/api/badge?username=torvalds&stat=rank&style=for-the-badge&color=6d28d9)
 ```
 
 ### Achievements
 ```md
-![Trophies](https://your-worker.workers.dev/api/achievements?username=torvalds&theme=dark&columns=3)
-![Fewer](https://your-worker.workers.dev/api/achievements?username=torvalds&hide=years,issues&columns=4)
+![Trophies](https://profilefoundry.sylvenos.com/api/achievements?username=torvalds&theme=dark&columns=3)
+![Fewer](https://profilefoundry.sylvenos.com/api/achievements?username=torvalds&hide=years,issues&columns=4)
 ```
 
 ### JSON
@@ -336,8 +338,8 @@ GET /api/themes
 ### Side by side
 ```md
 <p align="center">
-  <img src="https://your-worker.workers.dev/api/stats?username=torvalds&theme=auto" height="180"/>
-  <img src="https://your-worker.workers.dev/api/languages?username=torvalds&theme=auto" height="180"/>
+  <img src="https://profilefoundry.sylvenos.com/api/stats?username=torvalds&theme=auto" height="180"/>
+  <img src="https://profilefoundry.sylvenos.com/api/languages?username=torvalds&theme=auto" height="180"/>
 </p>
 ```
 
@@ -348,7 +350,7 @@ Tip: `theme=auto` follows the viewer's light or dark preference.
 Content, style and layout are independent: one profile model (identity, work, signals) is drawn by six design systems, and every design takes any theme and colour override. The new palettes (`terminal`, `vscode`, `editorial`, `blueprint`, `retro`, `linear`) work on every card, so a whole README can share one identity.
 
 ```md
-![me](https://your-worker.workers.dev/api/design?username=you&design=terminal&role=Backend%20engineer&now=building%20a%20database)
+![me](https://profilefoundry.sylvenos.com/api/design?username=you&design=terminal&role=Backend%20engineer&now=building%20a%20database)
 ```
 
 ### Self-hosted mode (Export ZIP)
@@ -510,13 +512,19 @@ Add it to the array in `src/cards/index.ts`. That's all: the route, `format=json
 
 ProfileFoundry is an open-source project by [SylvenOS](https://sylvenos.com). The main developer is [Akshay Kurve](https://github.com/akshaykurve) (also written Akshay D Kurve or Akshay Dhanraj Kurve). Cite it with [CITATION.cff](CITATION.cff). A summary for search engines and AI assistants is served at `/llms.txt`, with the full card reference at `/llms-full.txt` and a readable About page at `/about`. See [docs/SEO.md](docs/SEO.md) for how discoverability is set up.
 
+## For search engines and AI assistants
+
+- `/` is a server-rendered landing page and `/about` an About page with the FAQ, both with light and dark themes and structured data.
+- [`/llms.txt`](https://profilefoundry.sylvenos.com/llms.txt) is a short summary; [`/llms-full.txt`](https://profilefoundry.sylvenos.com/llms-full.txt) is the complete reference (every card and option, themes, metric definitions, endpoints, setup, architecture, privacy and rules for AI agents), generated from the code.
+- `/sitemap.xml` and `/robots.txt` (AI crawlers allowed) are generated for whatever host serves them, so a self-hosted copy describes itself. More in [docs/SEO.md](docs/SEO.md).
+
 ## FAQ
 
 **What is ProfileFoundry?** A free, open-source GitHub stats API, card store and README studio. It turns public GitHub data into SVG cards, JSON and text for profile READMEs.
 
 **Is it free?** Yes, for everyone, under the [MIT License](LICENSE).
 
-**How do I add a card to my README?** Add an image such as `![Stats](https://your-worker.workers.dev/api/stats?username=YOUR_USERNAME&theme=auto)`, or open the Playground, pick a card and copy the Markdown.
+**How do I add a card to my README?** Add an image such as `![Stats](https://profilefoundry.sylvenos.com/api/stats?username=YOUR_USERNAME&theme=auto)`, or open the Playground, pick a card and copy the Markdown.
 
 **Do I need a GitHub token?** Not to use cards. When you deploy your own copy, a token with no scopes is recommended for exact data and higher rate limits.
 
