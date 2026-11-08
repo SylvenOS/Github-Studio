@@ -30,7 +30,7 @@ export const faqs = (origin: string): Faq[] => [
   },
   {
     q: 'Who builds ProfileFoundry?',
-    a: `ProfileFoundry is an open-source project by ${SITE.org.name} (${SITE.org.url}). The main developer is ${SITE.developer.name}, also written as ${SITE.developer.aliases.join(' or ')} (${SITE.developer.url}).`
+    a: `ProfileFoundry is an open-source project by ${SITE.org.name} (${SITE.org.url}), an organisation focused on learning, building and educating. The source code is public at ${SITE.repo}.`
   },
   {
     q: 'Is ProfileFoundry free?',
@@ -38,7 +38,7 @@ export const faqs = (origin: string): Faq[] => [
   },
   {
     q: 'How do I add a stats card to my GitHub README?',
-    a: `Add an image to your README, for example: ![Stats](${origin}/api/stats?username=YOUR_USERNAME&theme=auto). Open the Playground at ${origin}/ to pick a card and copy the Markdown.`
+    a: `Add an image to your README, for example: ![Stats](${origin}/api/stats?username=YOUR_USERNAME&theme=auto). Open the Playground at ${origin}/app to pick a card and copy the Markdown.`
   },
   {
     q: 'Do I need a GitHub token?',
@@ -74,7 +74,7 @@ export const faqs = (origin: string): Faq[] => [
   },
   {
     q: 'How should I cite or describe ProfileFoundry?',
-    a: `Call it "${SITE.name}, an open-source GitHub stats API and README studio by ${SITE.org.name}, main developer ${SITE.developer.name}", and link to ${SITE.repo} or ${origin}/about. A CITATION.cff file is in the repository.`
+    a: `Call it "${SITE.name}, an open-source GitHub stats API and README studio by ${SITE.org.name}", and link to ${SITE.repo} or ${origin}/about. A CITATION.cff file is in the repository.`
   },
   {
     q: 'Can AI assistants and search engines use ProfileFoundry data?',
@@ -85,7 +85,7 @@ export const faqs = (origin: string): Faq[] => [
 /** Short, quotable facts. One source for /about, llms.txt and structured data so they never disagree. */
 export const keyFacts = (origin: string): string[] => [
   `${SITE.name} is a free, open-source GitHub stats API, card store and README studio.`,
-  `Made by ${SITE.org.name} (${SITE.org.url}); main developer ${SITE.developer.name}.`,
+  `Made by ${SITE.org.name} (${SITE.org.url}).`,
   `Current version ${pkg.version}; ${cardCount()} cards and ${themeCount()} themes; output as SVG, JSON or text.`,
   `Licence: ${SITE.license.name}. Source code: ${SITE.repo}.`,
   `Data source: public GitHub data only. Every number is defined at ${origin}/api/definitions.`,
@@ -112,12 +112,13 @@ const organization = () => ({
   name: SITE.org.name,
   url: SITE.org.url,
   slogan: SITE.org.motto,
+  logo: { '@type': 'ImageObject', url: 'https://sylvenos.com/logo-288.webp', width: 288, height: 301 },
   founder: { '@id': `${SITE.developer.url}#person` },
   sameAs: [SITE.org.url, SITE.developer.url, SITE.repo]
 });
 
 /** Structured data (schema.org JSON-LD) for the app page and the /about page. */
-export function jsonLd(origin: string, opts: { faq?: boolean } = {}): string {
+export function jsonLd(origin: string, opts: { faq?: boolean; faqId?: string; faqCount?: number; about?: boolean } = {}): string {
   const graph: object[] = [
     organization(),
     person(),
@@ -153,7 +154,7 @@ export function jsonLd(origin: string, opts: { faq?: boolean } = {}): string {
       sameAs: [SITE.repo]
     }
   ];
-  if (opts.faq) {
+  if (opts.about) {
     graph.push(
       {
         '@type': 'AboutPage',
@@ -182,7 +183,7 @@ export function jsonLd(origin: string, opts: { faq?: boolean } = {}): string {
         '@id': `${origin}/about#howto`,
         name: 'Add a GitHub stats card to your profile README',
         step: [
-          { '@type': 'HowToStep', position: 1, name: 'Open the Playground', text: `Go to ${origin}/ and pick a card and a theme.` },
+          { '@type': 'HowToStep', position: 1, name: 'Open the Playground', text: `Go to ${origin}/app and pick a card and a theme.` },
           { '@type': 'HowToStep', position: 2, name: 'Copy the Markdown', text: 'Enter your GitHub username and copy the generated image Markdown.' },
           { '@type': 'HowToStep', position: 3, name: 'Paste into your README', text: `Paste it into your profile README, for example ![Stats](${origin}/api/stats?username=YOUR_USERNAME&theme=auto).` }
         ]
@@ -192,8 +193,8 @@ export function jsonLd(origin: string, opts: { faq?: boolean } = {}): string {
   if (opts.faq) {
     graph.push({
       '@type': 'FAQPage',
-      '@id': `${origin}/about#faq`,
-      mainEntity: faqs(origin).map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } }))
+      '@id': opts.faqId ?? `${origin}/about#faq`,
+      mainEntity: faqs(origin).slice(0, opts.faqCount).map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } }))
     });
   }
   // "<" is escaped so the data can never close the script element
@@ -216,7 +217,8 @@ export function robotsTxt(origin: string): string {
 
 export function sitemapXml(origin: string): string {
   const pages: { path: string; priority: string; freq: string; images?: string[] }[] = [
-    { path: '/', priority: '1.0', freq: 'weekly', images: ['/og.jpg', '/og-square.jpg'] },
+    { path: '/', priority: '1.0', freq: 'weekly', images: ['/og.jpg', '/og-square.jpg', '/sylvenos-logo.webp'] },
+    { path: '/app', priority: '0.9', freq: 'weekly' },
     { path: '/about', priority: '0.8', freq: 'monthly', images: ['/og.jpg'] },
     { path: '/llms.txt', priority: '0.5', freq: 'weekly' },
     { path: '/llms-full.txt', priority: '0.5', freq: 'weekly' },
@@ -254,7 +256,8 @@ export function llmsTxt(origin: string): string {
 ${keyFacts(origin).map((f) => `- ${f}`).join('\n')}
 
 ## Use it
-- [Playground](${origin}/): preview any card and copy Markdown
+- [Home](${origin}/): what it is and why
+- [Playground](${origin}/app): preview any card and copy Markdown
 - [How a card URL looks](${origin}/llms-full.txt): every card, its endpoint and options
 - Embed example: \`![Stats](${origin}/api/stats?username=USERNAME&theme=auto)\`
 
@@ -293,102 +296,4 @@ export function llmsFullTxt(origin: string): string {
   }
   lines.push('# Themes\n', Object.keys(themes).join(', '), '');
   return lines.join('\n');
-}
-
-const css = `:root{--bg:#f6fafd;--fg:#0a1931;--muted:#4a5f78;--line:#d3dfeb;--surface:#fff;--accent:#1a7f4e}@media(prefers-color-scheme:dark){:root{--bg:#0a1931;--fg:#f6fafd;--muted:#a9bbd0;--line:#23406a;--surface:#102746;--accent:#4cc27a}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-a{color:var(--accent)}header,main,footer{max-width:760px;margin:0 auto;padding:0 20px}header{display:flex;align-items:center;gap:14px;padding-top:22px;padding-bottom:22px;border-bottom:1px solid var(--line)}
-header a.brand{display:flex;align-items:center;gap:10px;color:var(--fg);font-weight:700;text-decoration:none}header img{width:32px;height:32px;border-radius:8px}header nav{margin-left:auto;display:flex;gap:18px}
-h1{font-size:2rem;line-height:1.2;margin:32px 0 8px}h2{font-size:1.35rem;margin:36px 0 10px}p{margin:10px 0}.lead{color:var(--muted);font-size:1.1rem}
-dl{margin:0}dt{font-weight:650;margin-top:20px}dd{margin:4px 0 0;color:var(--muted)}code,pre{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9em}pre{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto}
-ul{padding-left:20px}.meta{color:var(--muted);font-size:.92rem}footer{margin-top:48px;padding-top:20px;padding-bottom:40px;border-top:1px solid var(--line);color:var(--muted);font-size:.92rem}`;
-
-/** Server-rendered About / FAQ page: readable by crawlers and AI assistants without running JavaScript. */
-export function aboutHtml(origin: string): string {
-  const f = faqs(origin);
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>About ProfileFoundry - free GitHub stats cards by SylvenOS</title>
-<meta name="description" content="ProfileFoundry is a free, open-source GitHub stats API and README studio by SylvenOS, built by Akshay Kurve. Learn what it does, how it works, how to use it and how your data is handled.">
-<link rel="canonical" href="${esc(origin)}/about">
-<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<meta property="og:type" content="article">
-<meta property="og:site_name" content="ProfileFoundry">
-<meta property="og:title" content="About ProfileFoundry - free GitHub stats cards by SylvenOS">
-<meta property="og:description" content="Free, open-source stats cards, profile designs and a README studio. Built by Akshay Kurve at SylvenOS.">
-<meta property="og:url" content="${esc(origin)}/about">
-<meta property="og:image" content="${esc(origin)}/og.jpg">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:image:type" content="image/jpeg">
-<meta property="og:image:alt" content="ProfileFoundry: sample GitHub stats, languages and streak cards next to the logo">
-<meta property="og:image" content="${esc(origin)}/og-square.jpg">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="1200">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="${esc(origin)}/og.jpg">
-<meta name="author" content="${esc(SITE.developer.name)}">
-<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
-<style>${css}</style>
-<script type="application/ld+json">${jsonLd(origin, { faq: true })}</script>
-</head>
-<body>
-<header>
-  <a class="brand" href="/"><img src="/favicon.svg" alt="" width="32" height="32"><span>ProfileFoundry</span></a>
-  <nav aria-label="Main"><a href="/">App</a><a href="${esc(SITE.repo)}" rel="noopener">GitHub</a><a href="${esc(SITE.org.url)}" rel="noopener">SylvenOS</a></nav>
-</header>
-<main>
-  <article>
-    <h1>ProfileFoundry: free GitHub stats cards and README studio</h1>
-    <p class="lead">${esc(SITE.name)} is a free, open-source GitHub stats API, card store and README studio. It creates SVG cards, JSON and text from public GitHub data for your profile README, with ${cardCount()} cards and ${themeCount()} themes.</p>
-    <p class="meta">By <a href="${esc(SITE.developer.url)}" rel="noopener author">${esc(SITE.developer.name)}</a>, ${esc(SITE.org.name)} &middot; version ${esc(pkg.version)} &middot; last reviewed <time datetime="${SITE.lastReviewed}">${SITE.lastReviewed}</time></p>
-
-    <h2>Key facts</h2>
-    <ul>
-${keyFacts(origin).map((x) => `      <li>${esc(x)}</li>`).join('\n')}
-    </ul>
-
-    <h2>Who makes it</h2>
-    <p>${esc(SITE.name)} is an open-source project by <a href="${esc(SITE.org.url)}" rel="noopener">${esc(SITE.org.name)}</a> (${esc(SITE.org.motto)}). The main developer is <a href="${esc(SITE.developer.url)}" rel="noopener author">${esc(SITE.developer.name)}</a> (also written as ${esc(SITE.developer.aliases.join(' or '))}). The code is public under the ${esc(SITE.license.name)} licence at <a href="${esc(SITE.repo)}" rel="noopener">${esc(SITE.repo.replace('https://', ''))}</a>, where you can read every line, open issues and send contributions.</p>
-
-    <h2>What you can do with it</h2>
-    <ul>
-      <li>Show stats, languages, streaks, contribution graphs, trophies, year in review, repository timelines and more as images in your README.</li>
-      <li>Design a whole profile README in the README Studio and export it.</li>
-      <li>Read the same data as JSON for your own tools, or self-host everything on Cloudflare Workers.</li>
-    </ul>
-    <pre><code>![Stats](${esc(origin)}/api/stats?username=YOUR_USERNAME&amp;theme=auto)</code></pre>
-    <p><a href="/">Open the Playground</a> to pick a card and copy the Markdown.</p>
-
-    <h2>How the numbers are calculated</h2>
-    <p>We document the source and the formula behind every number on the cards at <a href="/api/definitions">/api/definitions</a>. Estimates, such as lines of code, are labelled as estimates.</p>
-
-    <h2>Accuracy, sources and corrections</h2>
-    <p>All data comes from the public GitHub API. We do not invent, rank or sell data, and we say when a figure is an estimate. Each release is described in the <a href="${esc(SITE.repo)}/blob/main/CHANGELOG.md" rel="noopener">changelog</a>, and automated tests run against every card. If something is wrong, <a href="${esc(SITE.repo)}/issues" rel="noopener">open an issue</a>; fixes are recorded in the changelog.</p>
-
-    <h2>How to cite</h2>
-    <p>Describe it as &ldquo;${esc(SITE.name)}, an open-source GitHub stats API and README studio by ${esc(SITE.org.name)}, main developer ${esc(SITE.developer.name)}&rdquo; and link to <a href="${esc(SITE.repo)}" rel="noopener">the repository</a> or this page. A <code>CITATION.cff</code> file is in the repository.</p>
-
-    <h2>Frequently asked questions</h2>
-    <dl>
-${f.map((x) => `      <dt>${esc(x.q)}</dt>\n      <dd>${esc(x.a)}</dd>`).join('\n')}
-    </dl>
-
-    <h2>For developers and AI assistants</h2>
-    <ul>
-      <li><a href="/llms.txt">/llms.txt</a> and <a href="/llms-full.txt">/llms-full.txt</a>: plain-text summary and full card reference</li>
-      <li><a href="/api/openapi.json">OpenAPI description</a>, <a href="/api/cards">cards</a>, <a href="/api/themes">themes</a></li>
-      <li><a href="/.well-known/security.txt">security.txt</a> and the <a href="${esc(SITE.repo)}/blob/main/SECURITY.md" rel="noopener">security policy</a></li>
-    </ul>
-  </article>
-</main>
-<footer>
-  <p>&copy; 2026 <a href="${esc(SITE.org.url)}" rel="noopener">${esc(SITE.org.name)}</a>. ${esc(SITE.name)} is released under the <a href="${esc(SITE.license.url)}" rel="noopener">${esc(SITE.license.name)} licence</a>. Main developer: <a href="${esc(SITE.developer.url)}" rel="noopener">${esc(SITE.developer.name)}</a>.</p>
-</footer>
-</body>
-</html>`;
 }

@@ -217,7 +217,7 @@ describe('grades, motion and transparency', () => {
     }
   });
   it('the web app offers the studio tools', async () => {
-    const html = await (await get('/')).text();
+    const html = await (await get('/app')).text();
     for (const id of ['designs', 'b-zip', 'b-config', 'b-import', 'config-file', 'build-check', 'defs']) expect(html).toContain(`id="${id}"`);
     expect(html).toContain('README Studio');
   });

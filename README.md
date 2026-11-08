@@ -436,7 +436,7 @@ src/
   core/           params/validation, cache (SWR, canonical keys), compat, errors, i18n, text helpers
   github/tokens.ts token-pool health
   readme/         README generator (spec, presets, renderer, routes)
-  ui/             the web app served at / (playground, store, builder)
+  ui/             the landing page at / and the web app at /app (playground, store, builder)
   scripts/        gen-tech-icons.mjs (bundled simple-icons subset)
 ```
 

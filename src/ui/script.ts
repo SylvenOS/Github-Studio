@@ -705,7 +705,7 @@ export const SCRIPT = String.raw`
     $('regen').addEventListener('click', function () { builder.manual = false; $('manual-note').classList.add('hidden'); $('md').value = builder.md; });
     $('b-copy').addEventListener('click', function () { copy($('md').value, 'README copied'); });
     $('b-download').addEventListener('click', function () { download('README.md', $('md').value); });
-    $('b-share').addEventListener('click', function () { copy(location.origin + '/#tab=builder&spec=' + b64u(payload()), 'Share link copied'); });
+    $('b-share').addEventListener('click', function () { copy(location.origin + '/app#tab=builder&spec=' + b64u(payload()), 'Share link copied'); });
     $('b-raw').addEventListener('click', function () { window.open('/api/readme?spec=' + b64u(payload()) + (builder.host ? '&base=' + encodeURIComponent(builder.host) : ''), '_blank'); });
     $('b-zip').addEventListener('click', exportZip);
     $('b-config').addEventListener('click', function () {

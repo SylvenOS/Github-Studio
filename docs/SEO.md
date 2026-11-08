@@ -6,7 +6,7 @@ This page lists what the project already does for search engines (SEO), answer e
 
 | Area | What is in place | Where |
 |---|---|---|
-| Crawlable content | Server-rendered `/about` page with real headings, text and a FAQ. The app itself needs JavaScript, so the About page is what crawlers read. `<noscript>` text and one static `h1` on the app page | `src/seo.ts`, `src/ui/page.ts` |
+| Crawlable content | Server-rendered landing page at `/` (hero, live example cards, features, SylvenOS section, FAQ with `FAQPage` markup) and `/about` page with real headings, text and a FAQ. The app itself needs JavaScript, so the About page is what crawlers read. `<noscript>` text and one static `h1` on the app page | `src/seo.ts`, `src/ui/page.ts` |
 | Page basics | Unique titles and descriptions, canonical URLs per deployment, `lang`, viewport, robots meta with large snippets allowed | `src/ui/page.ts`, `src/seo.ts` |
 | Social previews | Open Graph and Twitter card tags with a 1200x630 share image at `/og.jpg` and a 1200x1200 square version at `/og-square.jpg`, both with alt text; they are also listed in the sitemap | `assets/og-image.jpg`, `assets/og-square.jpg` |
 | Structured data (JSON-LD) | `Organization` (SylvenOS), `Person` (Akshay Kurve, with alternate names), `WebSite`, `SoftwareApplication` (free, MIT, version, repository), and `FAQPage` on `/about` | `src/seo.ts` |
@@ -28,6 +28,8 @@ Every URL in these files uses the host the request came from, so a self-hosted c
 7. **Check your work.** Use Google's Rich Results Test and the Schema Markup Validator on `/about`, and test sharing the URL in Slack, Discord and X to confirm the preview image.
 
 ## Rules of thumb
+
+- The developer's name is kept out of visible page text and search snippets on purpose. It appears only in structured data, `llms.txt` and the author meta tag. To show it again, edit `faqs`, `keyFacts` and the page templates in `src/seo.ts` and `src/ui/landing.ts`.
 
 - Say true, specific things in plain language. Do not stuff keywords or add claims you cannot back up (user counts, awards, ratings).
 - Keep one name: **ProfileFoundry**, by **SylvenOS**, main developer **Akshay Kurve**.

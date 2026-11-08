@@ -4,7 +4,14 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-08
+
+First release as **ProfileFoundry** by SylvenOS. Version numbering restarts at 1.0.0 with the new name; releases up to 5.3.0 were published as GitPulse.
+
 ### Added (search, AI and trust)
+- The landing page was redesigned (sticky header, hero with live README preview, feature icons, step guide, FAQ, accessible focus states, 44px touch targets, reduced-motion support, no layout shift) and now shows the SylvenOS logo (`/sylvenos-logo.webp`). Visible text and snippets credit SylvenOS only; the developer is named in structured data, `llms.txt` and the author meta tag. Copyright years are generated from the current date.
+- The `/about` page uses the same design as the landing page: theme toggle, SylvenOS logo, key facts, FAQ, machine-readable links and scroll animations.
+- A landing page at `/` (hero, live example cards, features, how it works, SylvenOS branding and credit, FAQ). The Playground, Store and README Studio moved to `/app`; old `/#tab=...` share links are forwarded to `/app`.
 - Crawlable `/about` page with FAQ, author and organisation details, privacy answer and links for developers.
 - Structured data (JSON-LD) naming SylvenOS and Akshay Kurve (with the name variants Akshay D Kurve and Akshay Dhanraj Kurve), the software, the website and a FAQ.
 - `/llms.txt`, `/llms-full.txt`, `/robots.txt` (AI crawlers welcome), `/sitemap.xml`, `/.well-known/security.txt` and a social share image at `/og.jpg`.

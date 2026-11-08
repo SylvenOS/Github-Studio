@@ -211,7 +211,7 @@ describe('repo compare and sponsors', () => {
 
 describe('web app design', () => {
   it('is a three-pane workbench without emoji or gradient chrome', async () => {
-    const html = await (await get('/')).text();
+    const html = await (await get('/app')).text();
     for (const marker of ['class="rail only-play"', 'class="inspector"', 'id="stage-title"', 'class="brand"', 'id="username"']) expect(html, marker).toContain(marker);
     // emoji and decorative glyphs were replaced by line icons
     expect(html).not.toMatch(/\p{Extended_Pictographic}/u);
@@ -231,7 +231,7 @@ describe('web app design', () => {
 
 describe('web app card panel', () => {
   it('serves the search box and card options container, and the script stays valid', async () => {
-    const html = await (await get('/')).text();
+    const html = await (await get('/app')).text();
     for (const id of ['card-search', 'card-cats', 'card-params', 'card-count']) expect(html).toContain(`id="${id}"`);
     const script = /<script>([\s\S]*)<\/script>/.exec(html)?.[1] ?? '';
     expect(() => new Function(script)).not.toThrow();
@@ -288,6 +288,6 @@ describe('icons', () => {
     const png = new Uint8Array(await (await get('/apple-touch-icon.png')).arrayBuffer());
     expect(Array.from(png.slice(1, 4))).toEqual([80, 78, 71]); // "PNG"
     expect((await get('/favicon.ico')).status).toBe(301);
-    expect(await (await get('/')).text()).toContain('rel="icon"');
+    expect(await (await get('/app')).text()).toContain('rel="icon"');
   });
 });

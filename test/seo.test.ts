@@ -21,9 +21,42 @@ const ldOf = (html: string) => {
 };
 
 describe('search and AI discoverability', () => {
-  it('app page has canonical, social tags, structured data and one static h1', async () => {
-    const html = await (await get('/')).text();
+  it('landing page at / is server-rendered with SylvenOS branding, live examples, FAQ markup and a hash-pinned script', async () => {
+    const res = await get('/');
+    const html = await res.text();
+    expect(res.status).toBe(200);
     expect(html).toContain('<link rel="canonical" href="https://stats.example.org/">');
+    expect((html.match(/<h1[ >]/g) ?? []).length).toBe(1);
+    expect(html).toContain('href="/app"');
+    expect(html).toContain('Sylven<span>OS</span>');
+    expect(html).toContain('Learn. Build. Educate.');
+    // the developer is named in machine-readable data only, never in visible text or snippets
+    const visible = html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<meta[^>]*>/g, '');
+    expect(visible).not.toContain('Akshay');
+    expect(visible).toContain(`© ${new Date().getFullYear()}`.replace('©', '&copy;'));
+    expect(html).toContain('/sylvenos-logo.webp');
+    expect(html).toContain('https://stats.example.org/api/stats?username=');
+    const csp = res.headers.get('content-security-policy') ?? '';
+    expect(csp).toContain("default-src 'none'");
+    const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+    expect(scripts.length).toBe(2);
+    for (const script of scripts) {
+      const digest = btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(script)))));
+      expect(csp).toContain(`'sha256-${digest}'`);
+    }
+    expect(html).toContain('id="theme"');
+    for (const script of scripts) expect(() => new Function(script), 'landing script must be valid JavaScript').not.toThrow();
+    const ld = ldOf(html)['@graph'];
+    const faq = ld.find((n: { '@type': string }) => n['@type'] === 'FAQPage');
+    expect(faq['@id']).toBe('https://stats.example.org/#faq');
+    for (const q of faq.mainEntity) expect(html).toContain(q.name.replace(/&/g, '&amp;'));
+    expect(ld.some((n: { '@type': string }) => n['@type'] === 'AboutPage')).toBe(false);
+    expect(res.headers.get('link')).toContain('rel="service-desc"');
+  });
+
+  it('app page (at /app) has canonical, social tags, structured data and one static h1', async () => {
+    const html = await (await get('/app')).text();
+    expect(html).toContain('<link rel="canonical" href="https://stats.example.org/app">');
     expect(html).toContain('property="og:image" content="https://stats.example.org/og.jpg"');
     expect(html).toContain('property="og:image" content="https://stats.example.org/og-square.jpg"');
     expect(html).toContain('property="og:image:alt"');
@@ -38,7 +71,7 @@ describe('search and AI discoverability', () => {
     expect(person.name).toBe('Akshay Kurve');
     expect(person.alternateName).toEqual(['Akshay D Kurve', 'Akshay Dhanraj Kurve']);
     expect(person.worksFor['@id']).toContain('sylvenos.com');
-    const res = await get('/');
+    const res = await get('/app');
     expect(res.headers.get('link')).toContain('rel="service-desc"');
   });
 
@@ -48,13 +81,23 @@ describe('search and AI discoverability', () => {
     expect(res.headers.get('content-security-policy')).toContain("default-src 'none'");
     expect(html).toContain('<h1>');
     expect(html).toContain('rel="canonical" href="https://stats.example.org/about"');
-    expect(html).toContain('Akshay Kurve');
-    expect(html).toContain('Akshay Dhanraj Kurve');
+    expect(html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<meta[^>]*>/g, '')).not.toContain('Akshay');
+    expect(html).toContain('Akshay Dhanraj Kurve'); // structured data only
     expect(html).toContain('https://sylvenos.com');
     const faq = ldOf(html)['@graph'].find((n: { '@type': string }) => n['@type'] === 'FAQPage');
     expect(faq.mainEntity.length).toBeGreaterThanOrEqual(8);
     const types = ldOf(html)['@graph'].map((n: { '@type': string }) => n['@type']);
     expect(types).toEqual(expect.arrayContaining(['AboutPage', 'BreadcrumbList', 'HowTo']));
+    expect(html).toContain('id="theme"');
+    expect(html).toContain('/sylvenos-logo.webp');
+    const csp = res.headers.get('content-security-policy') ?? '';
+    const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+    expect(scripts.length).toBe(2);
+    for (const script of scripts) {
+      const digest = btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(script)))));
+      expect(csp).toContain(`'sha256-${digest}'`);
+      expect(() => new Function(script)).not.toThrow();
+    }
     expect(html).toContain('Key facts');
     expect(html).toContain('Accuracy, sources and corrections');
     expect(html).toMatch(/<time datetime="\d{4}-\d{2}-\d{2}">/);
@@ -74,6 +117,8 @@ describe('search and AI discoverability', () => {
     const xml = await (await get('/sitemap.xml')).text();
     expect(xml).toMatch(/^<\?xml/);
     expect(xml).toContain('<loc>https://stats.example.org/about</loc>');
+    expect(xml).toContain('<loc>https://stats.example.org/app</loc>');
+    expect(xml).toContain('<image:loc>https://stats.example.org/sylvenos-logo.webp</image:loc>');
     expect((xml.match(/<url>/g) ?? []).length).toBe((xml.match(/<\/url>/g) ?? []).length);
     expect(xml).toContain('<image:loc>https://stats.example.org/og.jpg</image:loc>');
     expect(xml).toContain('xmlns:image=');
@@ -89,6 +134,12 @@ describe('search and AI discoverability', () => {
     expect(short).toContain('## How to cite');
     const full = await (await get('/llms-full.txt')).text();
     for (const c of cards) expect(full, c.id).toContain(`/api/${c.id}`);
+  });
+
+  it('serves the SylvenOS logo as WebP', async () => {
+    const r = await get('/sylvenos-logo.webp');
+    expect(r.headers.get('content-type')).toBe('image/webp');
+    expect(new TextDecoder().decode(new Uint8Array(await r.arrayBuffer()).slice(0, 4))).toBe('RIFF');
   });
 
   it('serves security.txt (RFC 9116) and the share image', async () => {

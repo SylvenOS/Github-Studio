@@ -1,7 +1,7 @@
 import { SCRIPT } from './script';
 import { STYLES } from './styles';
 
-/** The single-page app served at `/`: Playground, Store and README Studio. */
+/** The single-page app served at `/app`: Playground, Store and README Studio. */
 export const pageHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,15 +10,15 @@ export const pageHtml = `<!DOCTYPE html>
 <title>ProfileFoundry - free GitHub stats cards, profile designs and README studio</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta name="description" content="ProfileFoundry is a free, open-source GitHub stats API, card store and README studio by SylvenOS, built by Akshay Kurve. Create stats cards, profile designs and README layouts.">
-<link rel="canonical" href="__ORIGIN__/">
+<meta name="description" content="ProfileFoundry is a free, open-source GitHub stats API, card store and README studio by SylvenOS. Create stats cards, profile designs and README layouts.">
+<link rel="canonical" href="__ORIGIN__/app">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 <meta name="author" content="Akshay Kurve">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="ProfileFoundry">
 <meta property="og:title" content="ProfileFoundry - free GitHub stats cards and README studio">
-<meta property="og:description" content="Free, open-source stats cards, profile designs and a README studio. An open-source project by SylvenOS, built by Akshay Kurve.">
-<meta property="og:url" content="__ORIGIN__/">
+<meta property="og:description" content="Free, open-source stats cards, profile designs and a README studio. An open-source project by SylvenOS.">
+<meta property="og:url" content="__ORIGIN__/app">
 <meta property="og:image" content="__ORIGIN__/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">

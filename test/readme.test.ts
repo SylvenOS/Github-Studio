@@ -295,7 +295,7 @@ describe('store', () => {
 
 describe('web UI', () => {
   it('serves the app shell with all three tabs, and its script is syntactically valid', async () => {
-    const html = await (await get('/')).text();
+    const html = await (await get('/app')).text();
     for (const id of ['tab-play', 'tab-store', 'tab-builder', 'b-reset', 'reset', 'blocks', 'addbar']) expect(html).toContain(`id="${id}"`);
     const script = /<script>([\s\S]*)<\/script>/.exec(html)?.[1] ?? '';
     expect(script.length).toBeGreaterThan(10_000);

@@ -70,9 +70,11 @@ Errors never break a README: the Worker answers with HTTP 200 and an SVG "messag
 | Path | What lives there |
 |---|---|
 | `src/index.ts` | Hono app, routes, security headers, error and cache handling, the `ViewCounter` export |
-| `src/seo.ts` | `/about`, `robots.txt`, `sitemap.xml`, `llms.txt`, `llms-full.txt`, `security.txt` and JSON-LD |
+| `src/seo.ts` | `robots.txt`, `sitemap.xml`, `llms.txt`, `llms-full.txt`, `security.txt`, the FAQ and JSON-LD |
+| `src/ui/about.ts` | The server-rendered `/about` page; shares the landing page's styles, header, footer, theme toggle and animations |
 | `src/openapi.ts` | Builds the OpenAPI description from the card list |
-| `src/playground.ts` | Assembles the web app page served at `/` |
+| `src/ui/landing.ts` | The server-rendered landing page served at `/` (hero, live examples, features, SylvenOS section, FAQ) |
+| `src/playground.ts` | Assembles the web app page served at `/app` |
 | `src/types.ts` | Worker environment bindings (`AppEnv`) |
 | `src/plugins/` | Optional extra data merged into `/api/profile` |
 | `src/cards/` | One file per card, plus `index.ts` (registry) and `types.ts` (the card contract) |
@@ -85,7 +87,7 @@ Errors never break a README: the Worker answers with HTTP 200 and an SVG "messag
 | `src/readme/` | README Studio: presets, spec validation, rendering, `/api/readme` routes |
 | `src/achievements/` | Trophy rules |
 | `src/metrics/` | Definitions of every number (served at `/api/definitions`) |
-| `src/ui/` | The web app: `page.ts`, `styles.ts`, `script.ts` |
+| `src/ui/` | The web app (`page.ts`, `styles.ts`, `script.ts`) and the landing page (`landing.ts`) |
 | `src/counter.ts` | Durable Object behind `/api/views` |
 | `test/` | vitest suites (app, security, SEO, README studio, resilience, per-version feature tests); GitHub is mocked in `test/helpers.ts` |
 | `assets/` | Logo, favicon and share-image sources (the served copies are embedded in `src/ui/icons.ts`) |
@@ -107,6 +109,8 @@ Errors never break a README: the Worker answers with HTTP 200 and an SVG "messag
 **Safety by construction.** All user text goes through `esc()`. Options are validated to numbers, enums or hex colours before they can reach CSS. Outbound requests only go to allowlisted hosts with a timeout and a size cap. Redirects are refused. Tokens are never logged or returned.
 
 **CSS-only animation.** Animations are plain CSS inside the SVG and are off by default, so they work in `<img>` tags and honour `prefers-reduced-motion`.
+
+**Landing page and app are separate.** `/` is a server-rendered landing page with no framework and no JavaScript beyond a tiny redirect that keeps old `/#tab=...` share links working (pinned by hash in its Content-Security-Policy). The interactive app lives at `/app`.
 
 **The web app is one page.** `page.ts` returns static HTML, `styles.ts` the CSS and `script.ts` the ES5 browser code as a template string. It reads `/api/cards`, `/api/themes` and `/api/definitions` at runtime, so new cards need no UI work.
 

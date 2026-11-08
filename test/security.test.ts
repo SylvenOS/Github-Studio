@@ -106,7 +106,7 @@ describe('transport and headers', () => {
     }
     const svg = await get('/api/stats?username=octo');
     expect(svg.headers.get('content-security-policy')).toContain('sandbox');
-    expect((await get('/')).headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
+    expect((await get('/app')).headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
   });
 
   it('protects /api/rate-limit details behind ADMIN_TOKEN', async () => {
@@ -126,7 +126,7 @@ describe('transport and headers', () => {
 
 describe('app content security policy', () => {
   it('pins the one inline script by hash instead of allowing inline scripts', async () => {
-    const res = await get('/');
+    const res = await get('/app');
     const html = await res.text();
     const csp = res.headers.get('content-security-policy') ?? '';
     const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);

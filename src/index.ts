@@ -18,7 +18,10 @@ import { calculateGrade } from './metrics/grade';
 import { DEFINITIONS } from './metrics/definitions';
 import { buildOpenApi } from './openapi';
 import { playgroundHtml } from './playground';
-import { aboutHtml, jsonLd, llmsFullTxt, llmsTxt, robotsTxt, securityTxt, sitemapXml } from './seo';
+import { aboutHtml } from './ui/about';
+import { landingHtml, HEAD_SCRIPT, UI_SCRIPT } from './ui/landing';
+import { SYLVENOS_LOGO_BASE64 } from './ui/sylvenos-logo';
+import { jsonLd, llmsFullTxt, llmsTxt, robotsTxt, securityTxt, sitemapXml } from './seo';
 import { APPLE_TOUCH_ICON_BASE64, FAVICON_SVG, OG_IMAGE_BASE64, OG_SQUARE_BASE64 } from './ui/icons';
 import { SCRIPT } from './ui/script';
 import { runPlugins } from './plugins';
@@ -36,9 +39,11 @@ const SVG_HEADERS = {
 /** The app's single inline script is pinned by hash, so injected scripts could not run even if markup slipped through. */
 const appCsp = (scriptHash: string) =>
   `default-src 'none'; script-src 'sha256-${scriptHash}'; style-src 'unsafe-inline'; img-src * data: blob:; connect-src 'self' https:; frame-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
+const sha256b64 = (text: string) => crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then((d) => btoa(String.fromCharCode(...new Uint8Array(d))));
 let scriptHash: Promise<string> | undefined;
-const appScriptHash = () =>
-  (scriptHash ??= crypto.subtle.digest('SHA-256', new TextEncoder().encode(SCRIPT)).then((d) => btoa(String.fromCharCode(...new Uint8Array(d)))));
+const appScriptHash = () => (scriptHash ??= sha256b64(SCRIPT));
+let landingHash: Promise<string[]> | undefined;
+const landingScriptHashes = () => (landingHash ??= Promise.all([HEAD_SCRIPT, UI_SCRIPT].map(sha256b64)));
 /** Rendered SVGs larger than this are refused (GitHub's image proxy stops at ~5 MB anyway). */
 const MAX_SVG_BYTES = 2_500_000;
 const NO_STORE = 'no-cache, no-store, must-revalidate, max-age=0';
@@ -194,6 +199,7 @@ app.get('/apple-touch-icon.png', (c) => {
 const originOf = (c: Ctx) => new URL(c.req.url).origin;
 const bytesOf = (b64: string) => Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
 app.get('/og.jpg', (c) => c.body(bytesOf(OG_IMAGE_BASE64), 200, { 'Content-Type': 'image/jpeg', 'Cache-Control': ICON_CACHE }));
+app.get('/sylvenos-logo.webp', (c) => c.body(bytesOf(SYLVENOS_LOGO_BASE64), 200, { 'Content-Type': 'image/webp', 'Cache-Control': ICON_CACHE }));
 app.get('/og-square.jpg', (c) => c.body(bytesOf(OG_SQUARE_BASE64), 200, { 'Content-Type': 'image/jpeg', 'Cache-Control': ICON_CACHE }));
 
 // crawler and assistant files; the host comes from the request so every deployment describes itself
@@ -203,20 +209,37 @@ app.get('/sitemap.xml', (c) => c.body(sitemapXml(originOf(c)), 200, { 'Content-T
 app.get('/llms.txt', (c) => c.body(llmsTxt(originOf(c)), 200, { ...TEXT, 'Content-Type': 'text/markdown; charset=utf-8' }));
 app.get('/llms-full.txt', (c) => c.body(llmsFullTxt(originOf(c)), 200, { ...TEXT, 'Content-Type': 'text/markdown; charset=utf-8' }));
 app.get('/.well-known/security.txt', (c) => c.body(securityTxt(originOf(c)), 200, TEXT));
-app.get('/about', (c) =>
+const LINKS = (origin: string) => `<${origin}/api/openapi.json>; rel="service-desc", <${origin}/llms.txt>; rel="describedby"; type="text/markdown"`;
+
+/** CSP for the server-rendered pages: only their two inline scripts run, pinned by hash. */
+const staticPageCsp = async () =>
+  `default-src 'none'; script-src ${(await landingScriptHashes()).map((h) => `'sha256-${h}'`).join(' ')}; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
+
+app.get('/about', async (c) =>
   c.html(aboutHtml(originOf(c)), 200, {
-    'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    'Content-Security-Policy': await staticPageCsp(),
     'Cache-Control': 'public, max-age=3600'
   })
 );
 
+// landing page: server-rendered, only the tiny old-share-link redirect script runs (pinned by hash)
 app.get('/', async (c) => {
+  const origin = originOf(c);
+  return c.html(landingHtml(origin), 200, {
+    'Content-Security-Policy': await staticPageCsp(),
+    'Cache-Control': 'public, max-age=3600',
+    Link: LINKS(origin)
+  });
+});
+
+// the app: Playground, Store and README Studio
+app.get('/app', async (c) => {
   const origin = originOf(c);
   const html = playgroundHtml.split('__ORIGIN__').join(origin).replace('__JSONLD__', () => jsonLd(origin));
   return c.html(html, 200, {
     'Content-Security-Policy': appCsp(await appScriptHash()),
     'Cache-Control': 'public, max-age=300',
-    Link: `<${origin}/api/openapi.json>; rel="service-desc", <${origin}/llms.txt>; rel="describedby"; type="text/markdown"`
+    Link: LINKS(origin)
   });
 });
 
