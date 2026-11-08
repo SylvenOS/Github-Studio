@@ -53,10 +53,10 @@ export const PAGE_CSS = `:root{color-scheme:light dark;--bg:#f6f9f7;--surface:#f
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#07100c;--surface:#0e1a14;--surface-2:#122219;--fg:#eef6f1;--muted:#a3b8ab;--line:#1f3528;--accent:#43d36b;--accent-fg:#04130a;--ring:#43d36b;--shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35)}}
 :root[data-theme="dark"]{color-scheme:dark;--bg:#07100c;--surface:#0e1a14;--surface-2:#122219;--fg:#eef6f1;--muted:#a3b8ab;--line:#1f3528;--accent:#43d36b;--accent-fg:#04130a;--ring:#43d36b;--shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35)}:root[data-theme="light"]{color-scheme:light}
 *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:84px;-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;overflow-x:hidden}
-img,svg{max-width:100%}a{color:var(--accent);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}
+body{margin:0;background:var(--bg);color:var(--fg);font:1rem/1.65 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;overflow-x:hidden}
+img,svg{max-width:100%}.card p,.card code,.prose code,summary,details p,.meta,.note,dd{overflow-wrap:anywhere}a{color:var(--accent);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}
 :focus-visible{outline:3px solid var(--ring);outline-offset:3px;border-radius:6px}
-.wrap{width:100%;max-width:1120px;margin:0 auto;padding:0 20px}
+.wrap{width:100%;max-width:1120px;margin:0 auto;padding:0 max(20px,env(safe-area-inset-left)) 0 max(20px,env(safe-area-inset-right))}
 .skip{position:absolute;left:12px;top:-60px;background:var(--surface);color:var(--fg);padding:10px 14px;border-radius:8px;z-index:20;box-shadow:var(--shadow)}.skip:focus{top:12px}
 h1,h2,h3{margin:0;line-height:1.15;letter-spacing:-.02em;text-wrap:balance}h2{font-size:clamp(1.65rem,3.4vw,2.3rem)}h3{font-size:1.08rem;letter-spacing:-.005em}p{margin:0}
 
@@ -152,8 +152,16 @@ footer .who{display:flex;gap:12px;align-items:center;color:#eef6f1;font-weight:6
 footer nav{display:flex;flex-wrap:wrap;gap:4px 8px}footer nav a,footer .legal a{color:#c9dccf;text-decoration:none;padding:8px 10px;border-radius:8px;display:inline-block}footer nav a:hover,footer .legal a:hover{color:#fff;text-decoration:underline}
 footer .legal{margin-top:24px;padding-top:20px;border-top:1px solid #16271e;line-height:1.7}footer .legal a{padding:0;text-decoration:underline}
 
-@media(max-width:900px){.hero{padding:48px 0 64px}.hero .wrap{grid-template-columns:minmax(0,1fr);gap:40px}section{padding:64px 0}.syl{grid-template-columns:minmax(0,1fr);gap:24px;padding:32px 24px;text-align:left}.syl .logo{width:96px}.final{padding:64px 0}}
-@media(max-width:640px){.top nav a.opt{display:none}.btns .btn{flex:1 1 100%}.top nav a.btn{margin-left:0}.stat b{font-size:1.9rem}}
+/* responsive: large screens, laptops, tablets, phones, small phones, landscape and touch */
+@media(min-width:1500px){html{font-size:106%}.wrap{max-width:1280px}}
+@media(min-width:1900px){html{font-size:118%}.wrap{max-width:1440px}.hero{padding:96px 0 112px}}
+@media(max-width:1024px){.hero .wrap{gap:32px}.preview{padding:12px}}
+@media(max-width:900px){.hero{padding:48px 0 64px}.hero .wrap{grid-template-columns:minmax(0,1fr);gap:40px}.preview,.term{max-width:640px}section{padding:64px 0}.syl{grid-template-columns:minmax(0,1fr);gap:24px;padding:32px 24px;text-align:left}.syl .logo{width:96px}.final{padding:64px 0}.top nav a.opt{display:none}.head{margin-bottom:28px}}
+@media(max-width:640px){.btns .btn{flex:1 1 100%}.top nav a.btn{margin-left:0}.stat b{font-size:1.9rem}.hero{padding:36px 0 52px}.hero .lead{font-size:1.05rem}.chips{gap:8px 14px}section{padding:52px 0}.wrap{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}.card,.steps li{padding:20px}summary{padding:14px 16px}details p{padding:0 16px 16px}.syl{padding:26px 18px;border-radius:18px}.final{padding:52px 0}.code{font-size:.8rem;padding:14px}footer .row{flex-direction:column;gap:16px}}
+@media(max-width:420px){.top .wrap{gap:8px;min-height:60px}.brand span{font-size:.95rem}.top nav a.btn{padding:8px 14px;font-size:.92rem;min-height:44px}.tt{margin-left:0}.hero h1{font-size:2rem}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.eyebrow{font-size:.8rem}.term pre{font-size:.75rem}}
+@media(max-width:350px){.brand span{display:none}.btn{padding-left:16px;padding-right:16px}}
+@media(max-height:480px) and (orientation:landscape){.top{position:static}.hero{padding:28px 0 36px}section{padding:40px 0}}
+@media(hover:none){.card:hover,.showcase figure:hover,.btn:hover,.tt:hover,.js .card.rv.in:hover,.js .showcase figure.rv.in:hover{transform:none}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important;animation:none!important}.card:hover,.showcase figure:hover,.btn:hover,.tt:hover{transform:none}.js .rv{opacity:1;transform:none}.hero h1 em{-webkit-text-fill-color:currentColor;background:none}}`;
 
 const demo = (origin: string, card: string, extra = '') => `${esc(origin)}/api/${card}?username=${DEMO_USER}&amp;theme=auto${extra}`;
@@ -218,7 +226,7 @@ export function landingHtml(origin: string): string {
 <meta name="twitter:description" content="Free, open-source stats cards, profile designs and a README studio by SylvenOS.">
 <meta name="twitter:image" content="${o}/og.jpg">
 <meta name="twitter:image:alt" content="ProfileFoundry: sample GitHub stats, languages and streak cards next to the logo">
-<link rel="alternate" type="text/markdown" href="/llms.txt" title="llms.txt">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
 <link rel="alternate" type="application/json" href="/api/openapi.json" title="OpenAPI">
 <style>${PAGE_CSS}</style>
 <script>${HEAD_SCRIPT}</script>

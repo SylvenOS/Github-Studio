@@ -5,7 +5,7 @@ import type { Query } from './params';
  * unreliable; swapping its host for ours should just work. Its parameters are rewritten to ours
  * *before* parsing and cache-keying, so a readme-stats URL and its native equivalent share one cache entry.
  */
-const RENAMES: Record<string, string> = {
+export const RENAMES: Record<string, string> = {
   bg_color: 'bg',
   text_color: 'fg',
   border_color: 'border',
@@ -17,7 +17,7 @@ const RENAMES: Record<string, string> = {
 };
 
 /** Accepted for compatibility but meaningless here. */
-const IGNORED = new Set(['count_private', 'include_all_commits', 'hide_rank', 'rank_icon', 'show_owner_name', 'disable_animations', 'line_height', 'hide_progress', 'description_lines_count']);
+export const IGNORED = new Set(['count_private', 'include_all_commits', 'hide_rank', 'rank_icon', 'show_owner_name', 'disable_animations', 'line_height', 'hide_progress', 'description_lines_count']);
 
 // only names we don't have natively (our own pie/donut layouts must not be rewritten)
 const LANGUAGE_LAYOUTS: Record<string, string> = { normal: 'bar', compact: 'bar', 'donut-vertical': 'donut' };

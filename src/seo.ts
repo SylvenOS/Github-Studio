@@ -8,8 +8,53 @@ export const SITE = {
   name: 'ProfileFoundry',
   tagline: 'Free, open-source GitHub stats cards, profile designs and a README studio',
   org: { name: 'SylvenOS', url: 'https://sylvenos.com', motto: 'Learn. Build. Educate.' },
-  developer: { name: 'Akshay Kurve', aliases: ['Akshay D Kurve', 'Akshay Dhanraj Kurve'], url: 'https://github.com/akshaykurve', role: 'Main developer' },
+  developer: {
+    name: 'Akshay Kurve',
+    aliases: ['Akshay D Kurve', 'Akshay Dhanraj Kurve'],
+    url: 'https://github.com/akshaykurve',
+    role: 'Main developer',
+    /** Personal site, the source of the facts below. Machine-readable files and structured data only; not shown in page text. */
+    site: 'https://akshaykurve.com',
+    titles: 'Software Engineer, System Designer and Engineering Manager',
+    bio: 'Akshay Kurve (Akshay Dhanraj Kurve) is a software engineer, system designer and engineering manager who builds scalable backend systems, APIs, developer tools and production-ready software. He is a founding member of SylvenOS, where he leads the open-source developer community, and a full stack developer at SIF360, working on enterprise fintech applications. He previously led a 20-person team building SaaS platforms as an engineering manager at Nofinite, and he writes technical content for developers.',
+    profiles: [
+      'https://akshaykurve.com',
+      'https://github.com/akshaykurve',
+      'https://www.linkedin.com/in/akshaykurve',
+      'https://x.com/akshaykurve_',
+      'https://dev.to/akshaykurve',
+      'https://medium.com/@akshaykurve',
+      'https://www.npmjs.com/~akshaykurve'
+    ],
+    expertise: {
+      Languages: 'JavaScript, TypeScript, HTML5, CSS3, SQL, GraphQL',
+      Frontend: 'React, Next.js, Tailwind CSS, Material UI, Chakra UI, Radix UI, Framer Motion, React Hook Form, Zod, Zustand',
+      Backend: 'Node.js, Express.js, Fastify, GraphQL, REST APIs, WebSockets, Socket.IO, JWT',
+      Databases: 'MySQL, Redis, database design, DataLoader',
+      Architecture: 'System design, microservices, monorepos (Nx), distributed systems, performance optimisation',
+      'Cloud and DevOps': 'Docker, Cloudflare, Vercel, GitHub Actions, CI/CD, Linux',
+      AI: 'Generative AI, LLM applications, AI agents, prompt engineering',
+      Leadership: 'Engineering management, technical leadership, mentorship, code review, sprint planning'
+    },
+    projects: [
+      { name: 'SylvenOS website', url: 'https://sylvenos.com', text: 'Official website of the SylvenOS open-source community, built with Next.js.' },
+      { name: 'SIF360 platform', url: 'https://sif360.com', text: 'Fintech applications for fund analytics and portfolio dashboards.' },
+      { name: 'Nofinite Docs v3', url: 'https://opensource.nofinite.com', text: 'Third generation of the Nofinite documentation platform.' },
+      { name: 'Real-time chat application', url: 'https://github.com/nofinitehq', text: 'Microservices chat platform using Next.js, Fastify, GraphQL and Socket.IO.' },
+      { name: 'ThemeGenie', url: 'https://themegenie.netlify.app', text: 'Developer tool that generates themes and design tokens.' },
+      { name: 'FaviForge', url: 'https://faviforge.netlify.app', text: 'Favicon and web app manifest generator.' }
+    ],
+    /** The engineering principles stated on the developer's site, and how this project follows each. */
+    approach: [
+      { title: 'Build for production', principle: 'Every project should be production-ready, maintainable, scalable and able to serve real users, not just demos.', here: 'Layered caching with stale-if-error, a token pool with health checks, bounded work per request, rate limiting, structured logs, strict security headers and a large automated test suite including injection tests.' },
+      { title: 'Architecture before code', principle: 'Good architecture reduces complexity over time: design the system and clear APIs before implementing.', here: 'A card is one contract (options, parse, load, render); the API, OpenAPI file, docs, web app forms and AI files are all generated from it. One shared frame draws every card.' },
+      { title: 'Developer experience matters', principle: 'Clean code, documentation, automation and reusable components.', here: 'Documented metrics, an OpenAPI description, guides for adding a card and deploying, a one-command deploy, and parameter names compatible with github-readme-stats.' },
+      { title: 'Learn. Build. Share.', principle: 'Share knowledge, build in public and collaborate through open source.', here: 'MIT licensed, public repository, public changelog and security policy, built by SylvenOS in the open.' }
+    ]
+  },
   repo: 'https://github.com/akshaykurve/github-stats',
+  /** The official hosted instance. Pages and files still build their URLs from the request host. */
+  live: 'https://profilefoundry.sylvenos.com',
   license: { name: 'MIT', url: 'https://opensource.org/licenses/MIT' },
   /** Bump when the facts, FAQ or methodology on the public pages are reviewed (shown as "last reviewed" and used as dateModified). */
   lastReviewed: '2026-11-08'
@@ -99,11 +144,12 @@ const person = () => ({
   '@id': `${SITE.developer.url}#person`,
   name: SITE.developer.name,
   alternateName: [...SITE.developer.aliases],
-  url: SITE.developer.url,
-  jobTitle: SITE.developer.role,
-  knowsAbout: ['GitHub API', 'TypeScript', 'Cloudflare Workers', 'Open-source software', 'Data visualisation'],
-  worksFor: { '@id': `${SITE.org.url}#organization` },
-  sameAs: [SITE.developer.url]
+  url: SITE.developer.site,
+  jobTitle: SITE.developer.titles,
+  description: SITE.developer.bio,
+  knowsAbout: ['GitHub API', 'TypeScript', 'Cloudflare Workers', 'Open-source software', 'Data visualisation', 'Backend systems', 'API design', 'System design', 'Developer tools', 'Next.js', 'React', 'Node.js', 'GraphQL', 'Microservices', 'CI/CD', 'Generative AI', 'Engineering management'],
+  worksFor: [{ '@id': `${SITE.org.url}#organization` }, { '@type': 'Organization', name: 'SIF360', url: 'https://sif360.com' }],
+  sameAs: [...SITE.developer.profiles]
 });
 
 const organization = () => ({
@@ -151,7 +197,7 @@ export function jsonLd(origin: string, opts: { faq?: boolean; faqId?: string; fa
       image: `${origin}/og.jpg`,
       dateModified: SITE.lastReviewed,
       featureList: ['SVG, JSON and text output', `${cardCount()} cards`, `${themeCount()} themes`, 'README studio', 'Self-hostable on Cloudflare Workers', 'Documented metric definitions'],
-      sameAs: [SITE.repo]
+      sameAs: [SITE.repo, SITE.live]
     }
   ];
   if (opts.about) {
@@ -216,19 +262,21 @@ export function robotsTxt(origin: string): string {
 }
 
 export function sitemapXml(origin: string): string {
-  const pages: { path: string; priority: string; freq: string; images?: string[] }[] = [
-    { path: '/', priority: '1.0', freq: 'weekly', images: ['/og.jpg', '/og-square.jpg', '/sylvenos-logo.webp'] },
-    { path: '/app', priority: '0.9', freq: 'weekly' },
-    { path: '/about', priority: '0.8', freq: 'monthly', images: ['/og.jpg'] },
-    { path: '/llms.txt', priority: '0.5', freq: 'weekly' },
-    { path: '/llms-full.txt', priority: '0.5', freq: 'weekly' },
-    { path: '/api/openapi.json', priority: '0.6', freq: 'weekly' },
-    { path: '/api/cards', priority: '0.6', freq: 'weekly' },
-    { path: '/api/themes', priority: '0.4', freq: 'monthly' },
-    { path: '/api/definitions', priority: '0.5', freq: 'monthly' }
+  // Only <loc> and an honest <lastmod> (the date the facts were last reviewed): search engines ignore changefreq and priority.
+  // Pages come first; the machine-readable files are listed so assistants and tools can find them.
+  const pages: { path: string; images?: string[] }[] = [
+    { path: '/', images: ['/og.jpg', '/og-square.jpg', '/sylvenos-logo.webp'] },
+    { path: '/app' },
+    { path: '/about', images: ['/og.jpg'] },
+    { path: '/llms.txt' },
+    { path: '/llms-full.txt' },
+    { path: '/api/openapi.json' },
+    { path: '/api/cards' },
+    { path: '/api/themes' },
+    { path: '/api/definitions' }
   ];
   const entry = (p: (typeof pages)[number]) =>
-    `  <url>\n    <loc>${esc(origin + p.path)}</loc>\n    <changefreq>${p.freq}</changefreq>\n    <priority>${p.priority}</priority>` +
+    `  <url>\n    <loc>${esc(origin + p.path)}</loc>\n    <lastmod>${SITE.lastReviewed}</lastmod>` +
     (p.images ?? []).map((i) => `\n    <image:image><image:loc>${esc(origin + i)}</image:loc></image:image>`).join('') +
     '\n  </url>';
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n${pages.map(entry).join('\n')}\n</urlset>\n`;
@@ -244,56 +292,4 @@ export function securityTxt(origin: string): string {
     'Preferred-Languages: en',
     ''
   ].join('\n');
-}
-
-/** A short, plain-text summary for AI assistants (see llmstxt.org). */
-export function llmsTxt(origin: string): string {
-  return `# ${SITE.name}
-
-> ${SITE.tagline}. ${SITE.name} is an open-source project by ${SITE.org.name}; the main developer is ${SITE.developer.name}. It generates SVG cards, JSON and text from public GitHub data for profile READMEs, with ${cardCount()} cards and ${themeCount()} themes. Free for everyone under the ${SITE.license.name} licence.
-
-## Key facts
-${keyFacts(origin).map((f) => `- ${f}`).join('\n')}
-
-## Use it
-- [Home](${origin}/): what it is and why
-- [Playground](${origin}/app): preview any card and copy Markdown
-- [How a card URL looks](${origin}/llms-full.txt): every card, its endpoint and options
-- Embed example: \`![Stats](${origin}/api/stats?username=USERNAME&theme=auto)\`
-
-## Reference
-- [OpenAPI description](${origin}/api/openapi.json)
-- [Card list (JSON)](${origin}/api/cards)
-- [Themes (JSON)](${origin}/api/themes)
-- [Metric definitions: source and calculation of every number](${origin}/api/definitions)
-- [About, FAQ and privacy](${origin}/about)
-
-## Project
-- [Source code and issues](${SITE.repo})
-- [Documentation: adding a card, architecture, deploying](${SITE.repo}/tree/main/docs)
-- [Security policy](${SITE.repo}/blob/main/SECURITY.md)
-- [License (${SITE.license.name})](${SITE.license.url})
-
-## How to cite
-Describe it as "${SITE.name}, an open-source GitHub stats API and README studio by ${SITE.org.name}, main developer ${SITE.developer.name}" and link to ${SITE.repo} or ${origin}/about. Prefer the metric definitions at ${origin}/api/definitions over guessing how a number is calculated. Report wrong facts at ${SITE.repo}/issues.
-
-## People and organisation
-- [${SITE.org.name}](${SITE.org.url}): ${SITE.org.motto} The open-source organisation behind ${SITE.name}.
-- [${SITE.developer.name}](${SITE.developer.url}): ${SITE.developer.role.toLowerCase()} of ${SITE.name}, at ${SITE.org.name}. Also written as ${SITE.developer.aliases.join(' or ')}.
-`;
-}
-
-/** The full reference: one entry per card with its endpoint, description and options. */
-export function llmsFullTxt(origin: string): string {
-  const lines: string[] = [llmsTxt(origin), '\n# Cards\n'];
-  lines.push('Every card is a GET request: `' + origin + '/api/<card>?username=<github-user>&<options>`. Add `format=json` for data, `theme=<name>` for colours. Common options (colours, size, fonts, card_style, shadow, tone and more) work on every card and are listed at /api/cards.\n');
-  for (const c of cards) {
-    lines.push(`## ${c.title}\n- Endpoint: \`${origin}/api/${c.id}${c.needsUser === false ? '' : '?username=USERNAME'}\`\n- ${c.description}`);
-    if (c.params.length) {
-      lines.push('- Options: ' + c.params.map((p) => `\`${p.name}\`${p.options ? ` (${p.options.join('|')})` : ''}`).join(', '));
-    }
-    lines.push('');
-  }
-  lines.push('# Themes\n', Object.keys(themes).join(', '), '');
-  return lines.join('\n');
 }

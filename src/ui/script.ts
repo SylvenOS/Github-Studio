@@ -50,7 +50,7 @@ export const SCRIPT = String.raw`
   var SPECIAL = { username: 1, theme: 1, format: 1, cache_seconds: 1 };
   var BLOCK_LABELS = { card: 'Card', row: 'Row of cards', heading: 'Heading', text: 'Text', badges: 'Badges', divider: 'Divider', html: 'HTML' };
   var meta, themes, presets = [], timer, buildTimer, previewMode = 'light', dragFrom = -1;
-  var state = { tab: 'play', card: 'stats', username: 'torvalds', theme: 'default', params: {}, editing: null, q: '', cat: 'all', pickCat: 'all' };
+  var state = { tab: 'play', card: 'stats', username: '', theme: 'default', params: {}, editing: null, q: '', cat: 'all', pickCat: 'all' };
   var builder = { presetId: 'classic', spec: { dark: '', align: 'center', footer: false, params: {}, blocks: [] }, manual: false, md: '', host: '' };
 
   // ---- small helpers -------------------------------------------------------------------------
@@ -70,7 +70,7 @@ export const SCRIPT = String.raw`
   }
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   function toast(msg) { var t = $('toast'); t.textContent = msg || 'Copied!'; t.classList.add('on'); setTimeout(function () { t.classList.remove('on'); }, 1400); }
-  function copy(text, msg) { navigator.clipboard.writeText(text).then(function () { toast(msg); }, function () { toast('Copy failed'); }); }
+  function copy(text, msg, any) { if (!any && needUser()) return; navigator.clipboard.writeText(text).then(function () { toast(msg); }, function () { toast('Copy failed'); }); }
   function qs(o) { var a = []; for (var k in o) if (o[k] !== '' && o[k] !== undefined) a.push(encodeURIComponent(k) + '=' + encodeURIComponent(o[k])); return a.join('&'); }
   function parseQs(s) {
     var o = {};
@@ -85,7 +85,17 @@ export const SCRIPT = String.raw`
   function textToParams(t) { var o = {}; String(t || '').split('&').forEach(function (kv) { var i = kv.indexOf('='); if (i > 0) { var k = kv.slice(0, i).trim(); if (/^[a-z][a-z0-9_]*$/.test(k)) o[k] = kv.slice(i + 1).trim(); } }); return o; }
   function b64u(obj) { return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
   function unb64u(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return JSON.parse(decodeURIComponent(escape(atob(s)))); }
+  // with no username typed, previews use a sample account and copying or exporting asks for a real one first
   function user() { return state.username.trim() || 'torvalds'; }
+  function syncUser() { var empty = !state.username.trim(); $('sample').classList.toggle('hidden', !empty); }
+  function needUser() {
+    if (state.username.trim()) return false;
+    var w = $('username').parentNode;
+    toast('Enter your GitHub username first');
+    $('username').focus();
+    w.classList.remove('attention'); void w.offsetWidth; w.classList.add('attention');
+    return true;
+  }
   function cardDef(id) { return meta.cards.filter(function (c) { return c.id === id || c.aliases.indexOf(id) >= 0; })[0]; }
   function imgUrl(cardId, params) {
     var q = { username: user() };
@@ -94,6 +104,7 @@ export const SCRIPT = String.raw`
     return '/api/' + cardId + '?' + qs(q);
   }
   function download(name, text) {
+    if (needUser()) return;
     var a = el('a', { href: URL.createObjectURL(new Blob([text], { type: 'text/markdown' })), download: name });
     document.body.appendChild(a); a.click(); a.remove();
   }
@@ -912,6 +923,7 @@ export const SCRIPT = String.raw`
     for (var k in h) if (!reserved[k]) state.params[k] = h[k];
     var restored = restoreBuilder();
     $('username').value = state.username;
+    syncUser();
     $('card-search').addEventListener('input', function () { renderTiles(); });
     initBuilderControls();
     renderTiles(); renderThemes(); renderCats();
@@ -924,15 +936,16 @@ export const SCRIPT = String.raw`
   });
 
   // ---- events --------------------------------------------------------------------------------------
+  $('use-example').addEventListener('click', function () { $('username').value = 'torvalds'; $('username').dispatchEvent(new Event('input', { bubbles: true })); $('username').parentNode.classList.remove('attention'); });
   // the pulse only invites the first click
   $('username').addEventListener('focus', function () { $('username').parentNode.classList.remove('attention'); });
   $('username').addEventListener('input', function (e) {
-    state.username = e.target.value;
+    state.username = e.target.value; syncUser();
     if (state.tab === 'play') scheduleUpdate(); else if (state.tab === 'store') { clearTimeout(timer); timer = setTimeout(renderStore, 400); } else { scheduleBuild(); clearTimeout(checkTimer); checkTimer = setTimeout(renderDesigns, 700); }
   });
   ['play', 'store', 'builder'].forEach(function (t) { $('tab-' + t).addEventListener('click', function () { setTab(t); }); });
   $('reset').addEventListener('click', resetCurrent);
-  $('copy-settings').addEventListener('click', function () { copy(JSON.stringify({ card: state.card, theme: state.theme, params: state.params }, null, 2), 'Settings copied'); });
+  $('copy-settings').addEventListener('click', function () { copy(JSON.stringify({ card: state.card, theme: state.theme, params: state.params }, null, 2), 'Settings copied', true); });
   $('import-settings').addEventListener('click', function () {
     var raw = prompt('Paste a card URL (from here or github-readme-stats) or copied settings JSON:');
     if (!raw) return;

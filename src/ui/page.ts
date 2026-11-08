@@ -52,12 +52,13 @@ export const pageHtml = `<!DOCTYPE html>
     <button id="tab-builder">README Studio</button>
   </nav>
   <span class="grow"></span>
-  <label class="who attention" title="Type any GitHub username to preview every card"><b>GitHub user</b><span>@</span><input type="text" id="username" value="torvalds" autocomplete="off" spellcheck="false" placeholder="username" aria-label="GitHub username"></label>
+  <label class="who attention" title="Type any GitHub username to preview every card"><b>GitHub user</b><span>@</span><input type="text" id="username" value="" autocomplete="off" spellcheck="false" placeholder="e.g. akshaykurve" aria-label="GitHub username" aria-describedby="who-hint"><span class="who-hint" id="who-hint" role="note">Enter your GitHub username here</span></label>
   <div class="links">
     <a href="/about">About</a><a href="https://sylvenos.com" target="_blank" rel="noopener" title="ProfileFoundry is an open-source project by SylvenOS">by SylvenOS</a><a href="/api/cards">Cards</a><a href="/api/openapi.json">OpenAPI</a><a href="/api/themes">Themes</a>
     <button id="scheme" title="Switch light and dark" aria-label="Switch light and dark"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
   </div>
 </header>
+<div class="sample hidden" id="sample" role="status">Showing sample data for <b>@torvalds</b>. Enter your GitHub username in the top bar to see your own cards, or <button type="button" class="link" id="use-example">use @torvalds as the example</button>.</div>
 <div class="app">
   <nav class="rail only-play" aria-label="Cards">
     <div class="rail-top">

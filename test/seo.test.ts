@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cards } from '../src/cards';
+import { DEFINITIONS } from '../src/metrics/definitions';
+import { PRESETS } from '../src/readme/presets';
+import { themes } from '../src/themes';
 import { clearMemoryCache } from '../src/core/cache';
 import { resetTokenStates } from '../src/github/tokens';
 import app from '../src/index';
@@ -70,7 +73,9 @@ describe('search and AI discoverability', () => {
     const person = ld['@graph'].find((n: { '@type': string }) => n['@type'] === 'Person');
     expect(person.name).toBe('Akshay Kurve');
     expect(person.alternateName).toEqual(['Akshay D Kurve', 'Akshay Dhanraj Kurve']);
-    expect(person.worksFor['@id']).toContain('sylvenos.com');
+    expect(person.worksFor[0]['@id']).toContain('sylvenos.com');
+    expect(person.sameAs).toEqual(expect.arrayContaining(['https://www.linkedin.com/in/akshaykurve', 'https://akshaykurve.com']));
+    expect(person.description).toContain('system designer');
     const res = await get('/app');
     expect(res.headers.get('link')).toContain('rel="service-desc"');
   });
@@ -122,18 +127,35 @@ describe('search and AI discoverability', () => {
     expect((xml.match(/<url>/g) ?? []).length).toBe((xml.match(/<\/url>/g) ?? []).length);
     expect(xml).toContain('<image:loc>https://stats.example.org/og.jpg</image:loc>');
     expect(xml).toContain('xmlns:image=');
+    expect((xml.match(/<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/g) ?? []).length).toBe((xml.match(/<url>/g) ?? []).length);
+    expect(xml).not.toContain('<priority>');
   });
 
   it('llms.txt names the project, organisation and developer; llms-full lists every card', async () => {
-    const short = await (await get('/llms.txt')).text();
+    const llmsRes = await get('/llms.txt');
+    expect(llmsRes.headers.get('content-type')).toContain('text/plain'); // text/markdown would make browsers download it
+    const short = await llmsRes.text();
     expect(short.startsWith('# ProfileFoundry')).toBe(true);
     expect(short).toContain('SylvenOS');
     expect(short).toContain('Akshay Kurve');
     expect(short).toContain('Akshay D Kurve');
     expect(short).toContain('## Key facts');
     expect(short).toContain('## How to cite');
+    expect(short).toContain('## About the main developer');
+    expect(short).toContain('linkedin.com/in/akshaykurve');
     const full = await (await get('/llms-full.txt')).text();
     for (const c of cards) expect(full, c.id).toContain(`/api/${c.id}`);
+    // complete enough for an agent to work without guessing: options, themes, metrics, presets, setup, rules
+    for (const c of cards) for (const p of c.params) expect(full, `${c.id}.${p.name}`).toContain(`\`${p.name}\``);
+    for (const t of Object.keys(themes)) expect(full, t).toContain(t);
+    for (const d of DEFINITIONS) expect(full, d.id).toContain(d.label);
+    for (const p of PRESETS) expect(full, p.id).toContain(`\`${p.id}\``);
+    for (const needle of ['# Common options', '# Metric definitions', '# README generator', '# Self-hosting and configuration', '# Architecture and tech stack', '# Privacy and security', '# Guidance for AI assistants and agents', 'GITHUB_TOKEN', 'X-Card-Error', 'github-readme-stats']) {
+      expect(full, needle).toContain(needle);
+    }
+    for (const needle of ['# About the main developer', '## Engineering approach', 'Build for production', 'Architecture before code', 'akshaykurve.com', 'Engineering management']) expect(full, needle).toContain(needle);
+    expect(full).not.toContain('undefined');
+    expect(full).not.toContain('[object Object]');
   });
 
   it('serves the SylvenOS logo as WebP', async () => {

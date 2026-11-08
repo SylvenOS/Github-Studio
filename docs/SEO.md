@@ -19,10 +19,10 @@ Every URL in these files uses the host the request came from, so a self-hosted c
 
 ## Still to do (needs the owners)
 
-1. **GitHub repository settings.** Set the About description, website (the live URL or sylvenos.com) and topics, for example: `github-stats`, `github-readme-stats`, `profile-readme`, `readme`, `svg`, `cloudflare-workers`, `hono`, `typescript`, `open-source`. Upload `assets/og-image.jpg` as the social preview image.
+1. **GitHub repository settings.** Set the About description, website (https://profilefoundry.sylvenos.com) and topics, for example: `github-stats`, `github-readme-stats`, `profile-readme`, `readme`, `svg`, `cloudflare-workers`, `hono`, `typescript`, `open-source`. Upload `assets/og-image.jpg` as the social preview image.
 2. **Search consoles.** After deploying, verify the site in Google Search Console and Bing Webmaster Tools and submit `/sitemap.xml`.
 3. **Link both ways with sylvenos.com.** Publish a ProfileFoundry page on sylvenos.com that links to the live app and the repository, and use the same `Organization` data there (name, URL, and a `sameAs` that includes the GitHub repository). Consider a subdomain such as `stats.sylvenos.com` for the live app so the two sites reinforce each other.
-4. **Strengthen the author profile (E-E-A-T).** Add a short real bio for Akshay Kurve (also written Akshay D Kurve or Akshay Dhanraj Kurve) on sylvenos.com or GitHub, and add real profile links (for example LinkedIn) to `SITE.developer` and `sameAs` in `src/seo.ts`. Only add facts that are true and public.
+4. **Keep the author profile true.** The developer's bio, expertise, profile links and engineering approach live in `SITE.developer` in `src/seo.ts`, taken from akshaykurve.com. They feed `llms.txt`, `llms-full.txt` and the `Person` structured data (not the visible pages). Update them when the personal site changes, and only add facts that are true and public.
 5. **Publish about it.** A launch post, release notes for each version, and an example gallery help people and AI systems find real usage. Keep the version in `package.json` and `CITATION.cff` in step.
 6. **Keep answers current.** When cards or behaviour change, bump `SITE.lastReviewed` in `src/seo.ts` (it feeds the visible date and `dateModified`), update `src/seo.ts` (FAQ, llms.txt are generated from the cards) and `docs/` so what assistants quote stays true.
 7. **Check your work.** Use Google's Rich Results Test and the Schema Markup Validator on `/about`, and test sharing the URL in Slack, Discord and X to confirm the preview image.

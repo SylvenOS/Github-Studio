@@ -21,7 +21,8 @@ import { playgroundHtml } from './playground';
 import { aboutHtml } from './ui/about';
 import { landingHtml, HEAD_SCRIPT, UI_SCRIPT } from './ui/landing';
 import { SYLVENOS_LOGO_BASE64 } from './ui/sylvenos-logo';
-import { jsonLd, llmsFullTxt, llmsTxt, robotsTxt, securityTxt, sitemapXml } from './seo';
+import { llmsFullTxt, llmsTxt } from './llms';
+import { jsonLd, robotsTxt, securityTxt, sitemapXml } from './seo';
 import { APPLE_TOUCH_ICON_BASE64, FAVICON_SVG, OG_IMAGE_BASE64, OG_SQUARE_BASE64 } from './ui/icons';
 import { SCRIPT } from './ui/script';
 import { runPlugins } from './plugins';
@@ -202,14 +203,14 @@ app.get('/og.jpg', (c) => c.body(bytesOf(OG_IMAGE_BASE64), 200, { 'Content-Type'
 app.get('/sylvenos-logo.webp', (c) => c.body(bytesOf(SYLVENOS_LOGO_BASE64), 200, { 'Content-Type': 'image/webp', 'Cache-Control': ICON_CACHE }));
 app.get('/og-square.jpg', (c) => c.body(bytesOf(OG_SQUARE_BASE64), 200, { 'Content-Type': 'image/jpeg', 'Cache-Control': ICON_CACHE }));
 
-// crawler and assistant files; the host comes from the request so every deployment describes itself
+// crawler and assistant files (llms files are plain text so browsers show them instead of downloading); the host comes from the request so every deployment describes itself
 const TEXT = { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=3600' };
 app.get('/robots.txt', (c) => c.body(robotsTxt(originOf(c)), 200, TEXT));
 app.get('/sitemap.xml', (c) => c.body(sitemapXml(originOf(c)), 200, { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' }));
-app.get('/llms.txt', (c) => c.body(llmsTxt(originOf(c)), 200, { ...TEXT, 'Content-Type': 'text/markdown; charset=utf-8' }));
-app.get('/llms-full.txt', (c) => c.body(llmsFullTxt(originOf(c)), 200, { ...TEXT, 'Content-Type': 'text/markdown; charset=utf-8' }));
+app.get('/llms.txt', (c) => c.body(llmsTxt(originOf(c)), 200, TEXT));
+app.get('/llms-full.txt', (c) => c.body(llmsFullTxt(originOf(c)), 200, TEXT));
 app.get('/.well-known/security.txt', (c) => c.body(securityTxt(originOf(c)), 200, TEXT));
-const LINKS = (origin: string) => `<${origin}/api/openapi.json>; rel="service-desc", <${origin}/llms.txt>; rel="describedby"; type="text/markdown"`;
+const LINKS = (origin: string) => `<${origin}/api/openapi.json>; rel="service-desc", <${origin}/llms.txt>; rel="describedby"; type="text/plain"`;
 
 /** CSP for the server-rendered pages: only their two inline scripts run, pinned by hash. */
 const staticPageCsp = async () =>

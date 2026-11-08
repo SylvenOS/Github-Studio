@@ -71,6 +71,16 @@ export const STYLES = String.raw`
   .who span { color:var(--accent); font-family:var(--mono); font-weight:600; }
   .who input[type=text] { border:0; background:none; box-shadow:none; padding:0 0 0 3px; height:34px; font-family:var(--mono); font-size:13.5px; font-weight:550; outline:0; width:100%; color:var(--fg); }
   .who input[type=text]::placeholder { color:var(--faint); font-weight:400; }
+  .who { position:relative; }
+  .who-hint { display:none; position:absolute; top:calc(100% + 10px); left:0; z-index:5; white-space:nowrap; background:var(--ink); color:var(--ink-fg); font-size:12px; font-weight:600; padding:6px 12px; border-radius:var(--r-sm); box-shadow:0 6px 18px rgb(0 0 0 / .18); pointer-events:none; animation:pfBob 1.8s ease-in-out infinite; }
+  .who-hint::before { content:''; position:absolute; top:-5px; left:24px; width:10px; height:10px; background:var(--ink); transform:rotate(45deg); }
+  .who input:placeholder-shown + .who-hint { display:block; }
+  .who input:focus + .who-hint { display:none; }
+  @keyframes pfBob { 0%,100% { transform:translateY(0); } 50% { transform:translateY(3px); } }
+  .sample { background:var(--accent-soft); color:var(--fg); border-bottom:1px solid color-mix(in srgb,var(--accent) 30%,transparent); text-align:center; padding:8px 16px; font-size:13px; }
+  .sample button.link { border:0; background:none; padding:0; font:inherit; font-weight:650; color:var(--accent); text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+  .sample button.link:hover { text-decoration-thickness:2px; }
+  .sample b { font-family:var(--mono); color:var(--accent); }
   .who.attention { animation:whoPulse 2.2s ease-out 3; }
   @keyframes whoPulse { 0% { box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 45%,transparent); } 70%,100% { box-shadow:0 0 0 10px transparent; } }
   .links { display:flex; gap:18px; align-items:center; color:var(--muted); font-size:13px; }
@@ -327,5 +337,22 @@ export const STYLES = String.raw`
     .inspector { padding:8px 12px 28px; }
     .seg button { padding:3px 9px; }
   }
-  @media (prefers-reduced-motion:reduce) { * { transition:none !important; } .who.attention { animation:none; } }
+  /* simple motion: views fade in, lists cascade, controls respond */
+  @keyframes pfRise { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+  @keyframes pfPop { from { opacity:0; transform:scale(.97); } to { opacity:1; transform:none; } }
+  .view-play, .view-store, .view-builder { animation:pfRise .35s cubic-bezier(.2,.7,.2,1) both; }
+  .stage img { animation:pfPop .4s cubic-bezier(.2,.7,.2,1) both; }
+  .tile { transition:background-color .15s,color .15s,transform .15s; }
+  .tile:hover { transform:translateX(2px); }
+  .tile { animation:pfRise .3s both; }
+  .tile:nth-child(2) { animation-delay:.03s; } .tile:nth-child(3) { animation-delay:.06s; } .tile:nth-child(4) { animation-delay:.09s; } .tile:nth-child(5) { animation-delay:.12s; } .tile:nth-child(6) { animation-delay:.15s; } .tile:nth-child(7) { animation-delay:.18s; } .tile:nth-child(8) { animation-delay:.21s; }
+  .design { animation:pfRise .4s both; transition:transform .2s; }
+  .design:hover { transform:translateY(-3px); }
+  .design:nth-child(2) { animation-delay:.04s; } .design:nth-child(3) { animation-delay:.08s; } .design:nth-child(4) { animation-delay:.12s; } .design:nth-child(5) { animation-delay:.16s; } .design:nth-child(6) { animation-delay:.2s; } .design:nth-child(7) { animation-delay:.24s; } .design:nth-child(8) { animation-delay:.28s; }
+  button.primary, button.ghost { transition:transform .15s,opacity .15s,background-color .15s,border-color .15s; }
+  button.primary:hover, button.ghost:hover { transform:translateY(-1px); }
+  button.primary:active, button.ghost:active { transform:scale(.97); }
+  .brand .mark { transition:transform .4s cubic-bezier(.2,.7,.2,1); } .brand:hover .mark { transform:rotate(-12deg) scale(1.08); }
+  .panel { animation:pfRise .4s both; }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; animation:none !important; } }
 `;

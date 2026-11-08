@@ -70,7 +70,8 @@ Errors never break a README: the Worker answers with HTTP 200 and an SVG "messag
 | Path | What lives there |
 |---|---|
 | `src/index.ts` | Hono app, routes, security headers, error and cache handling, the `ViewCounter` export |
-| `src/seo.ts` | `robots.txt`, `sitemap.xml`, `llms.txt`, `llms-full.txt`, `security.txt`, the FAQ and JSON-LD |
+| `src/seo.ts` | `robots.txt`, `sitemap.xml`, `security.txt`, the FAQ, key facts and JSON-LD |
+| `src/llms.ts` | `llms.txt` (short summary) and `llms-full.txt` (complete reference generated from the cards, options, themes, metric definitions and presets) |
 | `src/ui/about.ts` | The server-rendered `/about` page; shares the landing page's styles, header, footer, theme toggle and animations |
 | `src/openapi.ts` | Builds the OpenAPI description from the card list |
 | `src/ui/landing.ts` | The server-rendered landing page served at `/` (hero, live examples, features, SylvenOS section, FAQ) |

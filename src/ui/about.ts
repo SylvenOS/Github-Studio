@@ -13,7 +13,10 @@ const EXTRA_CSS = `.hero.page{padding:56px 0 64px}.hero.page .wrap{display:block
 .links a.card{display:block;color:var(--fg);text-decoration:none}.links a.card h3{display:flex;align-items:center;justify-content:space-between;gap:8px}.links a.card h3 svg{color:var(--accent);flex:none}
 .links a.card code{color:var(--accent)}
 .card code,.prose code{background:var(--surface-2);padding:2px 6px;border-radius:6px}.alt .card code{background:var(--bg)}
-.prose{max-width:760px}.prose p+p{margin-top:12px}.prose p{color:var(--muted)}`;
+.prose{max-width:760px}.prose p+p{margin-top:12px}.prose p{color:var(--muted)}
+@media(max-width:900px){.hero.page{padding:44px 0 52px}.two{gap:16px}}
+@media(max-width:640px){.hero.page{padding:32px 0 40px}.hero.page .lead{font-size:1.02rem}.facts .card{padding:16px}.links a.card h3{font-size:1rem}.meta{line-height:1.5}}
+@media(min-width:1900px){.hero.page{padding:80px 0 88px}}`;
 
 const linkCard = (href: string, title: string, text: string, external = false) =>
   `<a class="card" href="${esc(href)}"${external ? ' rel="noopener"' : ''}><h3>${esc(title)}${icon(ICONS.arrow, 18)}</h3><p>${text}</p></a>`;
@@ -53,7 +56,7 @@ export function aboutHtml(origin: string): string {
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="${o}/og.jpg">
 <meta name="author" content="${esc(SITE.developer.name)}">
-<link rel="alternate" type="text/markdown" href="/llms.txt" title="llms.txt">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
 <style>${PAGE_CSS}${EXTRA_CSS}</style>
 <script>${HEAD_SCRIPT}</script>
 <script type="application/ld+json">${jsonLd(origin, { faq: true, about: true })}</script>
