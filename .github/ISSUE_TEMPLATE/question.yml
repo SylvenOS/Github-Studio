@@ -1,0 +1,16 @@
+name: Question
+description: Ask how to use, deploy or extend GitPulse
+labels: [question]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: Say what you are trying to do, what you tried and what you saw.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Links, URLs, config (without secrets) and any error text.

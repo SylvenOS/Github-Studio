@@ -1,0 +1,36 @@
+name: Feature or card request
+description: Suggest a new card, option, theme or improvement
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of request is this?
+      options: [New card, New option for an existing card, New theme or design, Web app improvement, API or performance, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would it solve?
+      description: Who needs it and why? Describe the situation rather than the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like to see?
+      description: A sketch, a mock-up or an example URL helps a lot.
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Where would the data come from?
+      description: For a new card, name the GitHub API or other source, and whether it needs a token.
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contribution
+      options:
+        - label: I would like to build this myself

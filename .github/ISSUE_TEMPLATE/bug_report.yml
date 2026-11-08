@@ -1,0 +1,46 @@
+name: Bug report
+description: Something renders wrongly, errors, or behaves unexpectedly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. **Never paste tokens or secrets.** For security problems, see SECURITY.md instead of filing an issue.
+  - type: input
+    id: url
+    attributes:
+      label: Card URL or settings
+      description: The full `/api/...` URL (replace your host if it is private), or the settings JSON from "Copy settings".
+      placeholder: https://your-worker.workers.dev/api/stats?username=octocat&theme=dracula
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead?
+      description: Add a screenshot of the card, or the error text it shows.
+    validations:
+      required: true
+  - type: dropdown
+    id: token
+    attributes:
+      label: Does your deployment have a GITHUB_TOKEN?
+      options: [Yes, No, Not sure]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: GitPulse version
+      description: Shown in `/api/health`.
+  - type: input
+    id: where
+    attributes:
+      label: Where did you see it?
+      description: Browser and version for web app problems, or "GitHub README" for embedded images.

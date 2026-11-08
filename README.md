@@ -499,4 +499,9 @@ Add it to the array in `src/cards/index.ts`. That's all: the route, `format=json
 - [ ] More providers (Dev.to, Stack Overflow, npm) as SVG cards
 
 *Built for the open-source community.*
- 
+
+---
+
+## Contributing
+
+Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), then see [docs/ADDING_A_CARD.md](docs/ADDING_A_CARD.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/DEPLOYING.md](docs/DEPLOYING.md). Please follow the [Code of Conduct](CODE_OF_CONDUCT.md) and report vulnerabilities as described in [SECURITY.md](SECURITY.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md).

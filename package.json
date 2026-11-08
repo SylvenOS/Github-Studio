@@ -1,6 +1,6 @@
 {
   "name": "gitprofile",
-  "version": "5.2.0",
+  "version": "5.3.0",
   "description": "All-in-one, customisable GitHub stats API for README cards, running on Cloudflare Workers.",
   "private": true,
   "type": "module",
