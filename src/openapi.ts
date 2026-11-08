@@ -105,7 +105,7 @@ export function buildOpenApi(origin: string, version: string) {
 
   return {
     openapi: '3.0.3',
-    info: { title: 'ProfileFoundry API', version, description: 'Customisable GitHub stats cards as SVG, JSON and text.' },
+    info: { title: 'ProfileFoundry API', version, description: 'Customisable GitHub stats cards as SVG, JSON and text.', contact: { name: 'SylvenOS', url: 'https://sylvenos.com' }, license: { name: 'MIT', url: 'https://opensource.org/licenses/MIT' } },
     servers: [{ url: origin }],
     paths
   };

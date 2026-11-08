@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { badRequest } from '../core/errors';
-import { assertAllowed, cacheHeader, jsonError, type Ctx } from '../core/http';
+import { assertAllowed, cacheHeader, jsonError, readTextCapped, type Ctx } from '../core/http';
 import { username } from '../core/params';
 import type { AppEnv } from '../types';
 import { PRESETS, findPreset } from './presets';
@@ -77,8 +77,8 @@ readmeRoutes.get('/readme', (c) => {
 readmeRoutes.post('/readme', async (c) => {
   try {
     if (Number(c.req.header('content-length') ?? 0) > MAX_BODY) throw badRequest('Request body is too large');
-    const raw = await c.req.text();
-    if (raw.length > MAX_BODY) throw badRequest('Request body is too large');
+    const raw = await readTextCapped(c.req.raw.body, MAX_BODY);
+    if (raw === null) throw badRequest('Request body is too large');
     let body: unknown;
     try {
       body = JSON.parse(raw);

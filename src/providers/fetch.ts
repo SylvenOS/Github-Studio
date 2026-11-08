@@ -1,4 +1,5 @@
 import { notFound, upstream } from '../core/errors';
+import { readTextCapped } from '../core/http';
 
 export interface SafeFetchOptions {
   /** Hostnames this call may reach (exact match). Anything else is refused before any network I/O. */
@@ -24,7 +25,7 @@ export async function safeFetch(url: string, o: SafeFetchOptions): Promise<Respo
   try {
     res = await fetch(u.toString(), {
       method: o.method ?? 'GET',
-      headers: { 'User-Agent': 'github-stats-api', ...o.headers },
+      headers: { 'User-Agent': 'ProfileFoundry (+https://sylvenos.com)', ...o.headers },
       body: o.body,
       redirect: 'manual', // Workers rejects 'error'; 3xx responses are refused below
       signal: AbortSignal.timeout(o.timeoutMs ?? 6000)
@@ -40,8 +41,8 @@ export async function safeFetch(url: string, o: SafeFetchOptions): Promise<Respo
 
 export async function safeJson<T>(url: string, o: SafeFetchOptions): Promise<{ status: number; data: T }> {
   const res = await safeFetch(url, o);
-  const text = await res.text();
-  if (text.length > (o.maxBytes ?? 2_000_000)) throw upstream(`${o.name} response is too large`);
+  const text = await readTextCapped(res.body, o.maxBytes ?? 2_000_000);
+  if (text === null) throw upstream(`${o.name} response is too large`);
   if (res.status === 404) throw notFound(`${o.name}: not found`);
   let data: T;
   try {

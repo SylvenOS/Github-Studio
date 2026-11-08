@@ -2,6 +2,8 @@
 
 # ProfileFoundry
 
+> Free and open source. An open-source project by [SylvenOS](https://sylvenos.com) - learn, build, educate.
+
 An all-in-one, customisable **GitHub stats API and profile design studio**. It renders crisp SVG cards for READMEs and profiles - whole-profile designs (terminal, code editor, editorial, dashboard, blueprint, retro arcade), year in review, monthly trends, a commit punch card, star history, repository comparison and health, language trends, WakaTime, Spotify, a views counter, realistic impact stats, work patterns, pinned repos, a 3D contribution skyline, tech-stack icon grids, typing headers, composites, stats, languages, streaks, heatmaps (with a snake), trophies, ASCII avatars and more - and exposes the same data as JSON. It runs on Cloudflare Workers, is built to survive heavy traffic and GitHub outages, and is built to be extended: a new card is one file.
 
 **Coming from github-readme-stats?** That project is no longer maintained. Swap the host in your existing URLs (`/api?username=`, `/api/top-langs`, `/api/pin`) - its parameter names (`bg_color`, `text_color`, `border_radius`, `custom_title`, `card_width`, `hide_rank`, `exclude_repo`, `disable_animations`...) and favourite themes (`onedark`, `transparent`, `highcontrast`) are understood.
@@ -510,7 +512,7 @@ The code is released under the [MIT License](LICENSE), so you can use, change an
 
 ## License
 
-[MIT](LICENSE) &copy; 2026 SylvenOS.
+[MIT](LICENSE) &copy; 2026 [SylvenOS](https://sylvenos.com). More open-source projects at [sylvenos.com](https://sylvenos.com).
 
 ## Contributing
 

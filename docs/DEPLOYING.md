@@ -5,7 +5,7 @@ ProfileFoundry runs on the free Workers plan. This guide takes you from a clone 
 ## Before you start
 
 - A free [Cloudflare account](https://dash.cloudflare.com/sign-up).
-- Node.js 20 or newer and pnpm.
+- Node.js 22 or newer and pnpm.
 - A GitHub personal access token (**classic, no scopes**) from <https://github.com/settings/tokens>. It is optional but strongly recommended: without it the app falls back to limited public data and low rate limits.
 
 ## Steps

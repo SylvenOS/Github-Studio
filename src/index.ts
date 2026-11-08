@@ -7,7 +7,7 @@ import type { CardDefinition } from './cards/types';
 import { cacheStats, canonicalKey, edgeResponse, l1Info } from './core/cache';
 import { applyCompat } from './core/compat';
 import { ApiError, badRequest, notFound, rateLimited, toApiError, type ErrorCode } from './core/errors';
-import { META_CACHE, assertAllowed, cacheHeader, cacheSeconds, jsonError, type Ctx } from './core/http';
+import { META_CACHE, assertAllowed, cacheHeader, cacheSeconds, jsonError, safeEqual, type Ctx } from './core/http';
 import { translator } from './core/i18n';
 import { withNumberFormat } from './core/text';
 import { COMMON_PARAMS, background, color, list, parseCommon, username, type ParamDoc, type Query } from './core/params';
@@ -19,6 +19,7 @@ import { DEFINITIONS } from './metrics/definitions';
 import { buildOpenApi } from './openapi';
 import { playgroundHtml } from './playground';
 import { APPLE_TOUCH_ICON_BASE64, FAVICON_SVG } from './ui/icons';
+import { SCRIPT } from './ui/script';
 import { runPlugins } from './plugins';
 import { readmeRoutes } from './readme/routes';
 import { messageCard } from './svg/frame';
@@ -31,8 +32,12 @@ const SVG_HEADERS = {
   // if someone opens the SVG directly, forbid scripts and remote loads
   'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox"
 };
-const APP_CSP =
-  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src * data: blob:; connect-src 'self' https:; frame-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+/** The app's single inline script is pinned by hash, so injected scripts could not run even if markup slipped through. */
+const appCsp = (scriptHash: string) =>
+  `default-src 'none'; script-src 'sha256-${scriptHash}'; style-src 'unsafe-inline'; img-src * data: blob:; connect-src 'self' https:; frame-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
+let scriptHash: Promise<string> | undefined;
+const appScriptHash = () =>
+  (scriptHash ??= crypto.subtle.digest('SHA-256', new TextEncoder().encode(SCRIPT)).then((d) => btoa(String.fromCharCode(...new Uint8Array(d)))));
 /** Rendered SVGs larger than this are refused (GitHub's image proxy stops at ~5 MB anyway). */
 const MAX_SVG_BYTES = 2_500_000;
 const NO_STORE = 'no-cache, no-store, must-revalidate, max-age=0';
@@ -45,6 +50,9 @@ app.use('*', async (c, next) => {
   await next();
   c.res.headers.set('X-Content-Type-Options', 'nosniff');
   c.res.headers.set('Referrer-Policy', 'no-referrer');
+  c.res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+  c.res.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+  c.res.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 });
 app.use('/api/*', cors({ origin: '*', allowMethods: ['GET', 'POST', 'OPTIONS'], maxAge: 86400 }));
 
@@ -182,7 +190,7 @@ app.get('/apple-touch-icon.png', (c) => {
   return c.body(bytes, 200, { 'Content-Type': 'image/png', 'Cache-Control': ICON_CACHE });
 });
 
-app.get('/', (c) => c.html(playgroundHtml, 200, { 'Content-Security-Policy': APP_CSP, 'Cache-Control': 'public, max-age=300' }));
+app.get('/', async (c) => c.html(playgroundHtml, 200, { 'Content-Security-Policy': appCsp(await appScriptHash()), 'Cache-Control': 'public, max-age=300' }));
 
 app.get('/api/health', (c) => {
   const tokens = poolStatus(tokensOf(c));
@@ -232,7 +240,7 @@ app.get('/api/rate-limit', async (c) => {
   const admin = c.env?.ADMIN_TOKEN;
   const auth = c.req.header('authorization') ?? '';
   try {
-    if (admin && auth === `Bearer ${admin}`) {
+    if (admin && safeEqual(auth, `Bearer ${admin}`)) {
       return c.json({ tokens: await createClient(c).getRateLimits() }, 200, { 'Cache-Control': 'no-store' });
     }
     return c.json({ tokens: poolStatus(tokensOf(c)) }, 200, { 'Cache-Control': 'no-store' });

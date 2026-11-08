@@ -10,6 +10,10 @@ export const pageHtml = `<!DOCTYPE html>
 <title>ProfileFoundry - stats cards, profile designs and README studio</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="description" content="ProfileFoundry is a free, open-source GitHub stats API, card store and README studio by SylvenOS.">
+<meta property="og:title" content="ProfileFoundry - free GitHub stats cards and README studio">
+<meta property="og:description" content="Free, open-source stats cards, profile designs and a README studio. An open-source project by SylvenOS.">
+<meta property="og:type" content="website">
 <meta name="theme-color" content="#0a1931">
 <style>${STYLES}</style>
 </head>
@@ -27,7 +31,7 @@ export const pageHtml = `<!DOCTYPE html>
   <span class="grow"></span>
   <label class="who attention" title="Type any GitHub username to preview every card"><b>GitHub user</b><span>@</span><input type="text" id="username" value="torvalds" autocomplete="off" spellcheck="false" placeholder="username" aria-label="GitHub username"></label>
   <div class="links">
-    <a href="/api/cards">Cards</a><a href="/api/openapi.json">OpenAPI</a><a href="/api/themes">Themes</a>
+    <a href="https://sylvenos.com" target="_blank" rel="noopener" title="ProfileFoundry is an open-source project by SylvenOS">by SylvenOS</a><a href="/api/cards">Cards</a><a href="/api/openapi.json">OpenAPI</a><a href="/api/themes">Themes</a>
     <button id="scheme" title="Switch light and dark" aria-label="Switch light and dark"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
   </div>
 </header>

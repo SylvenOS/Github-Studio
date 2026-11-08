@@ -4,6 +4,14 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Security
+- Dependencies updated to current releases of their stable major lines; `pnpm audit` reports no known vulnerabilities (production or dev).
+- The app page now pins its single inline script by SHA-256 hash in the Content-Security-Policy (no `unsafe-inline` for scripts).
+- Added `Permissions-Policy`, `Cross-Origin-Opener-Policy` and `Strict-Transport-Security` headers.
+- Request and provider response bodies are size-capped while streaming, and `ADMIN_TOKEN` is compared in constant time.
+- New automated injection tests send hostile input into every option of every card.
+- Requires Node.js 22.12 or newer (Node 20 is end-of-life); Worker `compatibility_date` moved to 2026-06-01.
+
 ### Added
 - MIT `LICENSE`.
 

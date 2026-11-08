@@ -16,7 +16,7 @@ If you plan a big change (a new subsystem, a new data provider, a redesign), ope
 
 ## Set up
 
-You need Node.js 20 or newer and [pnpm](https://pnpm.io).
+You need Node.js 22 or newer and [pnpm](https://pnpm.io).
 
 ```bash
 git clone https://github.com/akshaykurve/github-stats.git
