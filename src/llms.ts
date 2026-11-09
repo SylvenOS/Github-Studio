@@ -247,7 +247,7 @@ Configuration (secrets via \`wrangler secret put <NAME>\`, locally in \`.env\`):
 | \`VIEWS\` (Durable Object binding) | No | Backs the profile views counter (\`/api/views\`); declared in wrangler.toml. |
 | \`RL_IP\`, \`RL_USER\` (rate-limit bindings) | No | Abuse protection; remove the blocks in wrangler.toml to disable. |
 
-The worker is named \`profilefoundry-api\`. The web app needs no build step. Every page and file derives its URLs from the request host, so a self-hosted copy describes itself correctly.
+The worker is named \`githubstudio\`. The web app needs no build step. Every page and file derives its URLs from the request host, so a self-hosted copy describes itself correctly.
 `);
 
   add(`# Architecture and tech stack

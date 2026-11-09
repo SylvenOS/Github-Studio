@@ -21,6 +21,7 @@ import { playgroundHtml } from './playground';
 import { aboutHtml } from './ui/about';
 import { landingHtml, HEAD_SCRIPT, UI_SCRIPT } from './ui/landing';
 import { SYLVENOS_LOGO_BASE64 } from './ui/sylvenos-logo';
+import { SYLVENOS_LOGO_160_BASE64, SYLVENOS_LOGO_40_BASE64 } from './ui/sylvenos-logo-small';
 import { llmsFullTxt, llmsTxt } from './llms';
 import { jsonLd, robotsTxt, securityTxt, sitemapXml } from './seo';
 import { APPLE_TOUCH_ICON_BASE64, FAVICON_SVG, OG_IMAGE_BASE64, OG_SQUARE_BASE64 } from './ui/icons';
@@ -59,7 +60,7 @@ app.use('*', async (c, next) => {
   c.res.headers.set('Referrer-Policy', 'no-referrer');
   c.res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
   c.res.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
-  c.res.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  c.res.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
 });
 app.use('/api/*', cors({ origin: '*', allowMethods: ['GET', 'POST', 'OPTIONS'], maxAge: 86400 }));
 
@@ -188,7 +189,8 @@ async function renderCard(c: Ctx, card: CardDefinition, query: Query, client: Gi
 
 // ---- meta endpoints ------------------------------------------------------------------------
 
-const ICON_CACHE = 'public, max-age=86400';
+/** Icons and logos are embedded in the Worker and change only with a release, so browsers may keep them for a year. */
+const ICON_CACHE = 'public, max-age=31536000, immutable';
 app.get('/favicon.svg', (c) => c.body(FAVICON_SVG, 200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': ICON_CACHE }));
 app.get('/favicon.ico', (c) => c.redirect('/favicon.svg', 301));
 app.get('/apple-touch-icon.png', (c) => {
@@ -201,6 +203,8 @@ const originOf = (c: Ctx) => new URL(c.req.url).origin;
 const bytesOf = (b64: string) => Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
 app.get('/og.jpg', (c) => c.body(bytesOf(OG_IMAGE_BASE64), 200, { 'Content-Type': 'image/jpeg', 'Cache-Control': ICON_CACHE }));
 app.get('/sylvenos-logo.webp', (c) => c.body(bytesOf(SYLVENOS_LOGO_BASE64), 200, { 'Content-Type': 'image/webp', 'Cache-Control': ICON_CACHE }));
+app.get('/sylvenos-logo-160.webp', (c) => c.body(bytesOf(SYLVENOS_LOGO_160_BASE64), 200, { 'Content-Type': 'image/webp', 'Cache-Control': ICON_CACHE }));
+app.get('/sylvenos-logo-40.webp', (c) => c.body(bytesOf(SYLVENOS_LOGO_40_BASE64), 200, { 'Content-Type': 'image/webp', 'Cache-Control': ICON_CACHE }));
 app.get('/og-square.jpg', (c) => c.body(bytesOf(OG_SQUARE_BASE64), 200, { 'Content-Type': 'image/jpeg', 'Cache-Control': ICON_CACHE }));
 
 // crawler and assistant files (llms files are plain text so browsers show them instead of downloading); the host comes from the request so every deployment describes itself
@@ -212,14 +216,17 @@ app.get('/llms-full.txt', (c) => c.body(llmsFullTxt(originOf(c)), 200, TEXT));
 app.get('/.well-known/security.txt', (c) => c.body(securityTxt(originOf(c)), 200, TEXT));
 const LINKS = (origin: string) => `<${origin}/api/openapi.json>; rel="service-desc", <${origin}/llms.txt>; rel="describedby"; type="text/plain"`;
 
+/** `no-transform` stops Cloudflare from rewriting the page (for example injecting its analytics beacon, which the CSP blocks and the privacy statement excludes). */
+const PAGE_CACHE = 'public, max-age=3600, no-transform';
+
 /** CSP for the server-rendered pages: only their two inline scripts run, pinned by hash. */
 const staticPageCsp = async () =>
-  `default-src 'none'; script-src ${(await landingScriptHashes()).map((h) => `'sha256-${h}'`).join(' ')}; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
+  `default-src 'none'; script-src ${(await landingScriptHashes()).map((h) => `'sha256-${h}'`).join(' ')}; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; require-trusted-types-for 'script'`;
 
 app.get('/about', async (c) =>
   c.html(aboutHtml(originOf(c)), 200, {
     'Content-Security-Policy': await staticPageCsp(),
-    'Cache-Control': 'public, max-age=3600'
+    'Cache-Control': PAGE_CACHE
   })
 );
 
@@ -228,7 +235,7 @@ app.get('/', async (c) => {
   const origin = originOf(c);
   return c.html(landingHtml(origin), 200, {
     'Content-Security-Policy': await staticPageCsp(),
-    'Cache-Control': 'public, max-age=3600',
+    'Cache-Control': PAGE_CACHE,
     Link: LINKS(origin)
   });
 });
@@ -239,7 +246,7 @@ app.get('/app', async (c) => {
   const html = playgroundHtml.split('__ORIGIN__').join(origin).replace('__JSONLD__', () => jsonLd(origin));
   return c.html(html, 200, {
     'Content-Security-Policy': appCsp(await appScriptHash()),
-    'Cache-Control': 'public, max-age=300',
+    'Cache-Control': 'public, max-age=300, no-transform',
     Link: LINKS(origin)
   });
 });

@@ -164,6 +164,25 @@ describe('search and AI discoverability', () => {
     expect(new TextDecoder().decode(new Uint8Array(await r.arrayBuffer()).slice(0, 4))).toBe('RIFF');
   });
 
+  it('serves the smaller logo copies and long-lived icon caching', async () => {
+    for (const p of ['/sylvenos-logo-40.webp', '/sylvenos-logo-160.webp']) {
+      const r = await get(p);
+      expect(r.headers.get('content-type'), p).toBe('image/webp');
+      expect(r.headers.get('cache-control'), p).toContain('max-age=31536000');
+    }
+  });
+
+  it('keeps the static pages Lighthouse-clean: same-origin fetch, trusted types, no injected analytics, strong HSTS', async () => {
+    for (const p of ['/', '/about']) {
+      const r = await get(p);
+      const csp = r.headers.get('content-security-policy') ?? '';
+      expect(csp, p).toContain("connect-src 'self'");
+      expect(csp, p).toContain("require-trusted-types-for 'script'");
+      expect(r.headers.get('cache-control'), p).toContain('no-transform');
+      expect(r.headers.get('strict-transport-security'), p).toMatch(/max-age=\d{8,}; includeSubDomains; preload/);
+    }
+  });
+
   it('serves security.txt (RFC 9116) and the share image', async () => {
     const sec = await (await get('/.well-known/security.txt')).text();
     expect(sec).toMatch(/^Contact: https:\/\//m);

@@ -5,7 +5,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ## [Unreleased]
 
 ### Changed
-- The project is now called **GithubStudio** (previously ProfileFoundry). The live site moves to https://githubstudio.sylvenos.com. The Worker is still named `profilefoundry-api` so existing deployments and the views counter keep working. Exported files are now `githubstudio.config.json` and `.github/workflows/githubstudio.yml`.
+- The project is now called **GithubStudio** (previously ProfileFoundry). The live site moves to https://githubstudio.sylvenos.com. The Worker is now named `githubstudio` (previously `profilefoundry-api`); deploying under the new name creates a new Worker, so the views counter starts from zero. Exported files are now `githubstudio.config.json` and `.github/workflows/githubstudio.yml`.
 
 ## [1.0.0] - 2026-11-08
 

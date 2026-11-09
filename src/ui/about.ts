@@ -68,7 +68,7 @@ ${headerHtml(`<a class="opt" href="/">Home</a><a class="opt" href="#how">How it 
 <div class="hero page">
   <div class="wrap">
     <div>
-      <span class="eyebrow"><img src="/sylvenos-logo.webp" alt="" width="18" height="19">About the project</span>
+      <span class="eyebrow"><img src="/sylvenos-logo-40.webp" alt="" width="18" height="19">About the project</span>
       <h1>GithubStudio: free GitHub stats cards and README studio</h1>
       <p class="lead">${esc(SITE.name)} is a free, open-source GitHub stats API, card store and README studio. It creates SVG cards, JSON and text from public GitHub data for your profile README, with ${n} cards and ${t} themes.</p>
       <p class="meta">By <a href="${esc(SITE.org.url)}" rel="noopener">${esc(SITE.org.name)}</a> &middot; version ${esc(pkg.version)} &middot; last reviewed <time datetime="${SITE.lastReviewed}">${SITE.lastReviewed}</time></p>
@@ -92,7 +92,7 @@ ${keyFacts(origin)
   <section class="alt" id="who">
     <div class="wrap">
       <div class="syl">
-        <img class="logo" src="/sylvenos-logo.webp" alt="SylvenOS logo" width="148" height="155" loading="lazy">
+        <img class="logo" src="/sylvenos-logo-160.webp" srcset="/sylvenos-logo-160.webp 1x, /sylvenos-logo.webp 2x" alt="SylvenOS logo" width="148" height="155" loading="lazy">
         <div>
           <h2 class="word" style="font-size:2rem">Sylven<span>OS</span></h2>
           <span class="motto">${esc(SITE.org.motto)}</span>

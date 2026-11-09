@@ -254,8 +254,8 @@ export function robotsTxt(origin: string): string {
     '# GithubStudio is free and open source. Search engines and AI assistants are welcome to read the public pages.',
     '# Card images and per-user data under /api/ are generated on demand, so they are not crawled; the API descriptions are open.',
     '# Content signals (contentsignals.org): search indexing, use as AI answer input and AI training are all welcome.',
-    `User-agent: *\nContent-Signal: search=yes, ai-input=yes, ai-train=yes\n${rules}`,
-    ...aiBots.map((b) => `User-agent: ${b}\n${rules}`),
+    '# One group for every crawler, so no bot gets different or conflicting rules.',
+    `${['*', ...aiBots].map((b) => `User-agent: ${b}`).join('\n')}\nContent-Signal: search=yes, ai-input=yes, ai-train=yes\n${rules}`,
     `Sitemap: ${origin}/sitemap.xml`,
     ''
   ].join('\n\n');

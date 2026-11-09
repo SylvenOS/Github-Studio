@@ -22,7 +22,8 @@ imgs();label();
 function sc(){top&&top.classList.toggle('scrolled',scrollY>8)}addEventListener('scroll',sc,{passive:true});sc();
 var els=[].slice.call(d.querySelectorAll('.head,.card,.steps li,.stat,.showcase figure,.syl,.code,.note,.faq details,.final .wrap>*'));
 var io='IntersectionObserver' in window&&!matchMedia('(prefers-reduced-motion: reduce)').matches?new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{rootMargin:'0px 0px -8% 0px',threshold:.08}):null;
-els.forEach(function(el){var i=[].indexOf.call(el.parentNode.children,el);el.style.setProperty('--d',Math.min(i,5)*70+'ms');el.classList.add('rv');if(!io||el.getBoundingClientRect().top<innerHeight)el.classList.add('in');else io.observe(el)});
+var tops=els.map(function(el){return el.getBoundingClientRect().top}),ih=innerHeight;
+els.forEach(function(el,n){var i=[].indexOf.call(el.parentNode.children,el);el.style.setProperty('--d',Math.min(i,5)*70+'ms');el.classList.add('rv');if(!io||tops[n]<ih)el.classList.add('in');else io.observe(el)});
 })();`;
 
 /** The account whose cards are shown as live examples. */
@@ -84,7 +85,7 @@ h1,h2,h3{margin:0;line-height:1.15;letter-spacing:-.02em;text-wrap:balance}h2{fo
 .hero .wrap{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:48px;align-items:center}
 .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:.85rem;font-weight:600;color:#9be5b1;background:rgba(0,147,38,.16);border:1px solid rgba(67,211,107,.3);padding:6px 14px;border-radius:99px}
 .eyebrow img{width:18px;height:18px}
-.hero h1{font-size:clamp(2.2rem,5.4vw,3.7rem);margin:20px 0 18px}.hero h1 em{font-style:normal;color:#43d36b;background:linear-gradient(100deg,#43d36b,#9be5b1 45%,#43d36b);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:shine 6s linear infinite}
+.hero h1{font-size:clamp(2.2rem,5.4vw,3.7rem);margin:20px 0 18px}.hero h1 em{font-style:normal;color:#43d36b;background:linear-gradient(100deg,#43d36b,#9be5b1 45%,#43d36b);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 .hero .lead{font-size:1.15rem;color:#bfd3c6;max-width:560px;margin-bottom:28px}
 .btns{display:flex;gap:12px;flex-wrap:wrap}
 .chips{display:flex;gap:10px 18px;flex-wrap:wrap;margin:28px 0 0;padding:0;list-style:none}.chips li{display:inline-flex;align-items:center;gap:6px;font-size:.9rem;color:#bfd3c6}.chips svg{color:#43d36b;flex:none}
@@ -101,7 +102,7 @@ h1,h2,h3{margin:0;line-height:1.15;letter-spacing:-.02em;text-wrap:balance}h2{fo
 .hero .wrap{position:relative}
 .js .rv{opacity:0;transform:translateY(22px);transition:opacity .6s cubic-bezier(.2,.7,.2,1) var(--d,0ms),transform .6s cubic-bezier(.2,.7,.2,1) var(--d,0ms),border-color .2s,box-shadow .2s}.js .rv.in{opacity:1;transform:none}
 .js .card.rv.in:hover,.js .showcase figure.rv.in:hover{transform:translateY(-3px);transition-delay:0ms}
-@keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}@keyframes glow{0%,100%{opacity:.6;transform:scale(1)}50%{opacity:1;transform:scale(1.12)}}@keyframes shine{to{background-position:-200% 0}}
+@keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}@keyframes glow{0%,100%{opacity:.6;transform:scale(1)}50%{opacity:1;transform:scale(1.12)}}
 /* card images: reserve space so nothing jumps while they load */
 .shot{display:block;width:100%;aspect-ratio:495/195;object-fit:contain;background:var(--surface-2);border-radius:10px}
 .preview .shot{background:#122219}
@@ -180,7 +181,7 @@ export const headerHtml = (links: string) => `<header class="top">
 export const footerHtml = () => `<footer>
   <div class="wrap">
     <div class="row">
-      <div class="who"><img src="/sylvenos-logo.webp" alt="" width="36" height="38" loading="lazy"><span>${esc(SITE.name)} &middot; by ${esc(SITE.org.name)}</span></div>
+      <div class="who"><img src="/sylvenos-logo-40.webp" alt="" width="36" height="38" loading="lazy"><span>${esc(SITE.name)} &middot; by ${esc(SITE.org.name)}</span></div>
       <nav aria-label="Footer"><a href="/app">App</a><a href="/about">About</a><a href="/llms.txt">llms.txt</a><a href="/api/openapi.json">API</a><a href="${esc(SITE.repo)}/blob/main/SECURITY.md" rel="noopener">Security</a><a href="${esc(SITE.repo)}" rel="noopener">GitHub</a></nav>
     </div>
     <p class="legal">&copy; ${new Date().getFullYear()} <a href="${esc(SITE.org.url)}" rel="noopener">${esc(SITE.org.name)}</a>. ${esc(SITE.name)} is released under the <a href="${esc(SITE.license.url)}" rel="noopener">${esc(SITE.license.name)} licence</a>. ${esc(SITE.org.motto)}</p>
@@ -239,7 +240,7 @@ ${headerHtml(`<a class="opt" href="#features">Features</a><a class="opt" href="#
 <div class="hero">
   <div class="wrap">
     <div>
-      <span class="eyebrow"><img src="/sylvenos-logo.webp" alt="" width="18" height="19">Open source by ${esc(SITE.org.name)}</span>
+      <span class="eyebrow"><img src="/sylvenos-logo-40.webp" alt="" width="18" height="19">Open source by ${esc(SITE.org.name)}</span>
       <h1>Make your GitHub profile <em>worth a second look</em></h1>
       <p class="lead">${esc(SITE.name)} turns your public GitHub data into stats cards, streaks, trophies and complete README designs. Free, open source and ready to paste.</p>
       <div class="btns"><a class="btn primary" href="/app">Open the playground</a><a class="btn ghost" href="${esc(SITE.repo)}" rel="noopener">${icon(ICONS.star, 18)}Star on GitHub</a></div>
@@ -310,7 +311,7 @@ ${feature(ICONS.lock, 'Private by design', 'No cookies and no analytics scripts.
   <section id="sylvenos">
     <div class="wrap">
       <div class="syl">
-        <img class="logo" src="/sylvenos-logo.webp" alt="SylvenOS logo" width="148" height="155" loading="lazy">
+        <img class="logo" src="/sylvenos-logo-160.webp" srcset="/sylvenos-logo-160.webp 1x, /sylvenos-logo.webp 2x" alt="SylvenOS logo" width="148" height="155" loading="lazy">
         <div>
           <div class="word">Sylven<span>OS</span></div>
           <span class="motto">${esc(SITE.org.motto)}</span>

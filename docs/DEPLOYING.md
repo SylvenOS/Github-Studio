@@ -20,7 +20,7 @@ npx wrangler secret put GITHUB_TOKEN  # paste the token when asked
 pnpm deploy                           # wrangler deploy
 ```
 
-Wrangler prints your URL, for example `https://profilefoundry-api.<your-subdomain>.workers.dev`. Open it for the web app, and check `/api/health`.
+Wrangler prints your URL, for example `https://githubstudio.<your-subdomain>.workers.dev`. Open it for the web app, and check `/api/health`.
 
 The worker name comes from `name` in `wrangler.toml`; change it first if you want a different subdomain.
 
