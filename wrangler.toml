@@ -5,7 +5,15 @@ minify = true
 
 [observability]
 enabled = true
+
 # one structured log line per card request; sample to keep log volume sane under heavy traffic
+[observability.logs]
+enabled = true
+head_sampling_rate = 0.2
+invocation_logs = true
+
+[observability.traces]
+enabled = false
 head_sampling_rate = 0.2
 
 # Configuration (set secrets with `wrangler secret put <NAME>`):
