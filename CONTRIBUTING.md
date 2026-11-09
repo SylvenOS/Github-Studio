@@ -19,8 +19,8 @@ If you plan a big change (a new subsystem, a new data provider, a redesign), ope
 You need Node.js 22 or newer and [pnpm](https://pnpm.io).
 
 ```bash
-git clone https://github.com/akshaykurve/github-stats.git
-cd github-stats
+git clone https://github.com/akshaykurve/Github-Studio.git
+cd Github-Studio
 pnpm install
 cp .env.example .env     # then add your own GITHUB_TOKEN (see below)
 pnpm dev                 # http://localhost:8787
