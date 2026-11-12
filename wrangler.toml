@@ -11,10 +11,12 @@ enabled = true
 enabled = true
 head_sampling_rate = 0.2
 invocation_logs = true
+persist = true
 
 [observability.traces]
-enabled = false
+enabled = true
 head_sampling_rate = 0.2
+persist = true
 
 # Configuration (set secrets with `wrangler secret put <NAME>`):
 #   GITHUB_TOKEN   - recommended. Enables GraphQL: real stars, language bytes, exact daily
