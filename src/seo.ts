@@ -262,8 +262,13 @@ export function robotsTxt(origin: string): string {
     // Training-data and research crawlers
     'CCBot', 'Bytespider', 'TikTokSpider', 'Diffbot', 'ImagesiftBot', 'Omgilibot', 'Omgili', 'Timpibot', 'PetalBot', 'Webzio-Extended',
     'AI2Bot', 'Ai2Bot-Dolma', 'ICC-Crawler', 'PanguBot', 'Cotoyogi', 'LAIONDownloadBot', 'img2dataset', 'SBIntuitionsBot', 'VelenPublicWebCrawler',
+    // xAI (Grok), DeepSeek, Alibaba (Qwen), Zhipu (ChatGLM), Moonshot and other model vendors
+    'GrokBot', 'xAI-Grok', 'Grok-DeepSearch', 'Grok', 'xAI-Bot', 'DeepSeekBot', 'DeepSeek', 'Qwen', 'QwenBot', 'ChatGLM-Spider', 'Kimi', 'KimiBot',
+    'Gemini-Deep-Research', 'GoogleAgent-Mariner', 'Google-NotebookLM', 'bingbot', 'BingPreview', 'Copilot', 'MicrosoftPreview', 'HuggingFace-Bot', 'meta-webindexer',
+    'Baiduspider', 'YandexAdditional', 'YandexAdditionalBot', 'Yandex', 'NaverBot', 'Yeti', 'SeznamBot',
     // Retrieval and scraping services
-    'FirecrawlAgent', 'ExaBot', 'LinkupBot', 'TavilyBot', 'Scrapy'
+    'FirecrawlAgent', 'ExaBot', 'LinkupBot', 'TavilyBot', 'Crawl4AI', 'Brightbot', 'ShapBot', 'Scrapy',
+    'MyCentralAIScraperBot', 'AwarioBot', 'AwarioSmartBot', 'iAskSpider'
   ];
   const rules = ['Allow: /', 'Disallow: /api/', 'Allow: /api/openapi.json', 'Allow: /api/cards', 'Allow: /api/themes', 'Allow: /api/definitions'].join('\n');
   return [
