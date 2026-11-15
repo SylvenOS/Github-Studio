@@ -36,10 +36,10 @@
     "jpeg-js": "^0.4.4"
   },
   "devDependencies": {
-    "vite": "^7.3.7",
-    "@cloudflare/workers-types": "^4.20260702.1",
+    "@cloudflare/workers-types": "^5.20261112.1",
     "simple-icons": "^16.36.0",
     "typescript": "^5.9.3",
+    "vite": "^7.3.7",
     "vitest": "^4.1.12",
     "wrangler": "^4.158.0"
   }

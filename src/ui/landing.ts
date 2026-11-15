@@ -172,7 +172,7 @@ export const faqItem = (q: string, a: string) =>
 /** Sticky dark header with the theme toggle. `links` are the optional (hidden on phones) nav anchors. */
 export const headerHtml = (links: string) => `<header class="top">
   <div class="wrap">
-    <a class="brand" href="/" aria-label="GithubStudio home"><img src="/favicon.svg" alt="" width="32" height="32"><span>GithubStudio</span></a>
+    <a class="brand" href="/" aria-label="GitHubStudio home"><img src="/favicon.svg" alt="" width="32" height="32"><span>GitHubStudio</span></a>
     <nav aria-label="Main">${links}<button class="tt" id="theme" type="button" aria-label="Switch theme" title="Switch light and dark theme"><span class="i-moon">${icon(ICONS.moon, 20)}</span><span class="i-sun">${icon(ICONS.sun, 20)}</span></button><a class="btn primary" href="/app">Open the app</a></nav>
   </div>
 </header>`;
