@@ -6,3 +6,6 @@ dist/
 !.env.example
 .dev.vars
 .DS_Store
+
+# Use pnpm only
+package-lock.json
