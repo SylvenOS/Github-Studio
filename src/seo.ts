@@ -248,7 +248,28 @@ export function jsonLd(origin: string, opts: { faq?: boolean; faqId?: string; fa
 }
 
 export function robotsTxt(origin: string): string {
-  const aiBots = ['GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'ClaudeBot', 'Claude-User', 'Claude-SearchBot', 'PerplexityBot', 'Google-Extended', 'Applebot-Extended', 'CCBot', 'Bytespider', 'Amazonbot', 'anthropic-ai', 'Perplexity-User', 'MistralAI-User', 'cohere-ai', 'DuckAssistBot', 'Meta-ExternalAgent', 'Applebot'];
+  const aiBots = [
+    // OpenAI
+    'GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'OAI-AdsBot', 'ChatGPT-Agent', 'Operator',
+    // Anthropic
+    'ClaudeBot', 'Claude-User', 'Claude-SearchBot', 'Claude-Web', 'anthropic-ai',
+    // Google
+    'Google-Extended', 'Google-CloudVertexBot', 'Google-Agent', 'GoogleOther', 'GoogleOther-Image', 'GoogleOther-Video',
+    // Apple, Amazon, Meta, Microsoft-adjacent
+    'Applebot', 'Applebot-Extended', 'Amazonbot', 'Meta-ExternalAgent', 'Meta-ExternalFetcher', 'FacebookBot',
+    // Answer engines and agents
+    'PerplexityBot', 'Perplexity-User', 'MistralAI-User', 'cohere-ai', 'DuckAssistBot', 'YouBot', 'PhindBot', 'Andibot', 'NovaAct', 'Manus-User', 'Kimi-User',
+    // Training-data and research crawlers
+    'CCBot', 'Bytespider', 'TikTokSpider', 'Diffbot', 'ImagesiftBot', 'Omgilibot', 'Omgili', 'Timpibot', 'PetalBot', 'Webzio-Extended',
+    'AI2Bot', 'Ai2Bot-Dolma', 'ICC-Crawler', 'PanguBot', 'Cotoyogi', 'LAIONDownloadBot', 'img2dataset', 'SBIntuitionsBot', 'VelenPublicWebCrawler',
+    // xAI (Grok), DeepSeek, Alibaba (Qwen), Zhipu (ChatGLM), Moonshot and other model vendors
+    'GrokBot', 'xAI-Grok', 'Grok-DeepSearch', 'Grok', 'xAI-Bot', 'DeepSeekBot', 'DeepSeek', 'Qwen', 'QwenBot', 'ChatGLM-Spider', 'Kimi', 'KimiBot',
+    'Gemini-Deep-Research', 'GoogleAgent-Mariner', 'Google-NotebookLM', 'bingbot', 'BingPreview', 'Copilot', 'MicrosoftPreview', 'HuggingFace-Bot', 'meta-webindexer',
+    'Baiduspider', 'YandexAdditional', 'YandexAdditionalBot', 'Yandex', 'NaverBot', 'Yeti', 'SeznamBot',
+    // Retrieval and scraping services
+    'FirecrawlAgent', 'ExaBot', 'LinkupBot', 'TavilyBot', 'Crawl4AI', 'Brightbot', 'ShapBot', 'Scrapy',
+    'MyCentralAIScraperBot', 'AwarioBot', 'AwarioSmartBot', 'iAskSpider'
+  ];
   const rules = ['Allow: /', 'Disallow: /api/', 'Allow: /api/openapi.json', 'Allow: /api/cards', 'Allow: /api/themes', 'Allow: /api/definitions'].join('\n');
   return [
     '# GithubStudio is free and open source. Search engines and AI assistants are welcome to read the public pages.',
