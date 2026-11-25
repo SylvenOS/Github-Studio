@@ -18,6 +18,11 @@ enabled = true
 head_sampling_rate = 0.2
 persist = true
 
+# Workers Cache: cached responses are served without running the Worker. Keep this block: a deploy
+# without it turns caching off.
+[cache]
+enabled = true
+
 # Configuration (set secrets with `wrangler secret put <NAME>`):
 #   GITHUB_TOKEN   - recommended. Enables GraphQL: real stars, language bytes, exact daily
 #                    contributions and far higher rate limits. No scopes needed (public data).
